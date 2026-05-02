@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Painel de Controle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-w: 240px;
+      --red:       #b91c1c;
+      --red-lt:    #dc2626;
+      --green:     #15803d;
+      --blue:      #1d4ed8;
+      --orange:    #c2410c;
+      --sidebar-bg:#0f172a;
+      --sidebar-hover:#1e293b;
+      --sidebar-active:#1e293b;
+      --bg:        #f1f5f9;
+      --white:     #ffffff;
+      --border:    #e2e8f0;
+      --text:      #0f172a;
+      --muted:     #64748b;
+      --radius:    8px;
+      --font:      'Inter', system-ui, sans-serif;
+      --shadow:    0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+    }
+
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+    /* ══ SIDEBAR ══════════════════════════════════════════════════════════════ */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--sidebar-bg); color: #e2e8f0;
+      display: flex; flex-direction: column; position: fixed; top: 0; left: 0;
+      height: 100vh; z-index: 100; overflow-y: auto;
+    }
+    .sidebar-logo {
+      padding: 20px 20px 16px; border-bottom: 1px solid #1e293b;
+      font-size: 1.2rem; font-weight: 700; color: var(--red);
+      letter-spacing: -.5px; display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-logo span { color: #e2e8f0; font-weight: 400; }
+    .sidebar-badge { background: var(--red); color: #fff; font-size: .6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: .5px; }
+
+    .sidebar-section { padding: 12px 10px 4px; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #475569; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; border-radius: 6px; margin: 1px 8px;
+      font-size: .85rem; font-weight: 500; color: #94a3b8;
+      cursor: pointer; transition: all .15s; text-decoration: none;
+    }
+    .nav-item:hover { background: var(--sidebar-hover); color: #e2e8f0; }
+    .nav-item.active { background: var(--red); color: #fff; }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: #ef4444; color: #fff; font-size: .65rem; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+
+    .sidebar-footer {
+      margin-top: auto; padding: 14px 16px; border-top: 1px solid #1e293b;
+      font-size: .78rem; color: #64748b;
+    }
+    .sidebar-footer strong { display: block; color: #cbd5e1; font-size: .82rem; margin-bottom: 2px; }
+    .btn-logout { margin-top: 8px; width: 100%; padding: 6px; background: transparent; border: 1px solid #334155; border-radius: var(--radius); color: #64748b; font-size: .78rem; cursor: pointer; transition: all .15s; font-family: var(--font); }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+    /* ══ MAIN ══════════════════════════════════════════════════════════════════ */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+    .topbar {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 56px; display: flex; align-items: center;
+      gap: 12px; position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-title { font-size: 1rem; font-weight: 600; flex: 1; }
+    .topbar-sub { font-size: .78rem; color: var(--muted); }
+
+    .content { padding: 24px; flex: 1; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ══ CARDS DE STATS ═══════════════════════════════════════════════════════ */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px;
+    }
+    .stat-card-top { display: flex; align-items: center; justify-content: space-between; }
+    .stat-card-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    .stat-card-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .stat-card-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .stat-card-delta { font-size: .75rem; color: var(--green); font-weight: 500; }
+    .icon-red    { background: #fef2f2; color: var(--red); }
+    .icon-green  { background: #f0fdf4; color: var(--green); }
+    .icon-blue   { background: #eff6ff; color: var(--blue); }
+    .icon-orange { background: #fff7ed; color: var(--orange); }
+    .icon-purple { background: #faf5ff; color: #7c3aed; }
+
+    /* ══ GRID DE PAINÉIS ══════════════════════════════════════════════════════ */
+    .panels-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .panels-grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+    .panel-header {
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title { font-size: .88rem; font-weight: 600; }
+    .panel-body { padding: 0; }
+
+    /* ══ TABELAS ══════════════════════════════════════════════════════════════ */
+    .data-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .data-table th { background: #f8fafc; padding: 9px 14px; text-align: left; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .data-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: var(--text); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #f8fafc; }
+    .data-table td strong { color: var(--text); }
+    .data-table tr.clickable { cursor: pointer; }
+    .data-table tr.clickable:hover td { background: #fef2f2; }
+
+    /* ══ BADGES ═══════════════════════════════════════════════════════════════ */
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+    .badge-green  { background: #dcfce7; color: #166534; }
+    .badge-red    { background: #fee2e2; color: #991b1b; }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .badge-gray   { background: #f1f5f9; color: #475569; }
+    .badge-orange { background: #ffedd5; color: #9a3412; }
+    .badge-purple { background: #ede9fe; color: #5b21b6; }
+    .badge-yellow { background: #fef9c3; color: #854d0e; }
+    /* Badges de categoria (espelho subscriber) */
+    .badge-cat { display: inline-block; font-size: .68rem; font-weight: 600; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: .3px; color: #fff; }
+    .badge-nacional   { background: #b91c1c; }
+    .badge-regional   { background: #15803d; }
+    .badge-governo    { background: #1d4ed8; }
+    .badge-esporte    { background: #c2410c; }
+    .badge-agro       { background: #92400e; }
+    .badge-prefeitura { background: #374151; }
+
+    /* Loading estilo subscriber */
+    .loading-wrap { text-align: center; padding: 2.5rem; color: var(--muted); font-size: .85rem; }
+    .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--red); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto .75rem; }
+
+    /* Tabela publicar (espelho subscriber) */
+    .pub-tabela-wrap { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+    .pub-tabela-wrap table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .pub-tabela-wrap thead th { background: #f8fafc; padding: .6rem .85rem; text-align: left; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .pub-tabela-wrap tbody tr { cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+    .pub-tabela-wrap tbody tr:last-child { border-bottom: none; }
+    .pub-tabela-wrap tbody tr:hover { background: #fef2f2; }
+    .pub-tabela-wrap td { padding: .65rem .85rem; color: #374151; vertical-align: middle; }
+    .pub-tabela-wrap td.titulo-pub { color: var(--text); font-weight: 500; max-width: 400px; }
+
+    /* ══ BARRA FONTE ══════════════════════════════════════════════════════════ */
+    .fonte-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; }
+    .fonte-bar:last-child { border-bottom: none; }
+    .fonte-bar-name { font-size: .83rem; font-weight: 500; flex: 1; }
+    .fonte-bar-track { flex: 1; background: #f1f5f9; border-radius: 4px; height: 6px; overflow: hidden; }
+    .fonte-bar-fill { height: 100%; background: var(--red); border-radius: 4px; transition: width .5s; }
+    .fonte-bar-count { font-size: .75rem; color: var(--muted); min-width: 32px; text-align: right; }
+
+    /* ══ BOTÕES ═══════════════════════════════════════════════════════════════ */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: .83rem; font-weight: 500; cursor: pointer; border: none; font-family: var(--font); transition: opacity .15s, background .15s; }
+    .btn:hover { opacity: .88; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: var(--red); color: #fff; }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-sm { padding: 4px 10px; font-size: .78rem; }
+    .btn-danger { background: #fee2e2; color: #991b1b; }
+    .btn-success { background: #dcfce7; color: #166534; }
+    .btn-info { background: #dbeafe; color: #1e40af; }
+
+    /* ══ FILTROS / TOOLBAR ════════════════════════════════════════════════════ */
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    .toolbar input, .toolbar select {
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 12px;
+      font-size: .83rem; font-family: var(--font); background: var(--white); color: var(--text);
+    }
+    .toolbar input:focus, .toolbar select:focus { outline: none; border-color: var(--red); }
+    .toolbar input { min-width: 220px; }
+
+    /* ══ SECTION HEADER ═══════════════════════════════════════════════════════ */
+    .section-hdr { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .section-hdr h2 { font-size: 1.1rem; font-weight: 700; flex: 1; }
+
+    /* ══ TOGGLE ═══════════════════════════════════════════════════════════════ */
+    .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: #cbd5e1; border-radius: 20px; transition: .3s; }
+    .slider::before { content:''; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .3s; }
+    input:checked + .slider { background: var(--green); }
+    input:checked + .slider::before { transform: translateX(16px); }
+
+    /* ══ MODAL ════════════════════════════════════════════════════════════════ */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .overlay.hidden { display: none; }
+    .modal { background: var(--white); border-radius: var(--radius); width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-md); }
+    .modal-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h3 { font-size: 1rem; font-weight: 700; }
+    .modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted); padding: 4px; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: .75rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .4px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: .88rem; font-family: var(--font); color: var(--text); background: var(--white); transition: border-color .15s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--red); }
+    .form-group textarea { resize: vertical; min-height: 70px; font-size: .83rem; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-check { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .form-check input { width: auto; }
+    .form-check label { font-size: .88rem; color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+    /* ══ TABS (modal cliente) ══════════════════════════════════════════════════ */
+    .tab-bar { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 18px; gap: 0; }
+    .tab-btn { padding: 9px 16px; font-size: .82rem; font-weight: 600; color: var(--muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: var(--font); transition: color .15s; white-space: nowrap; }
+    .tab-btn.active { color: var(--red); border-bottom-color: var(--red); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ══ SITES LIST (tab) ══════════════════════════════════════════════════════ */
+    .site-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+    .site-item-info { flex: 1; min-width: 0; }
+    .site-item-name { font-size: .88rem; font-weight: 600; }
+    .site-item-url { font-size: .75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ══ MODAL ARTIGO PUB (estilo subscriber) ══════════════════════════════════ */
+    .campo { margin-bottom: 14px; }
+    .modal-fonte-nome { font-size:.75rem; color:var(--muted); margin-bottom:.2rem; }
+    .modal-fechar { background:none; border:none; font-size:1.1rem; cursor:pointer; color:var(--muted); padding:4px; line-height:1; }
+    .modal-fechar:hover { color:var(--text); }
+    .modal-imagem { width:100%; max-height:260px; object-fit:cover; display:block; }
+    .modal-imagem.hidden { display:none; }
+    .modal-corpo { padding:1rem 1.25rem; font-size:.87rem; line-height:1.75; color:#374151; flex:1; }
+    .modal-corpo p { margin-bottom:.75rem; }
+    .link-original { font-size:.8rem; color:var(--muted); text-decoration:none; margin-left:auto; }
+    .link-original:hover { color:var(--text); }
+    /* ia-resultado */
+    .ia-resultado { padding:1rem 1.25rem; border-top:2px solid var(--red); }
+    .ia-resultado.hidden { display:none; }
+    .ia-resultado h3 { font-size:1rem; margin-bottom:1rem; color:var(--text); font-weight:600; }
+    .campo-grupo { display:flex; flex-direction:column; gap:.3rem; margin-bottom:.85rem; }
+    .campo-grupo label { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+    .campo-grupo input, .campo-grupo textarea, .campo-grupo select { border:1px solid var(--border); border-radius:var(--radius); padding:.55rem .7rem; font-size:.85rem; font-family:var(--font); color:var(--text); background:var(--white); width:100%; }
+    .campo-grupo textarea { min-height:180px; resize:vertical; line-height:1.6; }
+    /* publicar-bar */
+    .publicar-bar { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-top:.75rem; background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:.9rem 1rem; }
+    .publicar-bar-selects { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+    .publicar-sel-grupo { display:flex; flex-direction:column; gap:.25rem; }
+    .publicar-sel-grupo label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+    .publicar-sel-grupo select { width:100%; padding:.5rem .7rem; border:1.5px solid var(--border); border-radius:8px; font-size:.84rem; font-family:var(--font); color:var(--text); background:var(--white); cursor:pointer; }
+    .publicar-bar-acoes { grid-column:1/-1; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; padding-top:.5rem; border-top:1px solid var(--border); }
+    .btn-publicar { flex:1; padding:.6rem 1.1rem; background:linear-gradient(135deg,#b91c1c,#dc2626); color:#fff; border:none; border-radius:8px; font-size:.88rem; font-weight:600; font-family:var(--font); cursor:pointer; transition:opacity .15s; }
+    .btn-publicar:hover:not(:disabled) { opacity:.9; }
+    .btn-publicar:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-acao-bar { padding:.55rem .9rem; border:1.5px solid var(--border); border-radius:8px; background:var(--white); font-size:.84rem; font-family:var(--font); color:#374151; cursor:pointer; transition:border-color .15s; }
+    .btn-acao-bar:hover { border-color:#374151; }
+    .btn-acao-bar.verde { border-color:#16a34a; color:#15803d; }
+    .btn-acao-bar.verde:hover { background:#f0fdf4; }
+    .link-publicado { display:none; font-size:.82rem; color:var(--green); font-weight:500; margin-top:.5rem; }
+    .link-publicado a { color:inherit; }
+    .link-publicado.visivel { display:block; }
+    .campo label { display: block; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 5px; }
+    .campo input, .campo textarea, .campo select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: .85rem; font-family: var(--font); color: var(--text); }
+    .campo input:focus, .campo textarea:focus, .campo select:focus { outline: none; border-color: var(--red); }
+    .campo textarea { resize: vertical; line-height: 1.6; }
+    .campo textarea.corpo { min-height: 180px; }
+
+    /* ══ FONTES MODAL (cards) ══════════════════════════════════════════════════ */
+    .fc-card { border: 2px solid var(--border); border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all .15s; font-size: .82rem; }
+    .fc-card:hover { border-color: #94a3b8; }
+    .fc-card.sel { border-color: var(--green); background: #f0fdf4; }
+    .fc-check { width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: .7rem; transition: all .15s; }
+    .fc-card.sel .fc-check { background: var(--green); border-color: var(--green); color: #fff; }
+    .fc-nome { font-weight: 600; color: var(--text); flex: 1; }
+    .fc-cat { font-size: .68rem; color: var(--muted); text-transform: uppercase; }
+    .btn-cat-f { border: 1px solid var(--border); background: var(--white); border-radius: 20px; padding: 3px 12px; font-size: .75rem; cursor: pointer; transition: all .15s; font-family: var(--font); }
+    .btn-cat-f.ativo { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    /* ══ SCRAPING FIELDS ══════════════════════════════════════════════════════ */
+    .scraping-section { background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-top: 8px; }
+    .scraping-section legend { font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; display: block; }
+
+    /* ══ FINANCEIRO ═══════════════════════════════════════════════════════════ */
+    .venc-ok     { color: var(--green); font-weight: 600; }
+    .venc-warn   { color: #d97706; font-weight: 600; }
+    .venc-danger { color: var(--red); font-weight: 700; }
+    .venc-none   { color: var(--muted); }
+
+    /* ══ EMPTY / LOADING ══════════════════════════════════════════════════════ */
+    .empty { padding: 40px; text-align: center; color: var(--muted); font-size: .88rem; }
+    .loading { padding: 32px; text-align: center; color: var(--muted); font-size: .85rem; }
+    .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,0,0,.1); border-top-color: var(--red); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ══ PAGINAÇÃO ════════════════════════════════════════════════════════════ */
+    .paginacao { display: flex; align-items: center; gap: 8px; justify-content: center; margin-top: 14px; font-size: .83rem; }
+    .paginacao button { border: 1px solid var(--border); background: var(--white); border-radius: var(--radius); padding: 5px 12px; cursor: pointer; color: var(--text); font-family: var(--font); }
+    .paginacao button:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ══ TOAST ════════════════════════════════════════════════════════════════ */
+    #toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: #1e293b; color: #fff; padding: 10px 18px; border-radius: var(--radius); font-size: .85rem; box-shadow: var(--shadow-md); animation: slideIn .2s ease; }
+    .toast.sucesso { background: #166534; }
+    .toast.erro { background: #991b1b; }
+    .toast.info { background: #1e40af; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════ SIDEBAR ══════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span>RB24</span>Horas
+    <span class="sidebar-badge" style="margin-left:auto">Admin</span>
+  </div>
+
+  <div class="sidebar-section">Principal</div>
+  <a class="nav-item active" data-page="painel" onclick="irPara('painel')">
+    <span class="icon">📊</span> Painel
+  </a>
+  <a class="nav-item" data-page="publicar" onclick="irPara('publicar')">
+    <span class="icon">📰</span> Publicar
+  </a>
+
+  <div class="sidebar-section">Gestão</div>
+  <a class="nav-item" data-page="clientes" onclick="irPara('clientes')">
+    <span class="icon">👥</span> Clientes
+  </a>
+  <a class="nav-item" data-page="financeiro" onclick="irPara('financeiro')">
+    <span class="icon">💰</span> Financeiro
+  </a>
+  <a class="nav-item" data-page="fontes" onclick="irPara('fontes')">
+    <span class="icon">📡</span> Fontes
+  </a>
+  <a class="nav-item" data-page="publicacoes" onclick="irPara('publicacoes')">
+    <span class="icon">📋</span> Publicações
+  </a>
+
+  <div class="sidebar-footer">
+    <strong id="sb-nome">—</strong>
+    <span id="sb-email" style="font-size:.72rem">—</span>
+    <button class="btn-logout" onclick="logout()">↩ Sair</button>
+  </div>
+</aside>
+
+<!-- ══════════════════════════════ MAIN ═════════════════════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Painel</div>
+      <div class="topbar-sub" id="topbar-sub">Visão geral do sistema</div>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="irPara('publicar')">+ Publicar artigo</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ PAINEL (dashboard) ════════════════════════════════════════════════ -->
+    <div class="page active" id="page-painel">
+
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-blue">👥</div></div>
+          <div class="stat-card-value" id="st-clientes">—</div>
+          <div class="stat-card-label">Clientes ativos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-red">📰</div></div>
+          <div class="stat-card-value" id="st-artigos-hoje">—</div>
+          <div class="stat-card-label">Artigos coletados hoje</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-green">✅</div></div>
+          <div class="stat-card-value" id="st-pubs-hoje">—</div>
+          <div class="stat-card-label">Publicações hoje</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-orange">📡</div></div>
+          <div class="stat-card-value" id="st-fontes">—</div>
+          <div class="stat-card-label">Fontes ativas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-purple">🗃️</div></div>
+          <div class="stat-card-value" id="st-total-artigos">—</div>
+          <div class="stat-card-label">Total de artigos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-green">🌐</div></div>
+          <div class="stat-card-value" id="st-sites">—</div>
+          <div class="stat-card-label">Sites cadastrados</div>
+        </div>
+      </div>
+
+      <div class="panels-grid">
+
+        <!-- Portais mais ativos -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">📡 Artigos por portal</span>
+            <span class="badge badge-gray" id="db-total-fontes">—</span>
+          </div>
+          <div class="panel-body" id="db-fontes-body">
+            <div class="loading"><span class="spin"></span>Carregando…</div>
+          </div>
+        </div>
+
+        <!-- Últimas publicações -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">✅ Últimas publicações</span>
+            <a class="btn btn-ghost btn-sm" onclick="irPara('publicacoes')">Ver todas</a>
+          </div>
+          <div class="panel-body">
+            <table class="data-table" id="db-pubs-table">
+              <tbody><tr><td class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Clientes recentes -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">👥 Clientes</span>
+          <button class="btn btn-primary btn-sm" onclick="irPara('clientes')">Gerenciar</button>
+        </div>
+        <div class="panel-body">
+          <table class="data-table" id="db-clientes-table">
+            <thead>
+              <tr><th>Nome</th><th>Email</th><th>Plano</th><th>Status</th><th>Desde</th></tr>
+            </thead>
+            <tbody><tr><td colspan="5" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /painel -->
+
+    <!-- ══ PUBLICAR ════════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-publicar">
+
+      <div class="toolbar">
+        <select id="pub-filtro-fonte" style="min-width:160px"><option value="">Todas as fontes</option></select>
+        <select id="pub-filtro-periodo">
+          <option value="">Qualquer período</option>
+          <option value="today">Hoje</option>
+          <option value="24h">Últimas 24h</option>
+          <option value="3d">Últimos 3 dias</option>
+        </select>
+        <input type="text" id="pub-filtro-busca" placeholder="Buscar por título…" style="min-width:200px;" autocomplete="off" />
+        <button class="btn btn-secondary btn-sm" id="pub-btn-atualizar">↻ Atualizar</button>
+      </div>
+
+      <div id="pub-artigos-conteudo">
+        <div class="loading-wrap"><div class="spinner"></div>Carregando artigos…</div>
+      </div>
+
+      <div class="paginacao" id="pub-paginacao" style="display:none">
+        <button id="pub-pg-ant">← Anterior</button>
+        <span id="pub-pg-info"></span>
+        <button id="pub-pg-prox">Próximo →</button>
+      </div>
+
+    </div><!-- /publicar -->
+
+    <!-- ══ CLIENTES ════════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-clientes">
+      <div class="section-hdr">
+        <h2>Clientes</h2>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Novo cliente</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body">
+          <table class="data-table" id="tbl-clientes">
+            <thead>
+              <tr><th>Nome</th><th>Email</th><th>Plano</th><th>Valor</th><th>Vencimento</th><th>Admin</th><th>Status</th><th>Ações</th></tr>
+            </thead>
+            <tbody><tr><td colspan="8" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /clientes -->
+
+    <!-- ══ FINANCEIRO ══════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-financeiro">
+      <div class="section-hdr"><h2>Controle Financeiro</h2></div>
+
+      <div class="stats-grid" id="fin-stats-grid" style="margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-green">💵</div></div>
+          <div class="stat-card-value" id="fin-mrr">—</div>
+          <div class="stat-card-label">Receita mensal (MRR)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-blue">👥</div></div>
+          <div class="stat-card-value" id="fin-ativos">—</div>
+          <div class="stat-card-label">Clientes ativos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-orange">⚠️</div></div>
+          <div class="stat-card-value" id="fin-vencendo">—</div>
+          <div class="stat-card-label">Vencendo em 5 dias</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-red">❌</div></div>
+          <div class="stat-card-value" id="fin-vencidos">—</div>
+          <div class="stat-card-label">Planos vencidos</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body">
+          <table class="data-table" id="tbl-financeiro">
+            <thead>
+              <tr><th>Cliente</th><th>Email</th><th>Plano</th><th>Valor/mês</th><th>Vencimento</th><th>Status</th><th>Sites</th><th>Ações</th></tr>
+            </thead>
+            <tbody><tr><td colspan="8" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /financeiro -->
+
+    <!-- ══ FONTES ══════════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-fontes">
+      <div class="section-hdr">
+        <h2>Fontes de Notícias</h2>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalFonte()">+ Nova fonte</button>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="busca-fonte" placeholder="Buscar fonte…" oninput="renderFontes()" />
+        <select id="filtro-cat" onchange="renderFontes()">
+          <option value="">Todas as categorias</option>
+          <option value="nacional">Nacional</option>
+          <option value="regional">Regional</option>
+          <option value="esporte">Esporte</option>
+          <option value="governo">Governo</option>
+          <option value="prefeitura">Prefeitura</option>
+          <option value="agro">Agro</option>
+        </select>
+        <select id="filtro-status" onchange="renderFontes()">
+          <option value="">Todos os status</option>
+          <option value="ok">OK</option>
+          <option value="error">Erro</option>
+          <option value="pending">Pendente</option>
+          <option value="inactive">Inativo</option>
+        </select>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body">
+          <table class="data-table" id="tbl-fontes">
+            <thead>
+              <tr><th>Nome</th><th>Tipo</th><th>Categoria</th><th>Status</th><th>Artigos</th><th>Ativo</th><th>Ações</th></tr>
+            </thead>
+            <tbody><tr><td colspan="7" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /fontes -->
+
+    <!-- ══ PUBLICAÇÕES ═════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-publicacoes">
+      <div class="section-hdr"><h2>Histórico de Publicações</h2></div>
+      <div class="panel">
+        <div class="panel-body">
+          <table class="data-table" id="tbl-pubs">
+            <thead>
+              <tr><th>Título</th><th>Cliente</th><th>Site</th><th>Status</th><th>Data</th><th></th></tr>
+            </thead>
+            <tbody><tr><td colspan="6" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /publicacoes -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ══════════════════════ MODAIS ════════════════════════════════════════════ -->
+
+<!-- Modal Artigo (Publicar) — mesmo padrão do subscriber -->
+<div class="overlay hidden" id="modal-artigo-pub">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-header">
+      <div class="modal-header-info">
+        <div class="modal-fonte-nome" id="map-fonte-nome"></div>
+        <h2 id="map-titulo-leitura" style="font-size:1.1rem;line-height:1.35"></h2>
+      </div>
+      <button class="modal-fechar" onclick="fecharModal('modal-artigo-pub')">✕</button>
+    </div>
+    <img id="map-img-el" src="" alt="" class="modal-imagem hidden"
+         referrerpolicy="no-referrer"
+         onerror="this.classList.add('hidden')" />
+    <div class="modal-corpo" id="map-corpo-leitura"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ia" id="btn-gerar-ia-modal" onclick="gerarComIAModal()">✦ Gerar com IA e Publicar</button>
+      <a id="map-link-original" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
+    </div>
+
+    <!-- Resultado da IA -->
+    <div class="ia-resultado hidden" id="map-ia-resultado">
+      <h3>Resultado Editorial</h3>
+      <div class="campo-grupo"><label>Chapéu</label><input type="text" id="map-chapeu" maxlength="80" /></div>
+      <div class="campo-grupo"><label>Título</label><input type="text" id="map-titulo" /></div>
+      <div class="campo-grupo"><label>Resumo</label><input type="text" id="map-resumo" /></div>
+      <div class="campo-grupo"><label>Corpo</label><textarea id="map-corpo"></textarea></div>
+      <div class="campo-grupo"><label>Tags</label><input type="text" id="map-tags" placeholder="separadas por vírgula" /></div>
+      <div class="campo-grupo"><label>Imagem destacada</label><input type="url" id="map-imagem" placeholder="URL da imagem…" /></div>
+      <div class="publicar-bar">
+        <div class="publicar-bar-selects">
+          <div class="publicar-sel-grupo">
+            <label>🌐 Portal de destino</label>
+            <select id="map-site"><option value="">Selecione um site…</option></select>
+          </div>
+          <div class="publicar-sel-grupo">
+            <label>🗂 Categoria</label>
+            <select id="map-categoria"><option value="">Selecione o site primeiro…</option></select>
+          </div>
+        </div>
+        <div class="publicar-bar-acoes">
+          <button class="btn-publicar" id="btn-pub-modal" onclick="publicarArtigoModal()">✓ Publicar agora</button>
+          <button class="btn-acao-bar" id="btn-regen-modal" onclick="gerarComIAModal()">↻ Regenerar</button>
+          <button class="btn-acao-bar verde" id="btn-baixar-html-modal">⬇ HTML</button>
+          <button class="btn-acao-bar" id="btn-visualizar-html-modal">👁 Visualizar</button>
+        </div>
+      </div>
+      <div class="link-publicado" id="map-link-publicado"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cliente (com abas) -->
+<div class="overlay hidden" id="modal-cliente">
+  <div class="modal" style="width:860px;max-width:96vw">
+    <div class="modal-header">
+      <h3 id="mc-title">Novo Cliente</h3>
+      <button class="modal-close" onclick="fecharModal('modal-cliente')">✕</button>
+    </div>
+    <div class="modal-body" style="padding-top:0">
+      <input type="hidden" id="mc-id" />
+
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="mcTab('dados')">👤 Dados</button>
+        <button class="tab-btn" onclick="mcTab('plano')">📋 Plano</button>
+        <button class="tab-btn" onclick="mcTab('sites')">🌐 Sites</button>
+        <button class="tab-btn" onclick="mcTab('ia')">🤖 IA</button>
+        <button class="tab-btn" onclick="mcTab('fontes')">📡 Fontes</button>
+      </div>
+
+      <!-- Aba Dados -->
+      <div class="tab-pane active" id="mc-tab-dados">
+        <div class="form-row">
+          <div class="form-group"><label>Nome *</label><input type="text" id="mc-name" required /></div>
+          <div class="form-group"><label>Email *</label><input type="email" id="mc-email" required /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Senha <small id="mc-hint" style="font-weight:400;text-transform:none;font-size:.75rem">(deixe em branco para manter)</small></label>
+            <input type="password" id="mc-password" autocomplete="new-password" />
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end;gap:16px;padding-bottom:4px">
+            <div class="form-check"><input type="checkbox" id="mc-active" checked /><label for="mc-active">Ativo</label></div>
+            <div class="form-check"><input type="checkbox" id="mc-admin" /><label for="mc-admin">Administrador</label></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aba Plano -->
+      <div class="tab-pane" id="mc-tab-plano">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Plano</label>
+            <select id="mc-plan"><option value="">Sem plano</option></select>
+          </div>
+          <div class="form-group">
+            <label>Valor personalizado (R$/mês)</label>
+            <input type="number" id="mc-plan-value" min="0" step="0.01" placeholder="0,00" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Acesso até</label>
+            <input type="date" id="mc-expires" />
+          </div>
+          <div class="form-group">
+            <label style="color:transparent">.</label>
+            <div style="padding:8px;background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--muted)">
+              ⚠️ Aviso automático será enviado 5 dias antes do vencimento
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aba Sites -->
+      <div class="tab-pane" id="mc-tab-sites">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+          <button class="btn btn-primary btn-sm" onclick="abrirModalSite()">+ Adicionar site</button>
+        </div>
+        <div id="mc-sites-list">
+          <div class="empty" style="padding:20px">Carregando…</div>
+        </div>
+      </div>
+
+      <!-- Aba IA -->
+      <div class="tab-pane" id="mc-tab-ia">
+        <div class="form-group">
+          <label>Chave Gemini API</label>
+          <input type="text" id="mc-gemini-key" placeholder="AIza…" />
+        </div>
+        <div class="form-group">
+          <label>Prompt de IA padrão</label>
+          <textarea id="mc-ai-prompt" rows="6" placeholder="Instruções de estilo e formato para reescrita das notícias…"></textarea>
+        </div>
+      </div>
+
+      <!-- Aba Fontes -->
+      <div class="tab-pane" id="mc-tab-fontes">
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="toggleTodasFontesMC(true)">✓ Selecionar todas</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleTodasFontesMC(false)">✕ Remover todas</button>
+          <span id="mc-fontes-contador" style="margin-left:auto;font-size:.82rem;color:var(--muted);align-self:center"></span>
+        </div>
+        <div id="mc-fontes-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+        <div id="mc-fontes-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;max-height:300px;overflow-y:auto"></div>
+      </div>
+
+    </div><!-- /modal-body -->
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-cliente')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-cliente" onclick="salvarCliente()">Salvar dados</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Site (sub-modal dentro do cliente) -->
+<div class="overlay hidden" id="modal-site-cli">
+  <div class="modal" style="width:580px;max-width:95vw;z-index:400">
+    <div class="modal-header">
+      <h3 id="msc-title">Novo Site</h3>
+      <button class="modal-close" onclick="fecharModal('modal-site-cli')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="msc-id" />
+      <div class="form-row">
+        <div class="form-group"><label>Nome *</label><input type="text" id="msc-name" placeholder="Meu Site" /></div>
+        <div class="form-group">
+          <label>Plataforma *</label>
+          <select id="msc-platform" onchange="toggleSitePlatformFields()">
+            <option value="wordpress">WordPress</option>
+            <option value="blogger">Blogger</option>
+            <option value="webhook">Webhook</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>URL do site *</label><input type="url" id="msc-url" placeholder="https://meusite.com.br" /></div>
+
+      <!-- WordPress -->
+      <div id="msc-wp-fields">
+        <div class="form-row">
+          <div class="form-group"><label>Usuário WP</label><input type="text" id="msc-wp-user" /></div>
+          <div class="form-group"><label>App Password WP</label><input type="password" id="msc-wp-pass" placeholder="xxxx xxxx xxxx…" /></div>
+        </div>
+      </div>
+
+      <!-- Blogger -->
+      <div id="msc-blogger-fields" style="display:none">
+        <div class="form-group"><label>Blog ID</label><input type="text" id="msc-blog-id" /></div>
+      </div>
+
+      <!-- Webhook -->
+      <div id="msc-webhook-fields" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Webhook URL</label><input type="url" id="msc-webhook-url" /></div>
+          <div class="form-group"><label>Webhook Secret</label><input type="text" id="msc-webhook-secret" /></div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Formato de post</label>
+          <select id="msc-post-format">
+            <option value="editorial">Editorial</option>
+            <option value="simple">Simples</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Categoria padrão</label><input type="text" id="msc-cat-id" placeholder="ID ou slug" /></div>
+      </div>
+      <div class="form-group">
+        <label>Prompt de IA do site</label>
+        <textarea id="msc-ai-prompt" rows="3" placeholder="Estilo editorial específico deste site…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-site-cli')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-site-cli" onclick="salvarSiteCli()">Salvar site</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Fonte (criar/editar) -->
+<div class="overlay hidden" id="modal-fonte">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="mf-title">Nova Fonte</h3>
+      <button class="modal-close" onclick="fecharModal('modal-fonte')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mf-slug-original" />
+      <div class="form-row">
+        <div class="form-group"><label>Nome *</label><input type="text" id="mf-name" required /></div>
+        <div class="form-group"><label>Slug *</label><input type="text" id="mf-slug" required /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="mf-type" onchange="toggleScrapingFields()"><option value="rss">RSS</option><option value="scraping">Scraping</option></select>
+        </div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <select id="mf-category">
+            <option value="nacional">Nacional</option><option value="regional">Regional</option>
+            <option value="esporte">Esporte</option><option value="governo">Governo</option>
+            <option value="prefeitura">Prefeitura</option><option value="agro">Agro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>URL *</label><input type="url" id="mf-url" required /></div>
+      <div id="scraping-fields" style="display:none">
+        <div class="scraping-section">
+          <legend>Configurações de Scraping</legend>
+          <div class="form-row">
+            <div class="form-group"><label>Item Selector</label><input type="text" id="mf-itemSelector" /></div>
+            <div class="form-group"><label>Title Selector</label><input type="text" id="mf-titleSelector" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Link Selector</label><input type="text" id="mf-linkSelector" /></div>
+            <div class="form-group"><label>Image Selector</label><input type="text" id="mf-imageSelector" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Date Selector</label><input type="text" id="mf-dateSelector" /></div>
+            <div class="form-group"><label>Link Filter (regex)</label><input type="text" id="mf-linkFilter" /></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-fonte')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-fonte" onclick="salvarFonte()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast-wrap"></div>
+
+<script>
+'use strict';
+
+const BACKEND = window.location.origin.startsWith('http://localhost') ? window.location.origin : 'http://localhost:3000';
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const token = localStorage.getItem('rb24_token');
+if (!token) { location.href = 'login.html'; }
+
+try {
+  const p = JSON.parse(atob(token.split('.')[1]));
+  if (!p.is_admin) { alert('Acesso negado.'); location.href = 'index.html'; }
+} catch { location.href = 'login.html'; }
+
+const sub = (() => { try { return JSON.parse(localStorage.getItem('rb24_subscriber') || '{}'); } catch { return {}; } })();
+document.getElementById('sb-nome').textContent  = sub.name  || 'Admin';
+document.getElementById('sb-email').textContent = sub.email || '';
+
+function authHeader() { return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }; }
+function logout() { localStorage.removeItem('rb24_token'); localStorage.removeItem('rb24_subscriber'); location.href = 'login.html'; }
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, tipo = '') {
+  const el = document.createElement('div');
+  el.className = `toast ${tipo}`;
+  el.textContent = msg;
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── Navegação ─────────────────────────────────────────────────────────────────
+const PAGE_TITLES = {
+  painel:      ['Painel', 'Visão geral do sistema'],
+  publicar:    ['Publicar', 'Selecione um artigo e publique'],
+  clientes:    ['Clientes', 'Gerencie os assinantes da plataforma'],
+  financeiro:  ['Financeiro', 'Controle financeiro dos clientes'],
+  fontes:      ['Fontes', 'Portais e feeds de notícias'],
+  publicacoes: ['Publicações', 'Histórico de artigos publicados'],
+};
+
+function irPara(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  const [title, sub] = PAGE_TITLES[page] || [page, ''];
+  document.getElementById('topbar-title').textContent = title;
+  document.getElementById('topbar-sub').textContent   = sub;
+
+  if (page === 'clientes')    carregarClientes();
+  if (page === 'fontes')      carregarFontes();
+  if (page === 'publicacoes') carregarPublicacoes();
+  if (page === 'publicar')    iniciarPublicar();
+  if (page === 'financeiro')  carregarFinanceiro();
+}
+
+// ══ PAINEL (dashboard) ════════════════════════════════════════════════════════
+
+async function carregarDashboard() {
+  try {
+    const [stats, pubs, allSites] = await Promise.all([
+      fetch(`${BACKEND}/api/admin/stats`,               { headers: authHeader() }).then(r => r.json()),
+      fetch(`${BACKEND}/api/admin/recent-publications`, { headers: authHeader() }).then(r => r.json()),
+      fetch(`${BACKEND}/api/admin/all-sites`,           { headers: authHeader() }).then(r => r.json()),
+    ]);
+
+    document.getElementById('st-clientes').textContent      = stats.activeSubscribers ?? '—';
+    document.getElementById('st-artigos-hoje').textContent  = stats.articlesToday?.toLocaleString('pt-BR') ?? '—';
+    document.getElementById('st-fontes').textContent        = `${stats.activeSources}/${stats.totalSources}`;
+    document.getElementById('st-total-artigos').textContent = stats.totalArticles?.toLocaleString('pt-BR') ?? '—';
+    document.getElementById('st-sites').textContent         = allSites.length ?? '—';
+
+    const hoje = new Date().toDateString();
+    const pubsHoje = (pubs || []).filter(p => new Date(p.published_at).toDateString() === hoje).length;
+    document.getElementById('st-pubs-hoje').textContent = pubsHoje;
+
+    const bySource = (stats.bySource || []).filter(s => s.total > 0);
+    const maxTotal = Math.max(...bySource.map(s => s.total), 1);
+    document.getElementById('db-total-fontes').textContent = `${bySource.length} portais`;
+    document.getElementById('db-fontes-body').innerHTML = bySource.slice(0, 15).map(s => `
+      <div class="fonte-bar">
+        <div class="fonte-bar-name">${s.name}</div>
+        <div class="fonte-bar-track"><div class="fonte-bar-fill" style="width:${(s.total/maxTotal*100).toFixed(0)}%"></div></div>
+        <div class="fonte-bar-count">${s.total}</div>
+      </div>`).join('') || '<div class="empty">Sem dados</div>';
+
+    const tbody = document.querySelector('#db-pubs-table tbody');
+    if (!pubs || !pubs.length) {
+      tbody.innerHTML = '<tr><td class="empty">Nenhuma publicação ainda</td></tr>';
+    } else {
+      tbody.innerHTML = pubs.slice(0, 8).map(p => `
+        <tr>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <strong title="${p.rewritten_title || p.original_title || ''}">${p.rewritten_title || p.original_title || '—'}</strong>
+          </td>
+          <td style="font-size:.78rem;color:var(--muted)">${p.subscriber_name || '—'}</td>
+          <td><span class="badge ${p.status === 'published' ? 'badge-green' : 'badge-red'}">${p.status}</span></td>
+          <td style="font-size:.75rem;color:var(--muted)">${new Date(p.published_at).toLocaleDateString('pt-BR')}</td>
+        </tr>`).join('');
+    }
+
+    const clientes = await fetch(`${BACKEND}/api/admin/subscribers`, { headers: authHeader() }).then(r => r.json());
+    const tbCli = document.querySelector('#db-clientes-table tbody');
+    tbCli.innerHTML = clientes.slice(0, 6).map(c => `
+      <tr>
+        <td><strong>${c.name}</strong></td>
+        <td style="color:var(--muted);font-size:.82rem">${c.email}</td>
+        <td><span class="badge badge-gray">${c.plan_name || 'Sem plano'}</span></td>
+        <td><span class="badge ${c.active ? 'badge-green' : 'badge-red'}">${c.active ? 'Ativo' : 'Inativo'}</span></td>
+        <td style="font-size:.78rem;color:var(--muted)">${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="5" class="empty">Nenhum cliente</td></tr>';
+
+  } catch (e) { console.error(e); }
+}
+
+// ══ PUBLICAR (tabela) ════════════════════════════════════════════════════════
+
+let pubPagina = 1;
+let pubTotalPag = 1;
+let artigoSelecionado = null;
+let allSitesCache = [];
+
+async function iniciarPublicar() {
+  await Promise.all([carregarArtigosPub(), carregarSitesModal()]);
+}
+
+async function carregarSitesModal() {
+  try {
+    const sites = await fetch(`${BACKEND}/api/admin/all-sites`, { headers: authHeader() }).then(r => r.json());
+    allSitesCache = sites;
+
+    const sel = document.getElementById('map-site');
+    sel.innerHTML = '<option value="">Selecione um site…</option>';
+    const byClient = {};
+    sites.forEach(s => {
+      const key = s.subscriber_name || 'Sem cliente';
+      if (!byClient[key]) byClient[key] = [];
+      byClient[key].push(s);
+    });
+    Object.entries(byClient).forEach(([cli, lista]) => {
+      const grp = document.createElement('optgroup');
+      grp.label = cli;
+      lista.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name + ' (' + s.platform + ')';
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    });
+
+    const fSel = document.getElementById('pub-filtro-fonte');
+    if (fSel.options.length <= 1) {
+      const fontes = await fetch(`${BACKEND}/api/admin/sources`, { headers: authHeader() }).then(r => r.json());
+      fontes.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.slug;
+        opt.textContent = f.name;
+        fSel.appendChild(opt);
+      });
+    }
+  } catch(e) { console.error(e); }
+}
+
+function pubBadgeCategoria(cat) {
+  const mapa = { nacional:'badge-nacional', regional:'badge-regional', governo:'badge-governo', esporte:'badge-esporte', agro:'badge-agro', prefeitura:'badge-prefeitura' };
+  return `<span class="badge-cat ${mapa[cat] || 'badge-regional'}">${cat || ''}</span>`;
+}
+
+function pubTempoRelativo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3600000);
+  if (h < 1)  return `${Math.floor(diff / 60000)}min`;
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+async function carregarArtigosPub(pagina = 1) {
+  pubPagina = pagina;
+  const fonte   = document.getElementById('pub-filtro-fonte').value;
+  const busca   = document.getElementById('pub-filtro-busca').value.trim();
+  const periodo = document.getElementById('pub-filtro-periodo').value;
+
+  const params = new URLSearchParams({ page: pagina, limit: 30 });
+  if (fonte)   params.set('source', fonte);
+  if (busca)   params.set('search', busca);
+  if (periodo) params.set('period', periodo);
+
+  const conteudo = document.getElementById('pub-artigos-conteudo');
+  conteudo.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Carregando artigos…</div>';
+  document.getElementById('pub-paginacao').style.display = 'none';
+
+  try {
+    const data = await fetch(`${BACKEND}/api/articles?${params}`, { headers: authHeader() }).then(r => r.json());
+    pubTotalPag = data.pages || 1;
+
+    if (!data.articles?.length) {
+      conteudo.innerHTML = '<div class="empty">Nenhum artigo encontrado.</div>';
+      return;
+    }
+
+    const rows = data.articles.map(a => `
+      <tr data-json='${JSON.stringify(a).replace(/'/g,"&#39;")}'>
+        <td>${pubBadgeCategoria(a.category)}<br><span style="font-size:.75rem;color:var(--muted);">${a.source_name || ''}</span></td>
+        <td style="max-width:70px;font-size:.78rem;color:var(--muted);">${(a.chapeu || '').slice(0,30)}</td>
+        <td class="titulo-pub">${(a.title || '').slice(0,80)}${(a.title?.length||0)>80?'…':''}</td>
+        <td style="white-space:nowrap;">${pubTempoRelativo(a.published_at)}</td>
+      </tr>`).join('');
+
+    conteudo.innerHTML = `
+      <div class="pub-tabela-wrap">
+        <table>
+          <thead><tr><th>Fonte</th><th>Chapéu</th><th>Título</th><th>Publicado</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+
+    conteudo.querySelectorAll('tbody tr').forEach(tr => {
+      tr.addEventListener('click', () => {
+        try { abrirArtigoModal(JSON.parse(tr.dataset.json.replace(/&#39;/g,"'"))); } catch{}
+      });
+    });
+
+    const pag = document.getElementById('pub-paginacao');
+    pag.style.display = pubTotalPag > 1 ? 'flex' : 'none';
+    document.getElementById('pub-pg-info').textContent = `Página ${pagina} de ${pubTotalPag} — ${data.total} artigos`;
+    document.getElementById('pub-pg-ant').disabled  = pagina <= 1;
+    document.getElementById('pub-pg-prox').disabled = pagina >= pubTotalPag;
+  } catch(e) { document.getElementById('pub-artigos-conteudo').innerHTML = '<div class="empty">Erro ao carregar artigos.</div>'; }
+}
+
+document.getElementById('pub-pg-ant').addEventListener('click',  () => carregarArtigosPub(pubPagina - 1));
+document.getElementById('pub-pg-prox').addEventListener('click', () => carregarArtigosPub(pubPagina + 1));
+document.getElementById('pub-btn-atualizar').addEventListener('click', () => carregarArtigosPub(1));
+
+let debounce;
+document.getElementById('pub-filtro-busca').addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(() => carregarArtigosPub(1), 400); });
+document.getElementById('pub-filtro-fonte').addEventListener('change', () => carregarArtigosPub(1));
+document.getElementById('pub-filtro-periodo').addEventListener('change', () => carregarArtigosPub(1));
+
+async function abrirArtigoModal(artigo) {
+  artigoSelecionado = artigo;
+
+  // Preenche cabeçalho
+  document.getElementById('map-fonte-nome').textContent = artigo.source_name || '—';
+  document.getElementById('map-titulo-leitura').textContent = artigo.title || '';
+  document.getElementById('map-link-original').href = artigo.external_url || '#';
+
+  // Imagem
+  const imgEl = document.getElementById('map-img-el');
+  if (artigo.image_url) {
+    imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(artigo.image_url)}`;
+    imgEl.classList.remove('hidden');
+  } else {
+    imgEl.classList.add('hidden');
+  }
+
+  // Corpo de leitura
+  const corpoTexto = artigo.body || artigo.summary || '';
+  document.getElementById('map-corpo-leitura').innerHTML =
+    corpoTexto ? corpoTexto.replace(/\n\n/g, '</p><p>').replace(/^/, '<p>').replace(/$/, '</p>') : '<p style="color:var(--muted)">Carregando conteúdo…</p>';
+
+  // Esconde resultado IA e reseta campos
+  document.getElementById('map-ia-resultado').classList.add('hidden');
+  document.getElementById('map-link-publicado').classList.remove('visivel');
+  document.getElementById('map-categoria').innerHTML = '<option value="">Selecione o site primeiro…</option>';
+
+  document.getElementById('modal-artigo-pub').classList.remove('hidden');
+
+  // Busca corpo completo se necessário
+  if (!artigo.bodyFetched) {
+    try {
+      const d = await fetch(`${BACKEND}/api/articles/${artigo.id}/full-content`, { headers: authHeader() }).then(r => r.json());
+      artigo.bodyFetched = true;
+      if (d.body) {
+        artigo.body = d.body;
+        document.getElementById('map-corpo-leitura').innerHTML = d.body;
+      }
+      if (d.image_url) {
+        artigo.image_url = d.image_url;
+        imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(d.image_url)}`;
+        imgEl.classList.remove('hidden');
+      }
+    } catch {}
+  }
+}
+
+// Categorias WP ao trocar site
+document.getElementById('map-site').addEventListener('change', async function() {
+  const siteId = this.value;
+  const sel = document.getElementById('map-categoria');
+  sel.innerHTML = '<option value="">Carregando…</option>';
+  sel.disabled = true;
+  if (!siteId) { sel.innerHTML = '<option value="">Selecione o site primeiro…</option>'; return; }
+  try {
+    const cats = await fetch(`${BACKEND}/api/sites/${siteId}/wp-categories`, { headers: authHeader() }).then(r => r.json());
+    if (!Array.isArray(cats) || !cats.length) { sel.innerHTML = '<option value="">— Sem categoria —</option>'; sel.disabled = false; return; }
+    sel.innerHTML = '<option value="">— Sem categoria —</option>' +
+      cats.map(c => `<option value="${c.id}">${c.name}${c.count ? ` (${c.count})` : ''}</option>`).join('');
+    sel.disabled = false;
+  } catch { sel.innerHTML = '<option value="">Erro ao carregar</option>'; sel.disabled = false; }
+});
+
+function extrairJSONAdmin(texto) {
+  if (!texto) return null;
+  try { return JSON.parse(texto.trim()); } catch {}
+  try { const m = texto.match(/\{[\s\S]*\}/); if (m) return JSON.parse(m[0]); } catch {}
+  try { const m = texto.match(/```(?:json)?\s*([\s\S]*?)\s*```/); if (m) return JSON.parse(m[1]); } catch {}
+  return null;
+}
+
+async function gerarComIAModal() {
+  if (!artigoSelecionado) return toast('Nenhum artigo selecionado.', 'erro');
+  const geminiKey = sub.gemini_key || localStorage.getItem('rb24_gemini_key') || '';
+  if (!geminiKey) return toast('Chave Gemini não configurada. Configure nas abas do cliente.', 'erro');
+
+  const btn = document.getElementById('btn-gerar-ia-modal');
+  const btnRegen = document.getElementById('btn-regen-modal');
+  btn.disabled = true; btn.textContent = 'Gerando…';
+  if (btnRegen) { btnRegen.disabled = true; }
+
+  const titulo   = artigoSelecionado.title || '';
+  const corpo    = (artigoSelecionado.body || artigoSelecionado.summary || '').replace(/<[^>]*>/g, '').trim();
+  const siteId   = document.getElementById('map-site').value;
+  const site     = allSitesCache.find(s => s.id === siteId);
+  const promptIa = site?.ai_prompt || sub.ai_prompt || '';
+  const promptSistema = promptIa ||
+    `Você é um editor de notícias profissional. Reescreva a matéria abaixo com linguagem jornalística clara e objetiva.
+Retorne SOMENTE um JSON com: { "chapeu": string(máx 60 chars), "titulo": string, "resumo": string(máx 200 chars), "corpo": string(HTML com <p>), "tags": string[] }.`;
+
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: promptSistema }] },
+          contents: [{ role: 'user', parts: [{ text: `TÍTULO: ${titulo}\n\nCONTEÚDO:\n${corpo}` }] }],
+          generationConfig: { maxOutputTokens: 4096 }
+        })
+      }
+    );
+    const dados = await resp.json();
+    if (dados.error) throw new Error(dados.error.message);
+    const textoIA = dados.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const resultado = extrairJSONAdmin(textoIA);
+    if (!resultado) throw new Error('Não foi possível interpretar a resposta da IA.');
+
+    // Preenche campos do resultado
+    document.getElementById('map-chapeu').value  = resultado.chapeu  || '';
+    document.getElementById('map-titulo').value  = resultado.titulo  || resultado.title  || titulo;
+    document.getElementById('map-resumo').value  = resultado.resumo  || resultado.summary || '';
+    document.getElementById('map-corpo').value   = resultado.corpo   || resultado.body   || corpo;
+    document.getElementById('map-tags').value    = (resultado.tags || []).join(', ');
+    document.getElementById('map-imagem').value  = artigoSelecionado.image_url || '';
+
+    // Mostra seção de resultado
+    document.getElementById('map-ia-resultado').classList.remove('hidden');
+    document.getElementById('map-link-publicado').classList.remove('visivel');
+    document.getElementById('btn-pub-modal').disabled    = false;
+    document.getElementById('btn-pub-modal').textContent = '✓ Publicar agora';
+    toast('Conteúdo gerado com IA!', 'sucesso');
+  } catch(e) {
+    console.error('[IA]', e);
+    toast('Erro ao gerar com IA: ' + e.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = '✦ Gerar com IA e Publicar';
+    if (btnRegen) { btnRegen.disabled = false; }
+  }
+}
+
+async function publicarArtigoModal() {
+  if (!artigoSelecionado) return toast('Nenhum artigo selecionado.', 'erro');
+  const siteId = document.getElementById('map-site').value;
+  if (!siteId) return toast('Selecione um site para publicar.', 'erro');
+
+  const btn = document.getElementById('btn-pub-modal');
+  btn.disabled = true; btn.textContent = 'Publicando…';
+
+  const rewritten = {
+    chapeu:      document.getElementById('map-chapeu').value,
+    title:       document.getElementById('map-titulo').value,
+    summary:     document.getElementById('map-resumo').value,
+    body:        document.getElementById('map-corpo').value,
+    tags:        document.getElementById('map-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+    image_url:   document.getElementById('map-imagem').value || artigoSelecionado.image_url || null,
+    category_id: document.getElementById('map-categoria').value ? Number(document.getElementById('map-categoria').value) : null
+  };
+
+  const publicarReq = (force = false) => fetch(`${BACKEND}/api/publish`, {
+    method: 'POST', headers: authHeader(),
+    body: JSON.stringify({ article_id: artigoSelecionado.id, site_id: siteId, rewritten, force })
+  });
+
+  try {
+    let res  = await publicarReq(false);
+    let data = await res.json();
+
+    if (res.status === 409 && data.already_published) {
+      btn.disabled = false; btn.textContent = '✓ Publicar agora';
+      const ok = confirm('⚠️ Este artigo já foi publicado neste site.\n\nDeseja publicar novamente?');
+      if (!ok) return;
+      btn.disabled = true; btn.textContent = 'Re-publicando…';
+      res  = await publicarReq(true);
+      data = await res.json();
+    }
+
+    if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
+
+    const linkEl = document.getElementById('map-link-publicado');
+    linkEl.innerHTML = `✔ Publicado! <a href="${data.post_url}" target="_blank">${data.post_url}</a>`;
+    linkEl.classList.add('visivel');
+    toast('Publicado com sucesso!', 'sucesso');
+    btn.textContent = '✓ Publicado';
+  } catch(e) {
+    toast('Erro ao publicar: ' + e.message, 'erro');
+    btn.disabled = false; btn.textContent = '✓ Publicar agora';
+  }
+}
+
+// ── Baixar HTML ───────────────────────────────────────────────────────────────
+document.getElementById('btn-baixar-html-modal').addEventListener('click', () => {
+  const chapeu  = document.getElementById('map-chapeu').value.trim();
+  const titulo  = document.getElementById('map-titulo').value.trim();
+  const resumo  = document.getElementById('map-resumo').value.trim();
+  const corpo   = document.getElementById('map-corpo').value.trim();
+  const tags    = document.getElementById('map-tags').value.trim();
+  const imagem  = artigoSelecionado?.image_url || '';
+  const fonte   = artigoSelecionado?.source_name || '';
+  const urlOrig = artigoSelecionado?.external_url || '#';
+  if (!titulo && !corpo) { toast('Gere o conteúdo com IA antes de baixar.', 'aviso'); return; }
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>${titulo}</title>
+<style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.7;color:#222}
+.chapeu{font-size:.85rem;text-transform:uppercase;letter-spacing:1px;color:#cc0000;font-weight:700;margin-bottom:8px}
+h1{font-size:2rem;margin:0 0 12px;line-height:1.2}.resumo{font-size:1.1rem;color:#444;margin-bottom:20px;font-style:italic}
+img{width:100%;max-height:480px;object-fit:cover;border-radius:6px;margin-bottom:24px}
+.corpo p{margin-bottom:1rem}.meta{font-size:.8rem;color:#888;margin-bottom:24px;border-bottom:1px solid #eee;padding-bottom:12px}
+.tags{margin-top:24px;font-size:.8rem;color:#888}.tags span{background:#f0f0f0;padding:3px 8px;border-radius:3px;margin-right:4px}
+</style></head><body>
+${chapeu ? `<div class="chapeu">${chapeu}</div>` : ''}
+<h1>${titulo}</h1><p class="resumo">${resumo}</p>
+<div class="meta">Fonte: <a href="${urlOrig}" target="_blank">${fonte}</a></div>
+${imagem ? `<img src="${imagem}" alt="${titulo}"/>` : ''}
+<div class="corpo">${corpo}</div>
+${tags ? `<div class="tags">Tags: ${tags.split(',').map(t=>`<span>${t.trim()}</span>`).join('')}</div>` : ''}
+</body></html>`;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `artigo-${titulo.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,60)}.html`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('HTML baixado!', 'sucesso');
+});
+
+// ── Visualizar HTML ───────────────────────────────────────────────────────────
+document.getElementById('btn-visualizar-html-modal').addEventListener('click', () => {
+  const chapeu  = document.getElementById('map-chapeu').value.trim();
+  const titulo  = document.getElementById('map-titulo').value.trim();
+  const resumo  = document.getElementById('map-resumo').value.trim();
+  const corpo   = document.getElementById('map-corpo').value.trim();
+  const tags    = document.getElementById('map-tags').value.trim();
+  const imagem  = artigoSelecionado?.image_url || '';
+  const fonte   = artigoSelecionado?.source_name || '';
+  const urlOrig = artigoSelecionado?.external_url || '#';
+  if (!titulo && !corpo) { toast('Gere o conteúdo com IA antes de visualizar.', 'aviso'); return; }
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>${titulo}</title>
+<style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.7;color:#222}
+.chapeu{font-size:.85rem;text-transform:uppercase;letter-spacing:1px;color:#cc0000;font-weight:700;margin-bottom:8px}
+h1{font-size:2rem;margin:0 0 12px;line-height:1.2}.resumo{font-size:1.1rem;color:#444;margin-bottom:20px;font-style:italic}
+img{width:100%;max-height:480px;object-fit:cover;border-radius:6px;margin-bottom:24px}
+.corpo p{margin-bottom:1rem}.meta{font-size:.8rem;color:#888;margin-bottom:24px;border-bottom:1px solid #eee;padding-bottom:12px}
+</style></head><body>
+${chapeu ? `<div class="chapeu">${chapeu}</div>` : ''}
+<h1>${titulo}</h1><p class="resumo">${resumo}</p>
+<div class="meta">Fonte: <a href="${urlOrig}" target="_blank">${fonte}</a></div>
+${imagem ? `<img src="${imagem}" alt="${titulo}"/>` : ''}
+<div class="corpo">${corpo}</div>
+</body></html>`;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+});
+
+// ══ CLIENTES ═════════════════════════════════════════════════════════════════
+
+let planos = [];
+
+async function carregarClientes() {
+  try {
+    const [cli, pl] = await Promise.all([
+      fetch(`${BACKEND}/api/admin/subscribers`, { headers: authHeader() }).then(r => r.json()),
+      fetch(`${BACKEND}/api/admin/plans`,       { headers: authHeader() }).then(r => r.json()),
+    ]);
+    planos = pl;
+
+    const sel = document.getElementById('mc-plan');
+    sel.innerHTML = '<option value="">Sem plano</option>' +
+      planos.map(p => `<option value="${p.id}">${p.name} — R$${(p.price_cents/100).toFixed(0)}</option>`).join('');
+
+    const tbody = document.querySelector('#tbl-clientes tbody');
+    if (!cli.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhum cliente ainda.</td></tr>'; return; }
+
+    tbody.innerHTML = cli.map(c => {
+      const vencLabel = getVencLabel(c.plan_expires_at);
+      const valorLabel = c.plan_value > 0 ? `R$ ${Number(c.plan_value).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '—';
+      return `<tr>
+        <td><strong>${c.name}</strong></td>
+        <td style="color:var(--muted);font-size:.82rem">${c.email}</td>
+        <td><span class="badge badge-gray">${c.plan_name || '—'}</span></td>
+        <td style="font-size:.82rem">${valorLabel}</td>
+        <td style="font-size:.8rem" class="${vencLabel.cls}">${vencLabel.txt}</td>
+        <td>${c.is_admin ? '<span class="badge badge-blue">Admin</span>' : '—'}</td>
+        <td><span class="badge ${c.active ? 'badge-green' : 'badge-red'}">${c.active ? 'Ativo' : 'Inativo'}</span></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick='abrirModalCliente(${JSON.stringify(c)})'>Editar</button>
+          ${c.active && !c.is_admin ? `<button class="btn btn-danger btn-sm" onclick="desativarCliente('${c.id}','${c.name.replace(/'/g,"\\'")}')">Desativar</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+function getVencLabel(dateStr) {
+  if (!dateStr) return { txt: '—', cls: 'venc-none' };
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const venc = new Date(dateStr); venc.setHours(0,0,0,0);
+  const dias = Math.round((venc - hoje) / 86400000);
+  if (dias < 0)  return { txt: `Vencido há ${Math.abs(dias)}d`, cls: 'venc-danger' };
+  if (dias <= 5) return { txt: `Vence em ${dias}d`, cls: 'venc-warn' };
+  return { txt: new Date(dateStr).toLocaleDateString('pt-BR'), cls: 'venc-ok' };
+}
+
+// Tab do modal cliente
+let mcCurrentTab = 'dados';
+function mcTab(tab) {
+  mcCurrentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick="mcTab('${tab}')"]`).classList.add('active');
+  document.getElementById(`mc-tab-${tab}`).classList.add('active');
+
+  if (tab === 'sites' && document.getElementById('mc-id').value) carregarSitesCli();
+  if (tab === 'fontes' && document.getElementById('mc-id').value) carregarFontesMC();
+}
+
+let mcFontesList = [], mcFontesFiltroCat = '';
+
+async function abrirModalCliente(c) {
+  mcCurrentTab = 'dados';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab-btn[onclick="mcTab(\'dados\')"]').classList.add('active');
+  document.getElementById('mc-tab-dados').classList.add('active');
+
+  document.getElementById('mc-title').textContent = c ? 'Editar Cliente' : 'Novo Cliente';
+  document.getElementById('mc-id').value          = c?.id        || '';
+  document.getElementById('mc-name').value        = c?.name      || '';
+  document.getElementById('mc-email').value       = c?.email     || '';
+  document.getElementById('mc-password').value    = '';
+  document.getElementById('mc-active').checked   = c?.active !== false;
+  document.getElementById('mc-admin').checked    = c?.is_admin || false;
+  document.getElementById('mc-expires').value    = c?.plan_expires_at?.slice(0,10) || '';
+  document.getElementById('mc-plan-value').value = c?.plan_value || '';
+  document.getElementById('mc-gemini-key').value = c?.gemini_key || '';
+  document.getElementById('mc-ai-prompt').value  = c?.ai_prompt || '';
+  document.getElementById('mc-hint').style.display = c ? 'inline' : 'none';
+
+  // Planos
+  if (planos.length === 0) {
+    const pl = await fetch(`${BACKEND}/api/admin/plans`, { headers: authHeader() }).then(r => r.json());
+    planos = pl;
+    const sel = document.getElementById('mc-plan');
+    sel.innerHTML = '<option value="">Sem plano</option>' +
+      planos.map(p => `<option value="${p.id}">${p.name} — R$${(p.price_cents/100).toFixed(0)}</option>`).join('');
+  }
+  if (c?.plan_id) {
+    document.getElementById('mc-plan').value = c.plan_id;
+  } else { document.getElementById('mc-plan').value = ''; }
+
+  document.getElementById('mc-sites-list').innerHTML = c ? '<div class="loading"><span class="spin"></span>Carregando…</div>' : '<div class="empty" style="padding:20px">Salve o cliente primeiro para gerenciar sites.</div>';
+  document.getElementById('mc-fontes-grid').innerHTML = '';
+  document.getElementById('mc-fontes-cats').innerHTML = '';
+
+  document.getElementById('modal-cliente').classList.remove('hidden');
+}
+
+async function salvarCliente() {
+  const id = document.getElementById('mc-id').value;
+  const body = {
+    name:       document.getElementById('mc-name').value.trim(),
+    email:      document.getElementById('mc-email').value.trim(),
+    plan_id:    document.getElementById('mc-plan').value || null,
+    active:     document.getElementById('mc-active').checked,
+    is_admin:   document.getElementById('mc-admin').checked,
+    gemini_key: document.getElementById('mc-gemini-key').value.trim() || null,
+    ai_prompt:  document.getElementById('mc-ai-prompt').value.trim() || null,
+  };
+  const planValue = parseFloat(document.getElementById('mc-plan-value').value);
+  if (!isNaN(planValue)) body.plan_value = planValue;
+  const pwd = document.getElementById('mc-password').value;
+  if (pwd) body.password = pwd;
+  const exp = document.getElementById('mc-expires').value;
+  if (exp) body.plan_expires_at = exp;
+
+  const btn = document.getElementById('btn-salvar-cliente');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+
+  try {
+    const url = id ? `${BACKEND}/api/admin/subscribers/${id}` : `${BACKEND}/api/admin/subscribers`;
+    const r = await fetch(url, { method: id ? 'PUT' : 'POST', headers: authHeader(), body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro');
+
+    // Atualiza id se foi criação
+    if (!id && d.id) document.getElementById('mc-id').value = d.id;
+
+    fecharModal('modal-cliente');
+    await carregarClientes();
+    toast(id ? 'Cliente atualizado!' : 'Cliente criado!', 'sucesso');
+  } catch(e) { toast(e.message, 'erro'); }
+  finally { btn.disabled = false; btn.textContent = 'Salvar dados'; }
+}
+
+async function desativarCliente(id, nome) {
+  if (!confirm(`Desativar o cliente "${nome}"?`)) return;
+  try {
+    await fetch(`${BACKEND}/api/admin/subscribers/${id}`, { method: 'DELETE', headers: authHeader() });
+    await carregarClientes();
+    toast(`"${nome}" desativado.`);
+  } catch { toast('Erro', 'erro'); }
+}
+
+// ══ SITES DO CLIENTE (tab Sites) ══════════════════════════════════════════════
+
+let mcSiteEditId = null;
+
+async function carregarSitesCli() {
+  const subId = document.getElementById('mc-id').value;
+  if (!subId) return;
+  const el = document.getElementById('mc-sites-list');
+  el.innerHTML = '<div class="loading"><span class="spin"></span>Carregando…</div>';
+  try {
+    const sites = await fetch(`${BACKEND}/api/admin/subscribers/${subId}/sites`, { headers: authHeader() }).then(r => r.json());
+    if (!sites.length) { el.innerHTML = '<div class="empty" style="padding:16px">Nenhum site cadastrado.</div>'; return; }
+    el.innerHTML = sites.map(s => `
+      <div class="site-item">
+        <div class="site-item-info">
+          <div class="site-item-name">${s.name} <span class="badge badge-blue" style="margin-left:4px">${s.platform}</span></div>
+          <div class="site-item-url">${s.site_url || '—'}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalSite('${s.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deletarSiteCli('${s.id}','${s.name.replace(/'/g,"\\'")}')">✕</button>
+      </div>`).join('');
+  } catch { el.innerHTML = '<div class="empty" style="padding:16px">Erro ao carregar sites.</div>'; }
+}
+
+function abrirModalSite(siteId) {
+  mcSiteEditId = siteId || null;
+  document.getElementById('msc-title').textContent = siteId ? 'Editar Site' : 'Novo Site';
+  document.getElementById('msc-id').value     = siteId || '';
+  document.getElementById('msc-name').value   = '';
+  document.getElementById('msc-url').value    = '';
+  document.getElementById('msc-wp-user').value  = '';
+  document.getElementById('msc-wp-pass').value  = '';
+  document.getElementById('msc-blog-id').value  = '';
+  document.getElementById('msc-webhook-url').value    = '';
+  document.getElementById('msc-webhook-secret').value = '';
+  document.getElementById('msc-post-format').value    = 'editorial';
+  document.getElementById('msc-cat-id').value  = '';
+  document.getElementById('msc-ai-prompt').value = '';
+  document.getElementById('msc-platform').value  = 'wordpress';
+  toggleSitePlatformFields();
+
+  if (siteId) {
+    // Busca dados do site para preencher
+    const subId = document.getElementById('mc-id').value;
+    fetch(`${BACKEND}/api/admin/subscribers/${subId}/sites`, { headers: authHeader() })
+      .then(r => r.json())
+      .then(sites => {
+        const s = sites.find(x => x.id === siteId);
+        if (!s) return;
+        document.getElementById('msc-name').value          = s.name || '';
+        document.getElementById('msc-url').value           = s.site_url || '';
+        document.getElementById('msc-wp-user').value       = s.wp_username || '';
+        document.getElementById('msc-blog-id').value       = s.blogger_blog_id || '';
+        document.getElementById('msc-webhook-url').value   = s.webhook_url || '';
+        document.getElementById('msc-webhook-secret').value= s.webhook_secret || '';
+        document.getElementById('msc-post-format').value   = s.post_format || 'editorial';
+        document.getElementById('msc-cat-id').value        = s.default_category_id || '';
+        document.getElementById('msc-ai-prompt').value     = s.ai_prompt || '';
+        document.getElementById('msc-platform').value      = s.platform || 'wordpress';
+        toggleSitePlatformFields();
+      }).catch(() => {});
+  }
+
+  document.getElementById('modal-site-cli').classList.remove('hidden');
+}
+
+function toggleSitePlatformFields() {
+  const p = document.getElementById('msc-platform').value;
+  document.getElementById('msc-wp-fields').style.display      = p === 'wordpress' ? '' : 'none';
+  document.getElementById('msc-blogger-fields').style.display = p === 'blogger'   ? '' : 'none';
+  document.getElementById('msc-webhook-fields').style.display = p === 'webhook'   ? '' : 'none';
+}
+
+async function salvarSiteCli() {
+  const subId  = document.getElementById('mc-id').value;
+  const siteId = document.getElementById('msc-id').value;
+  const platform = document.getElementById('msc-platform').value;
+
+  const body = {
+    name:       document.getElementById('msc-name').value.trim(),
+    platform,
+    site_url:   document.getElementById('msc-url').value.trim() || null,
+    wp_username:    platform === 'wordpress' ? document.getElementById('msc-wp-user').value.trim() || null : null,
+    wp_app_password: platform === 'wordpress' ? document.getElementById('msc-wp-pass').value.trim() || null : null,
+    blogger_blog_id: platform === 'blogger'   ? document.getElementById('msc-blog-id').value.trim() || null : null,
+    webhook_url:    platform === 'webhook'    ? document.getElementById('msc-webhook-url').value.trim() || null : null,
+    webhook_secret: platform === 'webhook'    ? document.getElementById('msc-webhook-secret').value.trim() || null : null,
+    post_format:    document.getElementById('msc-post-format').value || 'editorial',
+    default_category_id: document.getElementById('msc-cat-id').value.trim() || null,
+    ai_prompt:      document.getElementById('msc-ai-prompt').value.trim() || null,
+  };
+
+  if (!body.name) return toast('Nome é obrigatório.', 'erro');
+
+  const btn = document.getElementById('btn-salvar-site-cli');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+
+  try {
+    const url = siteId
+      ? `${BACKEND}/api/admin/subscribers/${subId}/sites/${siteId}`
+      : `${BACKEND}/api/admin/subscribers/${subId}/sites`;
+    const r = await fetch(url, { method: siteId ? 'PUT' : 'POST', headers: authHeader(), body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro');
+    fecharModal('modal-site-cli');
+    await carregarSitesCli();
+    toast(siteId ? 'Site atualizado!' : 'Site adicionado!', 'sucesso');
+  } catch(e) { toast(e.message, 'erro'); }
+  finally { btn.disabled = false; btn.textContent = 'Salvar site'; }
+}
+
+async function deletarSiteCli(siteId, nome) {
+  if (!confirm(`Remover o site "${nome}"?`)) return;
+  const subId = document.getElementById('mc-id').value;
+  try {
+    await fetch(`${BACKEND}/api/admin/subscribers/${subId}/sites/${siteId}`, { method: 'DELETE', headers: authHeader() });
+    await carregarSitesCli();
+    toast(`"${nome}" removido.`, 'sucesso');
+  } catch { toast('Erro ao remover.', 'erro'); }
+}
+
+// ══ FONTES DO CLIENTE (tab Fontes no modal cliente) ══════════════════════════
+
+async function carregarFontesMC() {
+  const subId = document.getElementById('mc-id').value;
+  if (!subId) return;
+  mcFontesFiltroCat = '';
+  document.getElementById('mc-fontes-grid').innerHTML = '<div class="loading"><span class="spin"></span>Carregando…</div>';
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/subscribers/${subId}/sources`, { headers: authHeader() });
+    mcFontesList = await r.json();
+    renderMCFontesCats();
+    renderMCFontesGrid();
+  } catch { document.getElementById('mc-fontes-grid').innerHTML = '<div class="empty">Erro ao carregar.</div>'; }
+}
+
+function renderMCFontesCats() {
+  const cats = ['', ...new Set(mcFontesList.map(f => f.category).filter(Boolean)).values()].sort();
+  const labels = { '':'Todas', nacional:'Nacional', regional:'Regional', esporte:'Esporte', governo:'Governo', prefeitura:'Prefeitura', agro:'Agro' };
+  document.getElementById('mc-fontes-cats').innerHTML = cats.map(c =>
+    `<button class="btn-cat-f ${mcFontesFiltroCat===c?'ativo':''}" onclick="mcFonteFiltrar('${c}')">${labels[c]||c}</button>`
+  ).join('');
+}
+
+function mcFonteFiltrar(cat) { mcFontesFiltroCat = cat; renderMCFontesCats(); renderMCFontesGrid(); }
+
+function renderMCFontesGrid() {
+  const filtradas = mcFontesFiltroCat ? mcFontesList.filter(f => f.category === mcFontesFiltroCat) : mcFontesList;
+  const sel = mcFontesList.filter(f => f.selected).length;
+  document.getElementById('mc-fontes-contador').textContent = `${sel} ativa(s)`;
+  document.getElementById('mc-fontes-grid').innerHTML = filtradas.map(f => `
+    <div class="fc-card ${f.selected?'sel':''}" onclick="toggleMCFonte('${f.slug}', this)" data-slug="${f.slug}">
+      <div class="fc-check">${f.selected?'✓':''}</div>
+      <div><div class="fc-nome">${f.name}</div><div class="fc-cat">${f.category||''} · ${f.type}</div></div>
+    </div>`).join('');
+}
+
+async function toggleMCFonte(slug, card) {
+  const subId = document.getElementById('mc-id').value;
+  const fonte = mcFontesList.find(f => f.slug === slug);
+  const add   = !fonte.selected;
+  fonte.selected = add;
+  card.className = 'fc-card ' + (add ? 'sel' : '');
+  card.querySelector('.fc-check').textContent = add ? '✓' : '';
+  document.getElementById('mc-fontes-contador').textContent = `${mcFontesList.filter(f=>f.selected).length} ativa(s)`;
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/subscribers/${subId}/sources/${slug}`, { method: add?'POST':'DELETE', headers: authHeader() });
+    if (!r.ok) { const d = await r.json(); fonte.selected = !add; renderMCFontesGrid(); toast(d.error||'Erro', 'erro'); }
+  } catch { fonte.selected = !add; renderMCFontesGrid(); toast('Erro de conexão', 'erro'); }
+}
+
+async function toggleTodasFontesMC(ativar) {
+  const subId = document.getElementById('mc-id').value;
+  const pendentes = mcFontesList.filter(f => f.selected !== ativar);
+  if (!pendentes.length) return;
+  if (!confirm(`${ativar?'Adicionar':'Remover'} todas as ${pendentes.length} fontes?`)) return;
+  for (const f of pendentes) {
+    try {
+      const r = await fetch(`${BACKEND}/api/admin/subscribers/${subId}/sources/${f.slug}`, { method: ativar?'POST':'DELETE', headers: authHeader() });
+      if (r.ok) f.selected = ativar;
+    } catch {}
+  }
+  renderMCFontesGrid();
+  toast(`Fontes ${ativar?'adicionadas':'removidas'}!`, 'sucesso');
+}
+
+// ══ FINANCEIRO ════════════════════════════════════════════════════════════════
+
+async function carregarFinanceiro() {
+  try {
+    const dados = await fetch(`${BACKEND}/api/admin/financial`, { headers: authHeader() }).then(r => r.json());
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const em5Dias = new Date(hoje); em5Dias.setDate(em5Dias.getDate() + 5);
+
+    let mrr = 0, ativos = 0, vencendo = 0, vencidos = 0;
+    dados.forEach(c => {
+      if (c.active) { ativos++; mrr += parseFloat(c.plan_value || 0); }
+      if (c.plan_expires_at) {
+        const v = new Date(c.plan_expires_at); v.setHours(0,0,0,0);
+        const dias = Math.round((v - hoje) / 86400000);
+        if (dias < 0) vencidos++;
+        else if (dias <= 5) vencendo++;
+      }
+    });
+
+    document.getElementById('fin-mrr').textContent     = `R$ ${mrr.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+    document.getElementById('fin-ativos').textContent   = ativos;
+    document.getElementById('fin-vencendo').textContent = vencendo;
+    document.getElementById('fin-vencidos').textContent = vencidos;
+
+    const tbody = document.querySelector('#tbl-financeiro tbody');
+    if (!dados.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhum cliente.</td></tr>'; return; }
+
+    tbody.innerHTML = dados.map(c => {
+      const vl = getVencLabel(c.plan_expires_at);
+      const valor = c.plan_value > 0 ? `R$ ${Number(c.plan_value).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '—';
+      return `<tr>
+        <td><strong>${c.name}</strong></td>
+        <td style="font-size:.82rem;color:var(--muted)">${c.email}</td>
+        <td><span class="badge badge-gray">${c.plan_name || '—'}</span></td>
+        <td style="font-size:.85rem;font-weight:600">${valor}</td>
+        <td class="${vl.cls}">${vl.txt}</td>
+        <td><span class="badge ${c.active ? 'badge-green' : 'badge-red'}">${c.active ? 'Ativo' : 'Inativo'}</span></td>
+        <td style="font-size:.82rem">${c.sites_count || 0}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="irParaEditarCliente('${c.id}')">Editar</button></td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function irParaEditarCliente(id) {
+  irPara('clientes');
+  await carregarClientes();
+  // Encontra o cliente e abre o modal
+  setTimeout(() => {
+    const btn = document.querySelector(`#tbl-clientes button[onclick*="${id}"]`);
+    if (btn) btn.click();
+  }, 500);
+}
+
+// ══ FONTES (catálogo) ════════════════════════════════════════════════════════
+
+let fontesList = [];
+
+async function carregarFontes() {
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/sources`, { headers: authHeader() });
+    fontesList = await r.json();
+    renderFontes();
+  } catch(e) { console.error(e); }
+}
+
+function renderFontes() {
+  const busca  = document.getElementById('busca-fonte').value.toLowerCase();
+  const cat    = document.getElementById('filtro-cat').value;
+  const status = document.getElementById('filtro-status').value;
+
+  const lista = fontesList.filter(f => {
+    if (busca  && !f.name.toLowerCase().includes(busca)) return false;
+    if (cat    && f.category !== cat) return false;
+    if (status === 'inactive' && f.active) return false;
+    if (status === 'ok'       && (!f.active || f.status !== 'ok')) return false;
+    if (status === 'error'    && f.status !== 'error') return false;
+    if (status === 'pending'  && f.status !== 'pending') return false;
+    return true;
+  });
+
+  const tbody = document.querySelector('#tbl-fontes tbody');
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma fonte.</td></tr>'; return; }
+
+  tbody.innerHTML = lista.map(f => {
+    const sb = !f.active ? `<span class="badge badge-gray">Inativo</span>`
+      : f.status==='ok'    ? `<span class="badge badge-green">OK</span>`
+      : f.status==='error' ? `<span class="badge badge-red" title="${f.error||''}">Erro</span>`
+      : `<span class="badge badge-orange">Pendente</span>`;
+    const tb = f.type==='rss' ? `<span class="badge badge-blue">RSS</span>` : `<span class="badge badge-purple">Scraping</span>`;
+    return `<tr>
+      <td><strong>${f.name}</strong></td>
+      <td>${tb}</td>
+      <td><span class="badge badge-gray">${f.category||'—'}</span></td>
+      <td>${sb}</td>
+      <td>${f.count||0}</td>
+      <td><label class="toggle"><input type="checkbox" ${f.active?'checked':''} onchange="toggleFonte('${f.slug}',this)" /><span class="slider"></span></label></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalFonte('${f.slug}')">Editar</button>
+        ${f.active?`<button class="btn btn-ghost btn-sm" onclick="refreshFonte('${f.slug}',this)">↺</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="deletarFonte('${f.slug}','${f.name.replace(/'/g,"\\'")}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleFonte(slug, cb) {
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/sources/${slug}/toggle`, { method:'PATCH', headers: authHeader() });
+    const d = await r.json();
+    const f = fontesList.find(x => x.slug===slug);
+    if (f) { f.active = d.active; renderFontes(); }
+    toast(d.active ? `${slug} ativado` : `${slug} desativado`);
+  } catch { toast('Erro','erro'); cb.checked = !cb.checked; }
+}
+
+async function refreshFonte(slug, btn) {
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    await fetch(`${BACKEND}/api/admin/sources/${slug}/refresh`, { method:'PATCH', headers: authHeader() });
+    toast(`Atualização de ${slug} iniciada`, 'sucesso');
+    setTimeout(carregarFontes, 3000);
+  } catch { toast('Erro', 'erro'); }
+  finally { btn.textContent = '↺'; btn.disabled = false; }
+}
+
+async function deletarFonte(slug, nome) {
+  if (!confirm(`Remover a fonte "${nome}"?`)) return;
+  try {
+    await fetch(`${BACKEND}/api/admin/sources/${slug}`, { method:'DELETE', headers: authHeader() });
+    fontesList = fontesList.filter(f => f.slug !== slug);
+    renderFontes();
+    toast(`"${nome}" removida`, 'sucesso');
+  } catch { toast('Erro ao remover','erro'); }
+}
+
+function toggleScrapingFields() {
+  document.getElementById('scraping-fields').style.display = document.getElementById('mf-type').value === 'scraping' ? 'block' : 'none';
+}
+
+function abrirModalFonte(slug) {
+  const f = slug ? fontesList.find(x => x.slug === slug) : null;
+  const s = f?.scraping || {};
+  document.getElementById('mf-title').textContent    = f ? 'Editar Fonte' : 'Nova Fonte';
+  document.getElementById('mf-slug-original').value  = f?.slug || '';
+  document.getElementById('mf-name').value            = f?.name || '';
+  document.getElementById('mf-slug').value            = f?.slug || '';
+  document.getElementById('mf-slug').readOnly         = !!f;
+  document.getElementById('mf-type').value            = f?.type || 'rss';
+  document.getElementById('mf-category').value        = f?.category || 'nacional';
+  document.getElementById('mf-url').value             = f?.url  || '';
+  document.getElementById('mf-itemSelector').value   = s.itemSelector  || '';
+  document.getElementById('mf-titleSelector').value  = s.titleSelector || '';
+  document.getElementById('mf-linkSelector').value   = s.linkSelector  || '';
+  document.getElementById('mf-imageSelector').value  = s.imageSelector || '';
+  document.getElementById('mf-dateSelector').value   = s.dateSelector  || '';
+  document.getElementById('mf-linkFilter').value     = s.linkFilter    || '';
+  toggleScrapingFields();
+  document.getElementById('modal-fonte').classList.remove('hidden');
+}
+
+async function salvarFonte() {
+  const slugOrig = document.getElementById('mf-slug-original').value;
+  const tipo = document.getElementById('mf-type').value;
+  const body = {
+    name:     document.getElementById('mf-name').value.trim(),
+    slug:     document.getElementById('mf-slug').value.trim().toLowerCase().replace(/\s+/g,'-'),
+    type:     tipo,
+    url:      document.getElementById('mf-url').value.trim(),
+    category: document.getElementById('mf-category').value,
+  };
+  if (tipo === 'scraping') {
+    const scr = {};
+    ['itemSelector','titleSelector','linkSelector','imageSelector','dateSelector','linkFilter'].forEach(k => {
+      const v = document.getElementById('mf-'+k).value.trim();
+      if (v) scr[k] = v;
+    });
+    if (Object.keys(scr).length) body.scraping = scr;
+  }
+
+  const btn = document.getElementById('btn-salvar-fonte');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+
+  try {
+    const isEdit = !!slugOrig;
+    const url    = isEdit ? `${BACKEND}/api/admin/sources/${slugOrig}` : `${BACKEND}/api/admin/sources`;
+    const r = await fetch(url, { method: isEdit?'PUT':'POST', headers: authHeader(), body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro');
+    fecharModal('modal-fonte');
+    await carregarFontes();
+    toast(isEdit ? 'Fonte atualizada!' : 'Fonte criada!', 'sucesso');
+  } catch(e) { toast(e.message, 'erro'); }
+  finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+// ══ PUBLICAÇÕES ══════════════════════════════════════════════════════════════
+
+async function carregarPublicacoes() {
+  try {
+    const pubs  = await fetch(`${BACKEND}/api/admin/recent-publications`, { headers: authHeader() }).then(r => r.json());
+    const tbody = document.querySelector('#tbl-pubs tbody');
+    if (!pubs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma publicação ainda.</td></tr>'; return; }
+
+    tbody.innerHTML = pubs.map(p => `
+      <tr>
+        <td style="max-width:260px"><strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.rewritten_title||''}">${p.rewritten_title || p.original_title || '—'}</strong></td>
+        <td style="font-size:.82rem">${p.subscriber_name||'—'}</td>
+        <td style="font-size:.82rem;color:var(--muted)">${p.site_name||'—'}</td>
+        <td><span class="badge ${p.status==='published'?'badge-green':'badge-red'}">${p.status}</span></td>
+        <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">${p.published_at ? new Date(p.published_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+        <td>${p.external_post_url ? `<a href="${p.external_post_url}" target="_blank" class="btn btn-ghost btn-sm">↗ Ver</a>` : ''}</td>
+      </tr>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+// ══ UTILITÁRIOS ══════════════════════════════════════════════════════════════
+
+function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+document.querySelectorAll('.overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.overlay:not(.hidden)').forEach(o => o.classList.add('hidden'));
+});
+
+// ══ INIT ═════════════════════════════════════════════════════════════════════
+carregarDashboard();
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rb24horas_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       rb24horas
+      POSTGRES_USER:     rb24user
+      POSTGRES_PASSWORD: rb24pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rb24user -d rb24horas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+    name: rb24horas_postgres_data

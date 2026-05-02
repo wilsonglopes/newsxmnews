@@ -1,0 +1,3420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RB24Horas — Painel Editorial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* =============================================
+       RESET E VARIÁVEIS GLOBAIS
+    ============================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --papel:      #f7f5f0;
+      --papel-alt:  #efecea;
+      --grafite:    #1c1c1c;
+      --grafite-md: #3a3a3a;
+      --grafite-lt: #6b6b6b;
+      --borda:      #d8d4cc;
+      --vermelho:   #993C1D;
+      --vermelho-lt:#b84d25;
+      --verde:      #2d6a4f;
+      --verde-lt:   #3a8a66;
+      --branco:     #ffffff;
+      --sombra:     0 2px 8px rgba(0,0,0,0.08);
+      --sombra-md:  0 4px 20px rgba(0,0,0,0.12);
+      --radius:     4px;
+      --font-titulo: 'Playfair Display', Georgia, serif;
+      --font-ui:    'IBM Plex Sans', system-ui, sans-serif;
+      --font-mono:  'IBM Plex Mono', monospace;
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--papel);
+      color: var(--grafite);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* =============================================
+       UTILITÁRIOS
+    ============================================= */
+    .hidden { display: none !important; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+    /* =============================================
+       HEADER GLOBAL
+    ============================================= */
+    #header {
+      background: var(--grafite);
+      color: var(--branco);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    #header .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    #header .logo-sigla {
+      font-family: var(--font-titulo);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--vermelho);
+      letter-spacing: -0.5px;
+    }
+
+    #header .logo-subtitulo {
+      font-size: 0.7rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.55);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border-left: 1px solid rgba(255,255,255,0.2);
+      padding-left: 0.75rem;
+      line-height: 1.3;
+    }
+
+    #header .header-acoes {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* =============================================
+       BOTÕES
+    ============================================= */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1.25rem;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-ui);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-primario {
+      background: var(--vermelho);
+      color: var(--branco);
+    }
+    .btn-primario:hover:not(:disabled) { background: var(--vermelho-lt); }
+
+    .btn-publicar {
+      background: var(--verde);
+      color: var(--branco);
+      font-size: 0.9rem;
+      padding: 0.65rem 1.5rem;
+    }
+    .btn-publicar:hover:not(:disabled) { background: var(--verde-lt); }
+
+    .btn-secundario {
+      background: transparent;
+      color: var(--grafite);
+      border: 1px solid var(--borda);
+    }
+    .btn-secundario:hover:not(:disabled) { background: var(--papel-alt); border-color: #bbb; }
+
+    .btn-ghost {
+      background: transparent;
+      color: rgba(255,255,255,0.75);
+      padding: 0.5rem;
+      border-radius: var(--radius);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--branco); }
+
+    .btn-ia {
+      background: var(--vermelho);
+      color: var(--branco);
+      font-size: 0.95rem;
+      padding: 0.7rem 1.75rem;
+      font-weight: 600;
+      box-shadow: var(--sombra);
+    }
+    .btn-ia:hover:not(:disabled) {
+      background: var(--vermelho-lt);
+      box-shadow: var(--sombra-md);
+    }
+
+    .btn-lg {
+      font-size: 1rem;
+      padding: 0.75rem 2rem;
+    }
+
+    /* =============================================
+       TELA: CONFIGURAÇÕES
+    ============================================= */
+    #tela-config {
+      max-width: 680px;
+      margin: 4rem auto;
+      padding: 0 1.5rem;
+    }
+
+    .config-topo-nav {
+      margin-bottom: 1rem;
+    }
+
+    .config-cabecalho {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .config-cabecalho h1 {
+      font-family: var(--font-titulo);
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--grafite);
+      margin-bottom: 0.4rem;
+    }
+
+    .config-cabecalho .config-sigla {
+      color: var(--vermelho);
+    }
+
+    .config-cabecalho p {
+      color: var(--grafite-lt);
+      font-size: 0.9rem;
+    }
+
+    .config-card {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 6px;
+      padding: 2rem;
+      box-shadow: var(--sombra);
+    }
+
+    .config-secao {
+      margin-bottom: 1.75rem;
+    }
+
+    .config-secao-titulo {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--vermelho);
+      margin-bottom: 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--borda);
+    }
+
+    .campo-grupo {
+      margin-bottom: 1rem;
+    }
+
+    .campo-grupo label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--grafite-md);
+      margin-bottom: 0.35rem;
+    }
+
+    .campo-grupo input {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--borda);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--grafite);
+      background: var(--papel);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .campo-grupo input:focus {
+      outline: none;
+      border-color: var(--vermelho);
+      box-shadow: 0 0 0 3px rgba(153,60,29,0.12);
+    }
+
+    .config-alerta {
+      background: #fff8f0;
+      border: 1px solid #f0d5b0;
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-size: 0.78rem;
+      color: #7a5020;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .config-alerta strong { color: #6b3a10; }
+
+    .config-footer {
+      margin-top: 1.5rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* =============================================
+       CAMPO DE PROMPT PERSONALIZADO
+    ============================================= */
+    .prompt-textarea {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--borda);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--grafite);
+      background: var(--papel);
+      resize: vertical;
+      min-height: 220px;
+      line-height: 1.65;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .prompt-textarea:focus {
+      outline: none;
+      border-color: var(--vermelho);
+      box-shadow: 0 0 0 3px rgba(153,60,29,0.1);
+    }
+
+    .prompt-textarea::placeholder {
+      color: #bbb;
+      font-style: italic;
+    }
+
+    .prompt-rodape {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .prompt-contador {
+      font-size: 0.72rem;
+      color: var(--grafite-lt);
+      font-family: var(--font-mono);
+    }
+
+    .prompt-contador.longo { color: #8a6020; }
+    .prompt-contador.muito-longo { color: #b33a3a; }
+
+    .prompt-dica {
+      background: #f0f5ff;
+      border: 1px solid #ccd8f0;
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-size: 0.78rem;
+      color: #2a3a6a;
+      margin-top: 0.75rem;
+      line-height: 1.6;
+    }
+
+    .prompt-dica strong { color: #1a2a5a; }
+
+    .prompt-dica ul {
+      margin: 0.4rem 0 0 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    /* Badge indicador de prompt ativo no botão reescrever */
+    .badge-prompt-custom {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: rgba(153,60,29,0.12);
+      color: var(--vermelho);
+      border: 1px solid rgba(153,60,29,0.25);
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 0.2rem 0.5rem;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    /* Indicador no painel IA quando prompt personalizado está ativo */
+    .prompt-ativo-banner {
+      background: linear-gradient(135deg, #fff8f0, #fff3e8);
+      border-bottom: 1px solid #f0d5b0;
+      padding: 0.5rem 1.25rem;
+      font-size: 0.73rem;
+      color: #7a4010;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .prompt-ativo-banner a {
+      color: var(--vermelho);
+      text-decoration: underline;
+      cursor: pointer;
+      margin-left: auto;
+      font-weight: 500;
+    }
+
+    /* =============================================
+       TELA: LISTA DE RASCUNHOS
+    ============================================= */
+    #tela-lista {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .lista-topo {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .lista-topo-esq h2 {
+      font-family: var(--font-titulo);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--grafite);
+    }
+
+    .lista-topo-esq .contador {
+      font-size: 0.8rem;
+      color: var(--grafite-lt);
+      margin-top: 0.15rem;
+    }
+
+    /* Skeleton loader */
+    .skeleton {
+      background: linear-gradient(90deg, var(--papel-alt) 25%, var(--borda) 50%, var(--papel-alt) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--radius);
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-card {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .skeleton-linha { height: 14px; margin-bottom: 0.6rem; }
+    .skeleton-linha.larga { width: 65%; }
+    .skeleton-linha.media { width: 40%; }
+    .skeleton-linha.curta { width: 25%; }
+
+    /* Cards de rascunho */
+    .rascunho-card {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+      cursor: default;
+    }
+
+    .rascunho-card:hover {
+      box-shadow: var(--sombra-md);
+      border-color: #c5c0b5;
+      transform: translateY(-1px);
+    }
+
+    .rascunho-info { flex: 1; min-width: 0; }
+
+    .rascunho-titulo {
+      font-family: var(--font-titulo);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--grafite);
+      margin-bottom: 0.35rem;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .rascunho-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .rascunho-meta span {
+      font-size: 0.75rem;
+      color: var(--grafite-lt);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .tag-categoria {
+      background: var(--papel-alt);
+      border: 1px solid var(--borda);
+      border-radius: 3px;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--grafite-md);
+    }
+
+    .lista-vazia {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--grafite-lt);
+    }
+    .lista-vazia .icone-vazio {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.4;
+    }
+    .lista-vazia p { font-size: 0.9rem; }
+
+    /* =============================================
+       TELA: EDITOR (Revisar + IA)
+    ============================================= */
+    #tela-editor {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .editor-topo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .editor-topo h2 {
+      font-family: var(--font-titulo);
+      font-size: 1.3rem;
+      flex: 1;
+      line-height: 1.35;
+    }
+
+    /* Layout de duas colunas no editor */
+    .editor-colunas {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 820px) {
+      .editor-colunas { grid-template-columns: 1fr; }
+    }
+
+    .painel {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .painel-header {
+      padding: 0.85rem 1.25rem;
+      background: var(--papel-alt);
+      border-bottom: 1px solid var(--borda);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .painel-header h3 {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--grafite-lt);
+    }
+
+    .painel-header .badge-ia {
+      background: var(--vermelho);
+      color: var(--branco);
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+    }
+
+    .painel-corpo {
+      padding: 1.25rem;
+    }
+
+    /* Conteúdo original */
+    .original-titulo {
+      font-family: var(--font-titulo);
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--grafite);
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+
+    .original-corpo {
+      font-size: 0.85rem;
+      color: var(--grafite-md);
+      line-height: 1.75;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+
+    .original-corpo p { margin-bottom: 0.75rem; }
+
+    /* Ações do painel original */
+    .painel-acoes {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--borda);
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    /* Loading da IA */
+    #loading-ia {
+      padding: 3rem 1.25rem;
+      text-align: center;
+    }
+
+    .loading-ia-anim {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .loading-ia-anim span {
+      width: 8px;
+      height: 8px;
+      background: var(--vermelho);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .loading-ia-anim span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-ia-anim span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.6; }
+      40% { transform: translateY(-10px); opacity: 1; }
+    }
+
+    .loading-ia-texto {
+      font-size: 0.85rem;
+      color: var(--grafite-lt);
+      font-style: italic;
+    }
+
+    /* Formulário de resultado da IA */
+    #form-resultado {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .campo-ia {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--borda);
+    }
+    .campo-ia:last-of-type { border-bottom: none; }
+
+    .campo-ia label {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--vermelho);
+      margin-bottom: 0.4rem;
+    }
+
+    .campo-ia input[type="text"],
+    .campo-ia textarea,
+    .campo-ia select {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      border: 1px solid var(--borda);
+      border-radius: var(--radius);
+      font-family: var(--font-ui);
+      font-size: 0.88rem;
+      color: var(--grafite);
+      background: var(--papel);
+      resize: vertical;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .campo-ia input[type="text"]:focus,
+    .campo-ia textarea:focus,
+    .campo-ia select:focus {
+      outline: none;
+      border-color: var(--vermelho);
+      box-shadow: 0 0 0 3px rgba(153,60,29,0.1);
+    }
+
+    .campo-ia .chapeu-input {
+      font-family: var(--font-titulo);
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .campo-ia .titulo-input {
+      font-family: var(--font-titulo);
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .campo-ia textarea { min-height: 80px; }
+    .campo-ia textarea.corpo-textarea { min-height: 280px; font-size: 0.83rem; }
+
+    /* Tags */
+    .tags-info {
+      font-size: 0.72rem;
+      color: var(--grafite-lt);
+      margin-top: 0.3rem;
+    }
+
+    /* Rodapé do painel IA com botões de ação */
+    .ia-acoes {
+      padding: 1.25rem;
+      border-top: 2px solid var(--borda);
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+      background: var(--papel-alt);
+    }
+
+    /* =============================================
+       MODAL DE CONFIRMAÇÃO
+    ============================================= */
+    #overlay-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal {
+      background: var(--branco);
+      border-radius: 8px;
+      padding: 2rem;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+
+    .modal h3 {
+      font-family: var(--font-titulo);
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .modal p {
+      font-size: 0.88rem;
+      color: var(--grafite-md);
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .modal-acoes {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    /* =============================================
+       TOAST / NOTIFICAÇÕES
+    ============================================= */
+    #toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .toast {
+      background: var(--grafite);
+      color: var(--branco);
+      padding: 0.75rem 1.25rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      box-shadow: var(--sombra-md);
+      max-width: 360px;
+      animation: slideIn 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .toast.sucesso { background: var(--verde); }
+    .toast.erro    { background: #b33a3a; }
+    .toast.aviso   { background: #8a6020; }
+
+    @keyframes slideIn {
+      from { transform: translateX(110%); opacity: 0; }
+      to   { transform: translateX(0);   opacity: 1; }
+    }
+
+    /* =============================================
+       LINK DE POST PUBLICADO
+    ============================================= */
+    .link-publicado {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--verde-lt);
+      font-size: 0.82rem;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    /* =============================================
+       RESPONSIVO
+    ============================================= */
+    @media (max-width: 640px) {
+      #header { padding: 0 1rem; }
+      #tela-lista, #tela-editor { padding: 1.25rem 1rem; }
+      .lista-topo { flex-direction: column; align-items: flex-start; }
+      .rascunho-card { flex-direction: column; align-items: flex-start; }
+      .editor-topo { flex-direction: column; align-items: flex-start; }
+    }
+
+    /* =============================================
+       IMAGENS — PAINEL ORIGINAL
+    ============================================= */
+    .orig-imagem-wrap {
+      margin-bottom: 1rem;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--borda);
+      background: var(--papel-alt);
+    }
+
+    .orig-imagem-wrap img {
+      width: 100%;
+      max-height: 220px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .orig-imagem-legenda {
+      font-size: 0.68rem;
+      color: var(--grafite-lt);
+      padding: 0.35rem 0.6rem;
+      background: var(--papel-alt);
+      border-top: 1px solid var(--borda);
+    }
+
+    /* =============================================
+       IMAGENS — PAINEL IA (GERENCIAMENTO)
+    ============================================= */
+    .imagem-destaque-wrap {
+      border: 2px dashed var(--borda);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--papel-alt);
+      transition: border-color 0.2s;
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .imagem-destaque-wrap.tem-imagem {
+      border-style: solid;
+      border-color: var(--borda);
+    }
+
+    .imagem-destaque-wrap img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .imagem-placeholder {
+      text-align: center;
+      padding: 1.5rem;
+      color: var(--grafite-lt);
+    }
+
+    .imagem-placeholder .placeholder-icone {
+      font-size: 2rem;
+      opacity: 0.4;
+      margin-bottom: 0.5rem;
+    }
+
+    .imagem-placeholder p {
+      font-size: 0.78rem;
+    }
+
+    .imagem-botoes {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .imagem-botoes .btn {
+      font-size: 0.78rem;
+      padding: 0.4rem 0.85rem;
+    }
+
+    .btn-remover-img {
+      background: transparent;
+      color: #b33a3a;
+      border: 1px solid #e0b0b0;
+    }
+    .btn-remover-img:hover:not(:disabled) {
+      background: #fff0f0;
+      border-color: #c05050;
+    }
+
+    .upload-status {
+      font-size: 0.75rem;
+      color: var(--grafite-lt);
+      margin-top: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .upload-status.erro { color: #b33a3a; }
+    .upload-status.ok   { color: var(--verde); }
+
+    .upload-barra-wrap {
+      width: 100%;
+      height: 3px;
+      background: var(--borda);
+      border-radius: 2px;
+      margin-top: 0.5rem;
+      overflow: hidden;
+    }
+
+    .upload-barra {
+      height: 100%;
+      background: var(--vermelho);
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.3s ease;
+      animation: pulse-barra 1s infinite alternate;
+    }
+
+    @keyframes pulse-barra {
+      from { opacity: 0.7; }
+      to   { opacity: 1; }
+    }
+
+    /* =============================================
+       ABAS DE NAVEGAÇÃO
+    ============================================= */
+    .abas-nav {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--borda);
+      margin-bottom: 1.75rem;
+    }
+
+    .aba-btn {
+      background: none;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-family: var(--font-ui);
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--grafite-lt);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .aba-btn:hover { color: var(--grafite); }
+
+    .aba-btn.ativa {
+      color: var(--vermelho);
+      border-bottom-color: var(--vermelho);
+      font-weight: 600;
+    }
+
+    .aba-btn .aba-badge {
+      background: var(--vermelho);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 10px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    /* =============================================
+       PAINEL FONTES EXTERNAS — FILTROS
+    ============================================= */
+    .fontes-controles {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .fontes-controles select,
+    .fontes-controles input[type="text"] {
+      padding: 0.45rem 0.7rem;
+      border: 1px solid var(--borda);
+      border-radius: var(--radius);
+      font-family: var(--font-ui);
+      font-size: 0.82rem;
+      background: var(--branco);
+      color: var(--grafite);
+      transition: border-color 0.15s;
+    }
+
+    .fontes-controles select:focus,
+    .fontes-controles input:focus {
+      outline: none;
+      border-color: var(--vermelho);
+    }
+
+    .fontes-controles input[type="text"] { min-width: 200px; }
+
+    .fontes-controles .separador {
+      width: 1px;
+      height: 22px;
+      background: var(--borda);
+      margin: 0 0.2rem;
+    }
+
+    .fontes-total {
+      margin-left: auto;
+      font-size: 0.78rem;
+      color: var(--grafite-lt);
+    }
+
+    /* =============================================
+       TABELA DE NOTÍCIAS
+    ============================================= */
+    .noticias-tabela-wrap {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .noticias-tabela {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.83rem;
+    }
+
+    .noticias-tabela thead th {
+      background: var(--papel-alt);
+      padding: 0.6rem 1rem;
+      text-align: left;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--grafite-lt);
+      border-bottom: 1px solid var(--borda);
+    }
+
+    .noticias-tabela tbody tr {
+      border-bottom: 1px solid var(--papel-alt);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .noticias-tabela tbody tr:last-child { border-bottom: none; }
+    .noticias-tabela tbody tr:hover { background: #faf9f6; }
+
+    .noticias-tabela td {
+      padding: 0.7rem 1rem;
+      vertical-align: middle;
+    }
+
+    .noticias-tabela .col-fonte { width: 130px; }
+    .noticias-tabela .col-titulo { }
+    .noticias-tabela .col-data { width: 90px; white-space: nowrap; color: var(--grafite-lt); font-size: 0.75rem; }
+    .noticias-tabela .col-acoes { width: 130px; }
+
+    .noticia-titulo-cell {
+      font-weight: 500;
+      color: var(--grafite);
+      line-height: 1.4;
+    }
+
+    .noticia-titulo-cell .noticia-resumo-mini {
+      font-size: 0.75rem;
+      color: var(--grafite-lt);
+      font-weight: 400;
+      margin-top: 0.2rem;
+      line-height: 1.4;
+    }
+
+    /* Badges de categoria por cor */
+    .badge-fonte {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      white-space: nowrap;
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge-fonte.nacional    { background: #fee2e2; color: #b91c1c; }
+    .badge-fonte.regional    { background: #dcfce7; color: #15803d; }
+    .badge-fonte.governo     { background: #dbeafe; color: #1d4ed8; }
+    .badge-fonte.esporte     { background: #ffedd5; color: #c2410c; }
+    .badge-fonte.agro        { background: #fef9c3; color: #92400e; }
+    .badge-fonte.prefeitura  { background: #f3f4f6; color: #374151; }
+
+    .acoes-tabela {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .acoes-tabela .btn {
+      font-size: 0.73rem;
+      padding: 0.3rem 0.65rem;
+    }
+
+    /* Loading de fontes */
+    .fontes-loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--grafite-lt);
+    }
+
+    .fontes-vazio {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: var(--grafite-lt);
+    }
+
+    .fontes-vazio .icone-vazio { font-size: 2.5rem; opacity: 0.35; margin-bottom: 0.75rem; }
+    .fontes-vazio p { font-size: 0.88rem; }
+
+    /* =============================================
+       STATUS DAS FONTES (collapsible)
+    ============================================= */
+    .status-fontes-wrap {
+      margin-top: 1.5rem;
+    }
+
+    .status-fontes-wrap details {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .status-fontes-wrap summary {
+      padding: 0.65rem 1rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--grafite-md);
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--papel-alt);
+      list-style: none;
+    }
+
+    .status-fontes-wrap summary::-webkit-details-marker { display: none; }
+    .status-fontes-wrap summary::after { content: '▸'; margin-left: auto; font-size: 0.7rem; }
+    .status-fontes-wrap details[open] summary::after { content: '▾'; }
+
+    .status-fontes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0;
+      padding: 0.5rem 0;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 1rem;
+      font-size: 0.75rem;
+      color: var(--grafite-md);
+      border-bottom: 1px solid var(--papel-alt);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.ok      { background: #16a34a; }
+    .status-dot.error   { background: #dc2626; }
+    .status-dot.pending { background: #d97706; }
+
+    .status-item .status-count {
+      margin-left: auto;
+      font-size: 0.68rem;
+      color: var(--grafite-lt);
+      font-family: var(--font-mono);
+    }
+
+    /* =============================================
+       MODAL DE LEITURA DO ARTIGO EXTERNO
+    ============================================= */
+    #overlay-leitura {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+      overflow-y: auto;
+    }
+
+    .modal-leitura {
+      background: var(--branco);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 680px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.22);
+      margin: auto;
+    }
+
+    .modal-leitura-header {
+      padding: 1.25rem 1.5rem 1rem;
+      border-bottom: 1px solid var(--borda);
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .modal-leitura-header .modal-fonte-badge {
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+    }
+
+    .modal-leitura-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .modal-leitura-meta .modal-fonte-nome {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--grafite-lt);
+      margin-bottom: 0.3rem;
+    }
+
+    .modal-leitura-meta h2 {
+      font-family: var(--font-titulo);
+      font-size: 1.2rem;
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--grafite);
+    }
+
+    .modal-leitura-meta .modal-data {
+      font-size: 0.75rem;
+      color: var(--grafite-lt);
+      margin-top: 0.35rem;
+    }
+
+    .modal-leitura-fechar {
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      color: var(--grafite-lt);
+      cursor: pointer;
+      padding: 0.2rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .modal-leitura-fechar:hover { color: var(--grafite); }
+
+    .modal-leitura-imagem {
+      width: 100%;
+      max-height: 280px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .modal-leitura-corpo {
+      padding: 1.25rem 1.5rem;
+      font-size: 0.88rem;
+      line-height: 1.75;
+      color: var(--grafite-md);
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+
+    .modal-leitura-corpo p { margin-bottom: 0.75rem; }
+    .modal-leitura-corpo h2,
+    .modal-leitura-corpo h3 { font-family: var(--font-titulo); margin: 1rem 0 0.5rem; }
+    .modal-leitura-corpo img { max-width: 100%; border-radius: var(--radius); margin: 0.5rem 0; }
+    .modal-leitura-corpo a { color: var(--vermelho); }
+
+    .leitura-carregando {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 2rem 0;
+      color: var(--grafite-lt);
+      font-size: 0.85rem;
+    }
+    .leitura-carregando::before {
+      content: '';
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--borda);
+      border-top-color: var(--vermelho);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .modal-leitura-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--borda);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      background: var(--papel-alt);
+    }
+
+    .modal-leitura-footer .link-original {
+      font-size: 0.8rem;
+      color: var(--grafite-lt);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .modal-leitura-footer .link-original:hover { color: var(--grafite); }
+
+    /* =============================================
+       SCROLLBAR PERSONALIZADA
+    ============================================= */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--papel-alt); }
+    ::-webkit-scrollbar-thumb { background: var(--borda); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #bbb; }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================
+       HEADER FIXO (visível em todas as telas, exceto config)
+  =========================================== -->
+  <header id="header" class="hidden">
+    <div class="logo">
+      <span class="logo-sigla">RB24Horas</span>
+      <span class="logo-subtitulo">Painel<br>Editorial</span>
+    </div>
+    <div class="header-acoes">
+      <button class="btn btn-ghost" id="btn-config-header" title="Configurações" aria-label="Configurações">
+        &#9881;
+      </button>
+    </div>
+  </header>
+
+  <!-- ==========================================
+       TELA 1 — CONFIGURAÇÕES
+  =========================================== -->
+  <div id="tela-config">
+    <div class="config-topo-nav">
+      <button class="btn btn-secundario" id="btn-voltar-config" style="display:none;">
+        &#8592; Voltar
+      </button>
+    </div>
+
+    <div class="config-cabecalho">
+      <h1><span class="config-sigla">RB24Horas</span><br>Painel Editorial</h1>
+      <p>Configure as conexões para começar a usar o sistema</p>
+    </div>
+
+    <div class="config-card">
+      <div class="config-secao">
+        <div class="config-secao-titulo">&#128279; WordPress</div>
+        <div class="campo-grupo">
+          <label for="cfg-wp-url">URL do site WordPress</label>
+          <input type="text" id="cfg-wp-url" placeholder="https://rb24horas.com.br" autocomplete="off" />
+        </div>
+        <div class="campo-grupo">
+          <label for="cfg-wp-usuario">Usuário WordPress</label>
+          <input type="text" id="cfg-wp-usuario" placeholder="editor" autocomplete="off" />
+        </div>
+        <div class="campo-grupo">
+          <label for="cfg-wp-senha">Application Password</label>
+          <input type="password" id="cfg-wp-senha" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="config-secao">
+        <div class="config-secao-titulo">&#129302; Google Gemini</div>
+        <div class="campo-grupo">
+          <label for="cfg-gemini-key">Gemini API Key</label>
+          <input type="password" id="cfg-gemini-key" placeholder="AIza..." autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- SEÇÃO: AGREGADOR DE FONTES EXTERNAS -->
+      <div class="config-secao">
+        <div class="config-secao-titulo">&#127760; Agregador de Fontes Externas</div>
+        <div class="campo-grupo">
+          <label for="cfg-backend-url">URL do Backend</label>
+          <input type="text" id="cfg-backend-url" placeholder="http://localhost:3000" autocomplete="off" />
+        </div>
+        <div class="prompt-dica" style="margin-top:0.5rem;">
+          <strong>&#128161; Como usar:</strong> Informe a URL onde o servidor Node.js está rodando.
+          A aba <em>Fontes Externas</em> ficará disponível na lista de rascunhos.
+          Deixe em branco para desativar o módulo.
+          <br><br>
+          Para instalar e rodar o backend: <code style="font-family:var(--font-mono); font-size:0.82em;">cd backend &amp;&amp; npm install &amp;&amp; npm start</code>
+        </div>
+      </div>
+
+      <!-- SEÇÃO: INSTRUÇÕES PARA A IA -->
+      <div class="config-secao">
+        <div class="config-secao-titulo">&#129302; Instruções editoriais para a IA</div>
+        <div class="campo-grupo">
+          <label for="cfg-prompt-ia">
+            Prompt de sistema personalizado
+            <span style="font-weight:400; color:var(--grafite-lt); font-size:0.75rem; margin-left:0.4rem;">(opcional)</span>
+          </label>
+          <textarea
+            id="cfg-prompt-ia"
+            class="prompt-textarea"
+            placeholder="Deixe em branco para usar as instruções padrão do sistema..."
+            spellcheck="false"
+          ></textarea>
+          <div class="prompt-rodape">
+            <span class="prompt-contador" id="cfg-prompt-contador">0 caracteres</span>
+            <button class="btn btn-secundario" id="btn-restaurar-prompt" style="font-size:0.73rem; padding:0.3rem 0.8rem;">
+              &#8635; Restaurar padrão
+            </button>
+          </div>
+        </div>
+
+        <div class="prompt-dica">
+          <strong>&#128161; Como usar:</strong> Escreva aqui como a IA deve se comportar ao reescrever as matérias. Se deixar em branco, o sistema usa as instruções padrão. Exemplos do que você pode personalizar:
+          <ul>
+            <li>Tom de voz (formal, popular, regional…)</li>
+            <li>Estilo de título (curto e direto, com números, etc.)</li>
+            <li>Palavras e expressões a evitar ou usar</li>
+            <li>Foco geográfico ou temático do portal</li>
+            <li>Tamanho e formato do corpo da matéria</li>
+            <li>Regras específicas do seu veículo</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="config-alerta">
+        <strong>Segurança:</strong> As credenciais são salvas apenas no seu navegador (localStorage).
+        Use este sistema somente em dispositivos pessoais e seguros.
+      </div>
+
+      <div class="config-footer">
+        <button class="btn btn-primario btn-lg" id="btn-salvar-config">Salvar e Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       TELA 2 — LISTA (Rascunhos + Fontes Externas)
+  =========================================== -->
+  <div id="tela-lista" class="hidden">
+
+    <!-- Navegação por abas -->
+    <div style="max-width:920px; margin:0 auto; padding:1.5rem 1.5rem 0;">
+      <nav class="abas-nav">
+        <button class="aba-btn ativa" id="aba-btn-rascunhos">
+          &#128196; Rascunhos WordPress
+          <span class="aba-badge" id="aba-badge-rascunhos" style="display:none">0</span>
+        </button>
+        <button class="aba-btn" id="aba-btn-fontes" style="display:none">
+          &#127760; Fontes Externas
+          <span class="aba-badge" id="aba-badge-fontes" style="display:none">0</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ── PAINEL: Rascunhos WordPress ─────────────────── -->
+    <div id="painel-rascunhos" class="aba-painel" style="max-width:920px; margin:0 auto; padding:0 1.5rem 2rem;">
+      <div class="lista-topo">
+        <div class="lista-topo-esq">
+          <h2>Rascunhos pendentes</h2>
+          <div class="contador" id="contador-rascunhos">Carregando...</div>
+        </div>
+        <button class="btn btn-secundario" id="btn-atualizar-lista">&#8635; Atualizar lista</button>
+      </div>
+
+      <div id="lista-rascunhos-container">
+        <div id="skeleton-lista">
+          <div class="skeleton-card">
+            <div class="skeleton skeleton-linha larga"></div>
+            <div class="skeleton skeleton-linha media"></div>
+            <div class="skeleton skeleton-linha curta"></div>
+          </div>
+          <div class="skeleton-card">
+            <div class="skeleton skeleton-linha larga"></div>
+            <div class="skeleton skeleton-linha media"></div>
+            <div class="skeleton skeleton-linha curta"></div>
+          </div>
+          <div class="skeleton-card">
+            <div class="skeleton skeleton-linha larga"></div>
+            <div class="skeleton skeleton-linha media"></div>
+            <div class="skeleton skeleton-linha curta"></div>
+          </div>
+        </div>
+        <div id="lista-rascunhos"></div>
+      </div>
+    </div>
+
+    <!-- ── PAINEL: Fontes Externas ─────────────────────── -->
+    <div id="painel-fontes" class="aba-painel hidden" style="max-width:1100px; margin:0 auto; padding:0 1.5rem 2rem;">
+
+      <!-- Barra de filtros -->
+      <div class="fontes-controles">
+        <select id="fontes-filtro-fonte">
+          <option value="">Todas as fontes</option>
+        </select>
+        <select id="fontes-filtro-categoria">
+          <option value="">Todas as categorias</option>
+          <option value="nacional">Nacional</option>
+          <option value="regional">Regional</option>
+          <option value="governo">Governo</option>
+          <option value="esporte">Esporte</option>
+          <option value="agro">Agro</option>
+          <option value="prefeitura">Prefeitura</option>
+        </select>
+        <div class="separador"></div>
+        <select id="fontes-filtro-periodo">
+          <option value="24">Últimas 24h</option>
+          <option value="72">Últimos 3 dias</option>
+          <option value="168">Última semana</option>
+          <option value="0" selected>Todas</option>
+        </select>
+        <input type="text" id="fontes-busca" placeholder="&#128269; Buscar por título..." />
+        <div class="separador"></div>
+        <button class="btn btn-secundario" id="btn-atualizar-fontes">&#8635; Atualizar</button>
+        <span class="fontes-total" id="fontes-total"></span>
+      </div>
+
+      <!-- Tabela de notícias -->
+      <div class="noticias-tabela-wrap">
+        <!-- Loading -->
+        <div id="fontes-loading" class="fontes-loading hidden">
+          <div class="loading-ia-anim" style="justify-content:center; margin-bottom:0.75rem;">
+            <span></span><span></span><span></span>
+          </div>
+          <div style="font-size:0.85rem; color:var(--grafite-lt);">Carregando notícias das fontes...</div>
+        </div>
+
+        <!-- Vazio -->
+        <div id="fontes-vazio" class="fontes-vazio hidden">
+          <div class="icone-vazio">&#127760;</div>
+          <p>Nenhuma notícia encontrada com os filtros atuais.</p>
+        </div>
+
+        <!-- Tabela -->
+        <table class="noticias-tabela" id="noticias-tabela">
+          <thead>
+            <tr>
+              <th class="col-fonte">Fonte</th>
+              <th class="col-titulo">Título</th>
+              <th class="col-data">Publicado</th>
+              <th class="col-acoes">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="noticias-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Status das fontes (collapsible) -->
+      <div class="status-fontes-wrap">
+        <details>
+          <summary>&#128308; Status das fontes</summary>
+          <div class="status-fontes-grid" id="status-fontes-grid">
+            <div style="padding:1rem; font-size:0.8rem; color:var(--grafite-lt);">Carregando status...</div>
+          </div>
+        </details>
+      </div>
+
+    </div><!-- #painel-fontes -->
+
+  </div><!-- #tela-lista -->
+
+  <!-- ==========================================
+       TELA 3+4 — EDITOR DE RASCUNHO + RESULTADO IA
+  =========================================== -->
+  <div id="tela-editor" class="hidden">
+    <div class="editor-topo">
+      <button class="btn btn-secundario" id="btn-voltar-lista">&#8592; Voltar à lista</button>
+      <h2 id="editor-titulo-header"></h2>
+    </div>
+
+    <div class="editor-colunas">
+
+      <!-- PAINEL ESQUERDO: Conteúdo Original -->
+      <div class="painel" id="painel-original">
+        <div class="painel-header">
+          <h3>&#128196; Conteúdo original</h3>
+        </div>
+        <div class="painel-corpo">
+          <!-- Imagem destacada do post original -->
+          <div id="orig-imagem-container" class="orig-imagem-wrap hidden">
+            <img id="orig-imagem" src="" alt="Imagem destacada do post" />
+            <div class="orig-imagem-legenda">&#128247; Imagem destacada atual</div>
+          </div>
+          <div class="original-titulo" id="orig-titulo"></div>
+          <div class="original-corpo" id="orig-corpo"></div>
+        </div>
+        <div class="painel-acoes">
+          <button class="btn btn-ia" id="btn-reescrever">
+            &#10024; Reescrever com IA
+          </button>
+        </div>
+      </div>
+
+      <!-- PAINEL DIREITO: Resultado da IA -->
+      <div class="painel" id="painel-ia">
+        <div class="painel-header">
+          <h3>Resultado editorial</h3>
+          <span class="badge-ia">IA</span>
+        </div>
+
+        <!-- Banner de prompt personalizado ativo -->
+        <div id="banner-prompt-custom" class="prompt-ativo-banner hidden">
+          <span>&#9998;</span>
+          <span>Usando <strong>instruções personalizadas</strong></span>
+          <a id="link-editar-prompt" title="Editar instruções">Editar instruções</a>
+        </div>
+
+        <!-- Estado: aguardando ação -->
+        <div id="ia-aguardando" class="painel-corpo" style="text-align:center; padding: 3rem 1.5rem; color: var(--grafite-lt);">
+          <div style="font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.3;">&#129302;</div>
+          <p style="font-size: 0.88rem;">Clique em <strong>Reescrever com IA</strong> para gerar o conteúdo editorial.</p>
+        </div>
+
+        <!-- Estado: carregando -->
+        <div id="loading-ia" class="hidden">
+          <div class="loading-ia-anim">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="loading-ia-texto">Gemini está reescrevendo a matéria...</div>
+        </div>
+
+        <!-- Estado: formulário preenchido -->
+        <div id="form-resultado" class="hidden">
+          <div class="campo-ia">
+            <label for="ia-chapeu">Chapéu</label>
+            <input type="text" id="ia-chapeu" class="chapeu-input" placeholder="EX: POLÍTICA" />
+          </div>
+          <div class="campo-ia">
+            <label for="ia-titulo">Título</label>
+            <input type="text" id="ia-titulo" class="titulo-input" placeholder="Título da matéria" />
+          </div>
+          <div class="campo-ia">
+            <label for="ia-resumo">Resumo / Subtítulo</label>
+            <textarea id="ia-resumo" rows="3" placeholder="2 a 3 frases resumindo a matéria"></textarea>
+          </div>
+          <div class="campo-ia">
+            <label for="ia-corpo">Corpo do texto</label>
+            <textarea id="ia-corpo" class="corpo-textarea" placeholder="Corpo da matéria em HTML"></textarea>
+          </div>
+          <div class="campo-ia">
+            <label for="ia-tags">Tags</label>
+            <input type="text" id="ia-tags" placeholder="tag1, tag2, tag3" />
+            <div class="tags-info">Separadas por vírgula</div>
+          </div>
+          <div class="campo-ia">
+            <label for="ia-categoria">Categoria</label>
+            <select id="ia-categoria">
+              <option value="">— Sem categoria —</option>
+            </select>
+          </div>
+
+          <!-- GERENCIAMENTO DE IMAGEM DESTACADA -->
+          <div class="campo-ia">
+            <label>Imagem Destacada</label>
+
+            <!-- Preview da imagem (original ou nova) -->
+            <div id="imagem-destaque-wrap" class="imagem-destaque-wrap">
+              <div id="imagem-placeholder" class="imagem-placeholder">
+                <div class="placeholder-icone">&#128247;</div>
+                <p>Nenhuma imagem destacada</p>
+              </div>
+              <img id="imagem-destaque-preview" src="" alt="Imagem destacada" class="hidden" />
+            </div>
+
+            <!-- Barra de upload -->
+            <div id="upload-barra-wrap" class="upload-barra-wrap hidden">
+              <div id="upload-barra" class="upload-barra"></div>
+            </div>
+
+            <!-- Status do upload -->
+            <div id="upload-status" class="upload-status hidden"></div>
+
+            <!-- Botões de ação -->
+            <div class="imagem-botoes">
+              <input type="file" id="input-imagem-nova" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" />
+              <button class="btn btn-secundario" id="btn-selecionar-imagem">&#128247; Trocar imagem</button>
+              <button class="btn btn-remover-img" id="btn-remover-imagem">&#10005; Remover imagem</button>
+            </div>
+          </div>
+
+          <div class="ia-acoes">
+            <button class="btn btn-publicar" id="btn-publicar">
+              &#10003; Publicar no WordPress
+            </button>
+            <button class="btn btn-secundario" id="btn-reescrever-novamente">
+              &#8635; Reescrever novamente
+            </button>
+            <button class="btn btn-secundario" id="btn-baixar-html">
+              &#8595; Baixar HTML
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- .editor-colunas -->
+  </div>
+
+  <!-- ==========================================
+       MODAL DE LEITURA — ARTIGO EXTERNO
+  =========================================== -->
+  <div id="overlay-leitura" class="hidden" role="dialog" aria-modal="true">
+    <div class="modal-leitura">
+
+      <div class="modal-leitura-header">
+        <div class="modal-leitura-meta">
+          <div class="modal-fonte-nome" id="modal-leitura-fonte"></div>
+          <h2 id="modal-leitura-titulo"></h2>
+          <div class="modal-data" id="modal-leitura-data"></div>
+        </div>
+        <button class="modal-leitura-fechar" id="btn-fechar-leitura" aria-label="Fechar">&#10005;</button>
+      </div>
+
+      <img id="modal-leitura-imagem" src="" alt="" class="modal-leitura-imagem hidden" />
+
+      <div class="modal-leitura-corpo" id="modal-leitura-corpo"></div>
+
+      <div class="modal-leitura-footer">
+        <button class="btn btn-ia" id="btn-reescrever-externo" style="font-size:0.88rem;">
+          &#10024; Reescrever com IA
+        </button>
+        <a id="modal-leitura-link" href="#" target="_blank" rel="noopener" class="link-original">
+          Ver original &#8599;
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL DE CONFIRMAÇÃO
+  =========================================== -->
+  <div id="overlay-modal" class="hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h3>Publicar matéria?</h3>
+      <p>
+        O post será publicado imediatamente no site <strong>RB24Horas</strong> com o conteúdo revisado.
+        Esta ação não pode ser desfeita diretamente por aqui.
+      </p>
+      <div class="modal-acoes">
+        <button class="btn btn-secundario" id="btn-modal-cancelar">Cancelar</button>
+        <button class="btn btn-publicar" id="btn-modal-confirmar">Sim, publicar agora</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       CONTAINER DE TOASTS
+  =========================================== -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- ==========================================
+       JAVASCRIPT PRINCIPAL
+  =========================================== -->
+  <script>
+    'use strict';
+
+    /* ============================================
+       PROMPT PADRÃO DO SISTEMA (fallback)
+       Usado quando o gestor não definiu um prompt personalizado
+    ============================================ */
+    const PROMPT_PADRAO = `Você é um editor jornalístico sênior do portal de notícias RB24Horas, um site de notícias regional do Brasil. Seu papel é reescrever matérias recebidas de outras fontes, adaptando-as ao estilo editorial do portal.
+
+Diretrizes editoriais:
+- Linguagem clara, direta e acessível ao leitor regional
+- Tom informativo, sério e confiável
+- Evitar sensacionalismo exagerado
+- Priorizar os fatos locais e o impacto para o leitor
+- Nunca copiar frases do texto original — reescrever completamente com outras palavras
+- Manter todos os fatos, dados, nomes e datas do original
+
+Você deve retornar APENAS um JSON válido, sem texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+{
+  "chapeu": "categoria em maiúsculas (ex: POLÍTICA, ECONOMIA, SEGURANÇA, SAÚDE, ESPORTE)",
+  "titulo": "título reescrito, impactante e claro",
+  "resumo": "2 a 3 frases resumindo a matéria para o leitor",
+  "corpo": "corpo completo da matéria reescrito, em HTML com parágrafos usando <p>, sem copiar o original",
+  "tags": ["tag1", "tag2", "tag3", "tag4"],
+  "categoria": "nome da categoria mais adequada"
+}`;
+
+    /* ============================================
+       ESTADO GLOBAL DA APLICAÇÃO
+    ============================================ */
+    const estado = {
+      config: null,           // { wpUrl, wpUsuario, wpSenha, geminiKey }
+      categorias: [],         // [{ id, name }]
+      rascunhos: [],          // lista de posts draft do WP
+      postAtual: null,        // post sendo editado
+      iaResultado: null,      // último resultado gerado pela IA
+      // Prompt personalizado (carregado da config)
+      promptPersonalizado: '',
+      // Fontes externas
+      backendUrl:      '',   // URL do backend Node.js
+      noticiasBruto:   [],   // todas as notícias carregadas do backend
+      noticiasFiltradas: [], // após aplicar filtros
+      artigoAtual:     null, // artigo externo aberto no modal de leitura
+      origemReescrita: null, // { url, nome, slug } quando vier de fonte externa
+      // Gerenciamento de imagem destacada
+      imagemAtualId:  0,      // ID do featured_media original do post
+      imagemAtualUrl: '',     // URL da imagem destacada atual
+      novaImagemFile: null,   // File selecionado pelo gestor (ainda não enviado)
+      novaImagemPreview: '',  // blob URL para preview local
+      removerImagem:  false,  // true se o gestor clicou em "Remover"
+    };
+
+    /* ============================================
+       REFERÊNCIAS DOM
+    ============================================ */
+    const el = {
+      header:            document.getElementById('header'),
+      telaConfig:        document.getElementById('tela-config'),
+      telaLista:         document.getElementById('tela-lista'),
+      telaEditor:        document.getElementById('tela-editor'),
+      // Config
+      cfgWpUrl:          document.getElementById('cfg-wp-url'),
+      cfgWpUsuario:      document.getElementById('cfg-wp-usuario'),
+      cfgWpSenha:        document.getElementById('cfg-wp-senha'),
+      cfgGeminiKey:      document.getElementById('cfg-gemini-key'),
+      cfgBackendUrl:     document.getElementById('cfg-backend-url'),
+      cfgPromptIa:       document.getElementById('cfg-prompt-ia'),
+      cfgPromptContador: document.getElementById('cfg-prompt-contador'),
+      btnSalvarConfig:   document.getElementById('btn-salvar-config'),
+      btnRestaurarPrompt:document.getElementById('btn-restaurar-prompt'),
+      btnVoltarConfig:   document.getElementById('btn-voltar-config'),
+      btnConfigHeader:   document.getElementById('btn-config-header'),
+      // Banner de prompt ativo no painel IA
+      bannerPromptCustom:document.getElementById('banner-prompt-custom'),
+      linkEditarPrompt:  document.getElementById('link-editar-prompt'),
+      // Abas
+      abaBtnRascunhos:   document.getElementById('aba-btn-rascunhos'),
+      abaBtnFontes:      document.getElementById('aba-btn-fontes'),
+      abaBadgeRascunhos: document.getElementById('aba-badge-rascunhos'),
+      abaBadgeFontes:    document.getElementById('aba-badge-fontes'),
+      painelRascunhos:   document.getElementById('painel-rascunhos'),
+      painelFontes:      document.getElementById('painel-fontes'),
+      // Fontes externas — filtros
+      fontesFiltroFonte:     document.getElementById('fontes-filtro-fonte'),
+      fontesFiltroCategoria: document.getElementById('fontes-filtro-categoria'),
+      fontesFiltroPeriodo:   document.getElementById('fontes-filtro-periodo'),
+      fontesBusca:           document.getElementById('fontes-busca'),
+      btnAtualizarFontes:    document.getElementById('btn-atualizar-fontes'),
+      fontesTotal:           document.getElementById('fontes-total'),
+      // Fontes externas — conteúdo
+      fontesLoading:     document.getElementById('fontes-loading'),
+      fontesVazio:       document.getElementById('fontes-vazio'),
+      noticiasTbody:     document.getElementById('noticias-tbody'),
+      statusFontesGrid:  document.getElementById('status-fontes-grid'),
+      // Modal de leitura
+      overlayLeitura:       document.getElementById('overlay-leitura'),
+      btnFecharLeitura:     document.getElementById('btn-fechar-leitura'),
+      modalLeituraFonte:    document.getElementById('modal-leitura-fonte'),
+      modalLeituraTitulo:   document.getElementById('modal-leitura-titulo'),
+      modalLeituraData:     document.getElementById('modal-leitura-data'),
+      modalLeituraImagem:   document.getElementById('modal-leitura-imagem'),
+      modalLeituraCorpo:    document.getElementById('modal-leitura-corpo'),
+      modalLeituraLink:     document.getElementById('modal-leitura-link'),
+      btnReescreverExterno: document.getElementById('btn-reescrever-externo'),
+      // Lista
+      skeletonLista:     document.getElementById('skeleton-lista'),
+      listaRascunhos:    document.getElementById('lista-rascunhos'),
+      contadorRascunhos: document.getElementById('contador-rascunhos'),
+      btnAtualizarLista: document.getElementById('btn-atualizar-lista'),
+      // Editor
+      editorTituloHeader:document.getElementById('editor-titulo-header'),
+      origTitulo:        document.getElementById('orig-titulo'),
+      origCorpo:         document.getElementById('orig-corpo'),
+      btnReescrever:     document.getElementById('btn-reescrever'),
+      btnVoltarLista:    document.getElementById('btn-voltar-lista'),
+      // IA
+      iaAguardando:      document.getElementById('ia-aguardando'),
+      loadingIa:         document.getElementById('loading-ia'),
+      formResultado:     document.getElementById('form-resultado'),
+      iaChapeu:          document.getElementById('ia-chapeu'),
+      iaTitulo:          document.getElementById('ia-titulo'),
+      iaResumo:          document.getElementById('ia-resumo'),
+      iaCorpo:           document.getElementById('ia-corpo'),
+      iaTags:            document.getElementById('ia-tags'),
+      iaCategoria:       document.getElementById('ia-categoria'),
+      btnPublicar:       document.getElementById('btn-publicar'),
+      btnReescreverNov:  document.getElementById('btn-reescrever-novamente'),
+      btnBaixarHtml:     document.getElementById('btn-baixar-html'),
+      // Imagem destacada
+      origImagemContainer: document.getElementById('orig-imagem-container'),
+      origImagem:          document.getElementById('orig-imagem'),
+      imagemDestaqueWrap:  document.getElementById('imagem-destaque-wrap'),
+      imagemPlaceholder:   document.getElementById('imagem-placeholder'),
+      imagemDestaquePreview: document.getElementById('imagem-destaque-preview'),
+      inputImagemNova:     document.getElementById('input-imagem-nova'),
+      btnSelecionarImagem: document.getElementById('btn-selecionar-imagem'),
+      btnRemoverImagem:    document.getElementById('btn-remover-imagem'),
+      uploadBarraWrap:     document.getElementById('upload-barra-wrap'),
+      uploadBarra:         document.getElementById('upload-barra'),
+      uploadStatus:        document.getElementById('upload-status'),
+      // Modal
+      overlayModal:      document.getElementById('overlay-modal'),
+      btnModalCancelar:  document.getElementById('btn-modal-cancelar'),
+      btnModalConfirmar: document.getElementById('btn-modal-confirmar'),
+      // Toast
+      toastContainer:    document.getElementById('toast-container'),
+    };
+
+    /* ============================================
+       UTILITÁRIOS — TELAS
+    ============================================ */
+    function mostrarTela(nome) {
+      el.telaConfig.classList.add('hidden');
+      el.telaLista.classList.add('hidden');
+      el.telaEditor.classList.add('hidden');
+
+      if (nome === 'config') {
+        el.header.classList.add('hidden');
+        el.telaConfig.classList.remove('hidden');
+      } else if (nome === 'lista') {
+        el.header.classList.remove('hidden');
+        el.telaLista.classList.remove('hidden');
+      } else if (nome === 'editor') {
+        el.header.classList.remove('hidden');
+        el.telaEditor.classList.remove('hidden');
+      }
+    }
+
+    /* ============================================
+       UTILITÁRIOS — TOAST
+    ============================================ */
+    function toast(mensagem, tipo = 'info', duracao = 4000) {
+      const icones = { sucesso: '✓', erro: '✕', aviso: '⚠', info: 'ℹ' };
+      const t = document.createElement('div');
+      t.className = `toast ${tipo}`;
+      t.innerHTML = `<span>${icones[tipo] || 'ℹ'}</span><span>${mensagem}</span>`;
+      el.toastContainer.appendChild(t);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateX(110%)';
+        t.style.transition = 'all 0.3s ease';
+        setTimeout(() => t.remove(), 350);
+      }, duracao);
+    }
+
+    /* ============================================
+       UTILITÁRIOS — FORMATAÇÃO
+    ============================================ */
+    function formatarData(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      } catch { return iso; }
+    }
+
+    function stripHtml(html) {
+      if (!html) return '';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    }
+
+    // Transforma texto simples em HTML com parágrafos
+    function textoParaHtml(texto) {
+      return texto.split(/\n+/)
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+        .map(l => `<p>${l}</p>`)
+        .join('\n');
+    }
+
+    /* ============================================
+       CONFIGURAÇÕES — PERSISTÊNCIA
+    ============================================ */
+    const CHAVE_CONFIG = 'rb24horas_config_v1';
+
+    function carregarConfig() {
+      try {
+        const raw = localStorage.getItem(CHAVE_CONFIG);
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    }
+
+    function salvarConfig(cfg) {
+      localStorage.setItem(CHAVE_CONFIG, JSON.stringify(cfg));
+      estado.promptPersonalizado = cfg.promptIa   || '';
+      estado.backendUrl          = (cfg.backendUrl || '').replace(/\/$/, '');
+      atualizarBannerPrompt();
+      atualizarAbaFontes();
+    }
+
+    function preencherFormConfig(cfg) {
+      if (!cfg) return;
+      el.cfgWpUrl.value        = cfg.wpUrl        || '';
+      el.cfgWpUsuario.value    = cfg.wpUsuario    || '';
+      el.cfgWpSenha.value      = cfg.wpSenha      || '';
+      el.cfgGeminiKey.value    = cfg.geminiKey    || '';
+      el.cfgBackendUrl.value   = cfg.backendUrl   || '';
+      el.cfgPromptIa.value     = cfg.promptIa     || '';
+      atualizarContadorPrompt();
+    }
+
+    /* ============================================
+       PROMPT — UTILITÁRIOS
+    ============================================ */
+
+    // Retorna o prompt ativo (personalizado ou padrão)
+    function promptAtivo() {
+      const custom = (estado.promptPersonalizado || '').trim();
+      if (!custom) return PROMPT_PADRAO;
+
+      // O prompt personalizado deve sempre terminar com a instrução de retornar JSON
+      const instrucaoJson = `\n\nVocê deve retornar APENAS um JSON válido, sem texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:\n{\n  "chapeu": "categoria em maiúsculas (ex: POLÍTICA, ECONOMIA, SEGURANÇA, SAÚDE, ESPORTE)",\n  "titulo": "título reescrito, impactante e claro",\n  "resumo": "2 a 3 frases resumindo a matéria para o leitor",\n  "corpo": "corpo completo da matéria reescrito, em HTML com parágrafos usando <p>, sem copiar o original",\n  "tags": ["tag1", "tag2", "tag3", "tag4"],\n  "categoria": "nome da categoria mais adequada"\n}`;
+
+      // Adicionar instrução de JSON somente se o gestor não a incluiu manualmente
+      if (!custom.includes('"chapeu"') && !custom.includes('"titulo"')) {
+        return custom + instrucaoJson;
+      }
+      return custom;
+    }
+
+    // Atualiza o contador de caracteres no campo de prompt
+    function atualizarContadorPrompt() {
+      const tam = el.cfgPromptIa.value.length;
+      const aproxTokens = Math.round(tam / 4); // estimativa simples: ~4 chars/token
+      el.cfgPromptContador.textContent =
+        `${tam.toLocaleString('pt-BR')} caracteres · ~${aproxTokens.toLocaleString('pt-BR')} tokens`;
+
+      el.cfgPromptContador.className = 'prompt-contador';
+      if (tam > 6000)       el.cfgPromptContador.classList.add('muito-longo');
+      else if (tam > 3000)  el.cfgPromptContador.classList.add('longo');
+    }
+
+    // Mostra ou esconde o banner de "prompt personalizado ativo" no painel IA
+    function atualizarBannerPrompt() {
+      const ativo = (estado.promptPersonalizado || '').trim().length > 0;
+      if (ativo) {
+        el.bannerPromptCustom.classList.remove('hidden');
+      } else {
+        el.bannerPromptCustom.classList.add('hidden');
+      }
+    }
+
+    /* ============================================
+       WORDPRESS — AUTENTICAÇÃO
+    ============================================ */
+    function wpAuthHeader(cfg) {
+      const credencial = btoa(`${cfg.wpUsuario}:${cfg.wpSenha}`);
+      return { 'Authorization': `Basic ${credencial}` };
+    }
+
+    /* ============================================
+       WORDPRESS — BUSCAR COM RETRY
+    ============================================ */
+    async function wpFetch(url, opcoes = {}, tentativas = 2) {
+      for (let t = 0; t < tentativas; t++) {
+        try {
+          const resp = await fetch(url, opcoes);
+          if (!resp.ok) {
+            const erroTexto = await resp.text().catch(() => resp.statusText);
+            throw new Error(`HTTP ${resp.status}: ${erroTexto.substring(0, 200)}`);
+          }
+          return resp;
+        } catch (err) {
+          if (t < tentativas - 1) {
+            await new Promise(r => setTimeout(r, 1000));
+            continue;
+          }
+          throw err;
+        }
+      }
+    }
+
+    /* ============================================
+       WORDPRESS — LISTAR RASCUNHOS
+    ============================================ */
+    async function carregarRascunhos() {
+      const cfg = estado.config;
+      const url = `${cfg.wpUrl}/wp-json/wp/v2/posts?status=draft&per_page=50&orderby=date&order=desc`;
+
+      try {
+        const resp = await wpFetch(url, {
+          headers: { ...wpAuthHeader(cfg), 'Content-Type': 'application/json' }
+        });
+        const dados = await resp.json();
+        estado.rascunhos = dados;
+        return dados;
+      } catch (err) {
+        throw new Error(`Erro ao buscar rascunhos: ${err.message}`);
+      }
+    }
+
+    /* ============================================
+       WORDPRESS — LISTAR CATEGORIAS
+    ============================================ */
+    async function carregarCategorias() {
+      const cfg = estado.config;
+      const url = `${cfg.wpUrl}/wp-json/wp/v2/categories?per_page=100`;
+
+      try {
+        const resp = await wpFetch(url, {
+          headers: { ...wpAuthHeader(cfg), 'Content-Type': 'application/json' }
+        });
+        const dados = await resp.json();
+        estado.categorias = dados;
+        return dados;
+      } catch (err) {
+        // Categorias não são críticas — retorna lista vazia se falhar
+        console.warn('Não foi possível carregar categorias:', err.message);
+        return [];
+      }
+    }
+
+    /* ============================================
+       WORDPRESS — BUSCAR OU CRIAR TAG
+    ============================================ */
+    async function resolverTag(nomeTag) {
+      const cfg = estado.config;
+      const nome = nomeTag.trim();
+      if (!nome) return null;
+
+      // 1. Verificar se a tag já existe
+      try {
+        const urlBusca = `${cfg.wpUrl}/wp-json/wp/v2/tags?search=${encodeURIComponent(nome)}&per_page=10`;
+        const resp = await wpFetch(urlBusca, {
+          headers: { ...wpAuthHeader(cfg) }
+        });
+        const tags = await resp.json();
+        const encontrada = tags.find(t => t.name.toLowerCase() === nome.toLowerCase());
+        if (encontrada) return encontrada.id;
+      } catch (err) {
+        console.warn(`Erro ao buscar tag "${nome}":`, err.message);
+      }
+
+      // 2. Criar a tag
+      try {
+        const respCriar = await wpFetch(`${cfg.wpUrl}/wp-json/wp/v2/tags`, {
+          method: 'POST',
+          headers: {
+            ...wpAuthHeader(cfg),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: nome })
+        });
+        const tagCriada = await respCriar.json();
+        return tagCriada.id;
+      } catch (err) {
+        console.warn(`Erro ao criar tag "${nome}":`, err.message);
+        return null;
+      }
+    }
+
+    /* ============================================
+       WORDPRESS — PUBLICAR POST
+    ============================================ */
+    async function publicarPost(postId, dados) {
+      const cfg = estado.config;
+
+      // Resolver IDs das tags
+      const tagsRaw = dados.tags
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      const idsTagsPromises = tagsRaw.map(t => resolverTag(t));
+      const idsTags = (await Promise.all(idsTagsPromises)).filter(id => id !== null);
+
+      // Encontrar ID da categoria selecionada
+      const categoriaId = dados.categoriaId ? [parseInt(dados.categoriaId)] : [];
+
+      // Resolver imagem destacada
+      let featuredMediaId = estado.imagemAtualId; // manter a atual por padrão
+
+      if (estado.removerImagem) {
+        // Gestor pediu para remover
+        featuredMediaId = 0;
+      } else if (estado.novaImagemFile) {
+        // Gestor selecionou uma nova imagem — fazer upload primeiro
+        mostrarStatusUpload('Enviando imagem...', '');
+        try {
+          const mediaUpload = await uploadImagem(estado.novaImagemFile);
+          featuredMediaId = mediaUpload.id;
+          mostrarStatusUpload('✓ Imagem enviada com sucesso!', 'ok');
+        } catch (err) {
+          // Upload falhou — perguntar se quer continuar sem a imagem
+          const continuar = confirm(
+            `Não foi possível enviar a imagem:\n${err.message}\n\nDeseja publicar mesmo assim (sem alterar a imagem)?`
+          );
+          if (!continuar) throw new Error('Publicação cancelada pelo usuário.');
+          featuredMediaId = estado.imagemAtualId; // manter a original
+        }
+      }
+
+      // Montar payload
+      const payload = {
+        title:          dados.titulo,
+        content:        dados.corpo,
+        excerpt:        dados.resumo,
+        status:         'publish',
+        tags:           idsTags,
+        featured_media: featuredMediaId,
+        meta:           { chapeu: dados.chapeu }
+      };
+      if (categoriaId.length > 0) payload.categories = categoriaId;
+
+      // Se vier de fonte externa, gravar metadados de origem
+      if (estado.origemReescrita) {
+        payload.meta.fonte_original = estado.origemReescrita.url;
+        payload.meta.fonte_nome     = estado.origemReescrita.nome;
+      }
+
+      // Decidir entre criar (POST) ou atualizar (PUT) com base no postId
+      const method  = postId ? 'PUT'  : 'POST';
+      const wpUrl   = postId
+        ? `${cfg.wpUrl}/wp-json/wp/v2/posts/${postId}`
+        : `${cfg.wpUrl}/wp-json/wp/v2/posts`;
+
+      const resp = await wpFetch(wpUrl, {
+        method,
+        headers: { ...wpAuthHeader(cfg), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      // Limpar origem após publicar
+      estado.origemReescrita = null;
+
+      return resp.json();
+    }
+
+    /* ============================================
+       ANTHROPIC — REESCREVER COM IA
+    ============================================ */
+    async function reescreverComIA(tituloOriginal, corpoOriginal) {
+      const cfg = estado.config;
+
+      // Montar lista de categorias para o prompt
+      const nomeCategorias = estado.categorias
+        .map(c => c.name)
+        .join(', ') || 'Geral, Política, Economia, Segurança, Saúde, Esporte, Cultura';
+
+      // Usar prompt personalizado se definido, caso contrário o padrão
+      const promptSistema = promptAtivo();
+
+      const promptUsuario = `Reescreva a seguinte matéria seguindo as diretrizes editoriais:
+
+TÍTULO ORIGINAL:
+${tituloOriginal}
+
+CONTEÚDO ORIGINAL:
+${corpoOriginal}
+
+Categorias disponíveis no site: ${nomeCategorias}`;
+
+      const body = JSON.stringify({
+        system_instruction: { parts: [{ text: promptSistema }] },
+        contents: [{ role: 'user', parts: [{ text: promptUsuario }] }],
+        generationConfig: { maxOutputTokens: 4096 }
+      });
+
+      // Tentar 2 vezes
+      for (let tentativa = 0; tentativa < 2; tentativa++) {
+        try {
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${cfg.geminiKey}`,
+            {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body
+            }
+          );
+
+          if (!resp.ok) {
+            const erroTexto = await resp.text().catch(() => resp.statusText);
+            throw new Error(`Gemini API ${resp.status}: ${erroTexto.substring(0, 300)}`);
+          }
+
+          const dados = await resp.json();
+          const textoIA = dados.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+          // Tentar parsear o JSON retornado pela IA
+          const resultado = extrairJSON(textoIA);
+          if (!resultado) throw new Error('Não foi possível interpretar a resposta da IA. Tente novamente.');
+
+          return resultado;
+
+        } catch (err) {
+          if (tentativa < 1) {
+            await new Promise(r => setTimeout(r, 1500));
+            continue;
+          }
+          throw err;
+        }
+      }
+    }
+
+    /* ============================================
+       UTILITÁRIO — EXTRAIR JSON DA RESPOSTA DA IA
+    ============================================ */
+    function extrairJSON(texto) {
+      if (!texto) return null;
+
+      // Tentativa 1: parsear direto
+      try {
+        return JSON.parse(texto.trim());
+      } catch {}
+
+      // Tentativa 2: extrair com regex (caso a IA adicione texto extra)
+      try {
+        const match = texto.match(/\{[\s\S]*\}/);
+        if (match) return JSON.parse(match[0]);
+      } catch {}
+
+      // Tentativa 3: encontrar bloco de código markdown
+      try {
+        const match = texto.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match) return JSON.parse(match[1]);
+      } catch {}
+
+      return null;
+    }
+
+    /* ============================================
+       RENDERIZAR — LISTA DE RASCUNHOS
+    ============================================ */
+    function renderizarLista(rascunhos) {
+      el.skeletonLista.classList.add('hidden');
+      el.listaRascunhos.innerHTML = '';
+
+      if (!rascunhos || rascunhos.length === 0) {
+        el.contadorRascunhos.textContent = 'Nenhum rascunho encontrado';
+        el.listaRascunhos.innerHTML = `
+          <div class="lista-vazia">
+            <div class="icone-vazio">&#128196;</div>
+            <p>Não há rascunhos pendentes no momento.</p>
+          </div>`;
+        return;
+      }
+
+      const total = rascunhos.length;
+      el.contadorRascunhos.textContent = `${total} rascunho${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
+
+      rascunhos.forEach(post => {
+        // Encontrar nome da categoria
+        let nomeCategoria = '';
+        if (post.categories && post.categories.length > 0) {
+          const cat = estado.categorias.find(c => post.categories.includes(c.id));
+          nomeCategoria = cat ? cat.name : '';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'rascunho-card';
+        card.innerHTML = `
+          <div class="rascunho-info">
+            <div class="rascunho-titulo">${post.title?.rendered || 'Sem título'}</div>
+            <div class="rascunho-meta">
+              <span>&#128197; ${formatarData(post.date)}</span>
+              ${nomeCategoria ? `<span class="tag-categoria">${nomeCategoria}</span>` : ''}
+            </div>
+          </div>
+          <button class="btn btn-primario" data-post-id="${post.id}">Abrir</button>
+        `;
+
+        card.querySelector('button').addEventListener('click', () => abrirPost(post));
+        el.listaRascunhos.appendChild(card);
+      });
+    }
+
+    /* ============================================
+       WORDPRESS — BUSCAR DADOS DA IMAGEM DESTACADA
+    ============================================ */
+    async function buscarFeaturedImage(mediaId) {
+      if (!mediaId || mediaId === 0) return null;
+      const cfg = estado.config;
+      try {
+        const resp = await wpFetch(
+          `${cfg.wpUrl}/wp-json/wp/v2/media/${mediaId}`,
+          { headers: wpAuthHeader(cfg) }
+        );
+        const media = await resp.json();
+        // Preferir tamanho large, depois full, depois qualquer um
+        return (
+          media.media_details?.sizes?.large?.source_url ||
+          media.media_details?.sizes?.full?.source_url  ||
+          media.source_url ||
+          null
+        );
+      } catch (err) {
+        console.warn('Não foi possível buscar a imagem destacada:', err.message);
+        return null;
+      }
+    }
+
+    /* ============================================
+       WORDPRESS — FAZER UPLOAD DE NOVA IMAGEM
+    ============================================ */
+    async function uploadImagem(file) {
+      const cfg = estado.config;
+
+      // Mostrar barra de progresso animada
+      el.uploadBarraWrap.classList.remove('hidden');
+      el.uploadBarra.style.width = '30%';
+      mostrarStatusUpload('Enviando imagem para o WordPress...', '');
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('title', file.name.replace(/\.[^.]+$/, ''));
+
+        el.uploadBarra.style.width = '60%';
+
+        const resp = await wpFetch(
+          `${cfg.wpUrl}/wp-json/wp/v2/media`,
+          {
+            method: 'POST',
+            headers: { ...wpAuthHeader(cfg) }, // SEM Content-Type — o browser define multipart automaticamente
+            body: formData
+          }
+        );
+
+        el.uploadBarra.style.width = '100%';
+        const media = await resp.json();
+
+        setTimeout(() => {
+          el.uploadBarraWrap.classList.add('hidden');
+          el.uploadBarra.style.width = '0%';
+        }, 800);
+
+        return media; // { id, source_url, ... }
+
+      } catch (err) {
+        el.uploadBarraWrap.classList.add('hidden');
+        el.uploadBarra.style.width = '0%';
+        throw err;
+      }
+    }
+
+    /* ============================================
+       UI — MOSTRAR STATUS DO UPLOAD
+    ============================================ */
+    function mostrarStatusUpload(msg, tipo) {
+      if (!msg) {
+        el.uploadStatus.classList.add('hidden');
+        return;
+      }
+      el.uploadStatus.textContent = msg;
+      el.uploadStatus.className = `upload-status ${tipo}`;
+      el.uploadStatus.classList.remove('hidden');
+    }
+
+    /* ============================================
+       UI — ATUALIZAR PREVIEW DA IMAGEM NO PAINEL IA
+    ============================================ */
+    function atualizarPreviewImagem() {
+      const urlParaMostrar = estado.removerImagem
+        ? null
+        : (estado.novaImagemPreview || estado.imagemAtualUrl || null);
+
+      if (urlParaMostrar) {
+        el.imagemPlaceholder.classList.add('hidden');
+        el.imagemDestaquePreview.src = urlParaMostrar;
+        el.imagemDestaquePreview.classList.remove('hidden');
+        el.imagemDestaqueWrap.classList.add('tem-imagem');
+        // Habilitar botão de remover
+        el.btnRemoverImagem.disabled = false;
+      } else {
+        el.imagemDestaquePreview.classList.add('hidden');
+        el.imagemDestaquePreview.src = '';
+        el.imagemPlaceholder.classList.remove('hidden');
+        el.imagemDestaqueWrap.classList.remove('tem-imagem');
+        el.btnRemoverImagem.disabled = true;
+      }
+    }
+
+    /* ============================================
+       UI — RESETAR ESTADO DE IMAGEM
+    ============================================ */
+    function resetarEstadoImagem() {
+      // Liberar blob URL anterior se existir
+      if (estado.novaImagemPreview) {
+        URL.revokeObjectURL(estado.novaImagemPreview);
+      }
+      estado.imagemAtualId    = 0;
+      estado.imagemAtualUrl   = '';
+      estado.novaImagemFile   = null;
+      estado.novaImagemPreview = '';
+      estado.removerImagem    = false;
+      el.inputImagemNova.value = '';
+      el.uploadBarraWrap.classList.add('hidden');
+      el.uploadStatus.classList.add('hidden');
+    }
+
+    /* ============================================
+       AÇÃO — ABRIR POST PARA EDIÇÃO
+    ============================================ */
+    async function abrirPost(post) {
+      estado.postAtual = post;
+
+      // Resetar estado de imagem
+      resetarEstadoImagem();
+
+      // Preencher painel original
+      el.editorTituloHeader.textContent = post.title?.rendered || 'Rascunho sem título';
+      el.origTitulo.innerHTML = post.title?.rendered || 'Sem título';
+      el.origCorpo.innerHTML  = post.content?.rendered || '<p><em>Sem conteúdo</em></p>';
+
+      // Esconder imagem original até carregar
+      el.origImagemContainer.classList.add('hidden');
+      el.origImagem.src = '';
+
+      // Resetar painel IA
+      el.iaAguardando.classList.remove('hidden');
+      el.loadingIa.classList.add('hidden');
+      el.formResultado.classList.add('hidden');
+      estado.iaResultado = null;
+
+      // Preencher select de categorias
+      preencherSelectCategorias();
+
+      // Preview da imagem IA também em branco
+      atualizarPreviewImagem();
+
+      mostrarTela('editor');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Carregar imagem destacada em background (não bloqueia a UI)
+      if (post.featured_media && post.featured_media > 0) {
+        estado.imagemAtualId = post.featured_media;
+        const urlImagem = await buscarFeaturedImage(post.featured_media);
+        if (urlImagem) {
+          estado.imagemAtualUrl = urlImagem;
+          // Mostrar no painel original
+          el.origImagem.src = urlImagem;
+          el.origImagemContainer.classList.remove('hidden');
+          // Atualizar preview no painel IA (se o formulário já estiver visível)
+          atualizarPreviewImagem();
+        }
+      }
+    }
+
+    /* ============================================
+       UTILITÁRIO — PREENCHER SELECT DE CATEGORIAS
+    ============================================ */
+    function preencherSelectCategorias(categoriaSugerida = '') {
+      el.iaCategoria.innerHTML = '<option value="">— Sem categoria —</option>';
+      estado.categorias.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.name;
+        el.iaCategoria.appendChild(opt);
+      });
+
+      // Selecionar categoria sugerida pela IA (por nome, case-insensitive)
+      if (categoriaSugerida) {
+        const catEncontrada = estado.categorias.find(
+          c => c.name.toLowerCase() === categoriaSugerida.toLowerCase()
+        );
+        if (catEncontrada) el.iaCategoria.value = catEncontrada.id;
+      }
+    }
+
+    /* ============================================
+       AÇÃO — REESCREVER COM IA
+    ============================================ */
+    async function acionarReescrita() {
+      const post = estado.postAtual;
+      if (!post) return;
+
+      // Mostrar loading
+      el.iaAguardando.classList.add('hidden');
+      el.formResultado.classList.add('hidden');
+      el.loadingIa.classList.remove('hidden');
+      el.btnReescrever.disabled = true;
+      el.btnReescreverNov.disabled = true;
+
+      try {
+        const tituloOriginal = stripHtml(post.title?.rendered || '');
+        const corpoOriginal  = stripHtml(post.content?.rendered || '');
+
+        const resultado = await reescreverComIA(tituloOriginal, corpoOriginal);
+        estado.iaResultado = resultado;
+
+        // Preencher formulário
+        el.iaChapeu.value  = resultado.chapeu  || '';
+        el.iaTitulo.value  = resultado.titulo  || '';
+        el.iaResumo.value  = resultado.resumo  || '';
+        el.iaCorpo.value   = resultado.corpo   || '';
+        el.iaTags.value    = Array.isArray(resultado.tags)
+          ? resultado.tags.join(', ')
+          : (resultado.tags || '');
+
+        preencherSelectCategorias(resultado.categoria || '');
+
+        // Mostrar formulário
+        el.loadingIa.classList.add('hidden');
+        el.formResultado.classList.remove('hidden');
+
+        // Atualizar preview de imagem (pode ter carregado após a IA terminar)
+        atualizarPreviewImagem();
+
+      } catch (err) {
+        el.loadingIa.classList.add('hidden');
+        el.iaAguardando.classList.remove('hidden');
+        toast(`Erro na IA: ${err.message}`, 'erro', 6000);
+        console.error('Erro IA:', err);
+      } finally {
+        el.btnReescrever.disabled = false;
+        el.btnReescreverNov.disabled = false;
+      }
+    }
+
+    /* ============================================
+       AÇÃO — PUBLICAR POST
+    ============================================ */
+    async function confirmarPublicacao() {
+      el.overlayModal.classList.add('hidden');
+
+      const post = estado.postAtual;
+      if (!post) return;
+
+      // Coletar dados do formulário
+      const dados = {
+        titulo:      el.iaTitulo.value.trim(),
+        resumo:      el.iaResumo.value.trim(),
+        corpo:       el.iaCorpo.value.trim(),
+        chapeu:      el.iaChapeu.value.trim(),
+        tags:        el.iaTags.value,
+        categoriaId: el.iaCategoria.value || null,
+      };
+
+      // Validação mínima
+      if (!dados.titulo) {
+        toast('O título não pode estar vazio.', 'aviso');
+        el.iaTitulo.focus();
+        return;
+      }
+
+      // Se o corpo não tem tags HTML, converter
+      if (dados.corpo && !dados.corpo.includes('<p>')) {
+        dados.corpo = textoParaHtml(dados.corpo);
+      }
+
+      el.btnPublicar.disabled = true;
+      el.btnPublicar.textContent = 'Publicando...';
+
+      try {
+        const postPublicado = await publicarPost(post.id, dados);
+
+        toast('Matéria publicada com sucesso!', 'sucesso', 6000);
+
+        // Remover da lista local
+        estado.rascunhos = estado.rascunhos.filter(r => r.id !== post.id);
+
+        // Mostrar link para o post publicado
+        if (postPublicado.link) {
+          const linkMsg = document.createElement('div');
+          linkMsg.className = 'toast sucesso';
+          linkMsg.innerHTML = `<span>&#128279;</span> <a href="${postPublicado.link}" target="_blank" class="link-publicado">Ver post publicado ↗</a>`;
+          el.toastContainer.appendChild(linkMsg);
+          setTimeout(() => linkMsg.remove(), 10000);
+        }
+
+        // Voltar para a aba correta após publicar
+        setTimeout(() => {
+          mostrarTela('lista');
+          if (estado.origemReescrita === null && post.id === null) {
+            // Veio de fonte externa — voltar para aba de fontes
+            trocarAba('fontes');
+          } else {
+            // Veio de rascunho WP — atualizar lista de rascunhos
+            renderizarLista(estado.rascunhos);
+          }
+        }, 1500);
+
+      } catch (err) {
+        toast(`Erro ao publicar: ${err.message}`, 'erro', 8000);
+        console.error('Erro publicação:', err);
+      } finally {
+        el.btnPublicar.disabled = false;
+        el.btnPublicar.textContent = '✓ Publicar no WordPress';
+      }
+    }
+
+    /* ============================================
+       INICIALIZAÇÃO — CARREGAR TUDO
+    ============================================ */
+    async function inicializar() {
+      let cfg = carregarConfig();
+
+      // Se não há config local (ou está incompleta), tenta buscar do .env via backend
+      // Sempre tenta sincronizar do .env (garante que troca de chave no .env seja aplicada)
+      const candidatos = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+      for (const base of candidatos) {
+        try {
+          const resp = await fetch(`${base}/api/config`);
+          if (resp.ok) {
+            const dados = await resp.json();
+            if (dados.configurado) {
+              // Preserva apenas promptIa do localStorage; o resto vem do .env
+              const promptIa = cfg?.promptIa || '';
+              cfg = { ...dados.cfg, promptIa };
+              salvarConfig(cfg);
+              preencherFormConfig(cfg);
+            }
+            break;
+          }
+        } catch (_) { /* tenta o próximo */ }
+      }
+
+      if (!cfg || !cfg.wpUrl || !cfg.wpUsuario || !cfg.wpSenha || !cfg.geminiKey) {
+        mostrarTela('config');
+        preencherFormConfig(cfg);
+        return;
+      }
+
+      estado.config              = cfg;
+      estado.promptPersonalizado = cfg.promptIa   || '';
+      estado.backendUrl          = (cfg.backendUrl || '').replace(/\/$/, '');
+      atualizarBannerPrompt();
+      atualizarAbaFontes();
+      mostrarTela('lista');
+      await carregarEExibirRascunhos();
+    }
+
+    async function carregarEExibirRascunhos() {
+      el.skeletonLista.classList.remove('hidden');
+      el.listaRascunhos.innerHTML = '';
+      el.contadorRascunhos.textContent = 'Carregando...';
+      el.btnAtualizarLista.disabled = true;
+
+      try {
+        // Carregar categorias e rascunhos em paralelo
+        const [rascunhos] = await Promise.all([
+          carregarRascunhos(),
+          carregarCategorias()
+        ]);
+        renderizarLista(rascunhos);
+      } catch (err) {
+        el.skeletonLista.classList.add('hidden');
+        el.contadorRascunhos.textContent = 'Erro ao carregar';
+        el.listaRascunhos.innerHTML = `
+          <div class="lista-vazia">
+            <div class="icone-vazio">&#9888;</div>
+            <p>Não foi possível carregar os rascunhos.</p>
+            <p style="margin-top:0.5rem; font-size:0.78rem; color: #b33a3a;">${err.message}</p>
+            <p style="margin-top:0.75rem; font-size:0.78rem;">Verifique as credenciais e a conexão com o WordPress.</p>
+          </div>`;
+        toast('Erro ao conectar com o WordPress. Verifique as configurações.', 'erro', 8000);
+        console.error('Erro ao carregar:', err);
+      } finally {
+        el.btnAtualizarLista.disabled = false;
+      }
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — MOSTRAR/OCULTAR ABA
+    ============================================ */
+    function atualizarAbaFontes() {
+      if (estado.backendUrl) {
+        el.abaBtnFontes.style.display = 'inline-flex';
+      } else {
+        el.abaBtnFontes.style.display = 'none';
+        // Se a aba fontes estava ativa, volta para rascunhos
+        if (el.abaBtnFontes.classList.contains('ativa')) {
+          trocarAba('rascunhos');
+        }
+      }
+    }
+
+    function trocarAba(qual) {
+      if (qual === 'rascunhos') {
+        el.abaBtnRascunhos.classList.add('ativa');
+        el.abaBtnFontes.classList.remove('ativa');
+        el.painelRascunhos.classList.remove('hidden');
+        el.painelFontes.classList.add('hidden');
+      } else {
+        el.abaBtnFontes.classList.add('ativa');
+        el.abaBtnRascunhos.classList.remove('ativa');
+        el.painelFontes.classList.remove('hidden');
+        el.painelRascunhos.classList.add('hidden');
+        // Carregar fontes se ainda não carregou
+        if (estado.noticiasBruto.length === 0) {
+          carregarFontesExternas();
+        }
+      }
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — CARREGAR DO BACKEND
+    ============================================ */
+    async function carregarFontesExternas() {
+      if (!estado.backendUrl) return;
+
+      el.fontesLoading.classList.remove('hidden');
+      el.fontesVazio.classList.add('hidden');
+      el.noticiasTbody.innerHTML = '';
+      el.btnAtualizarFontes.disabled = true;
+
+      try {
+        // Carregar notícias e status das fontes em paralelo
+        const [respFeeds, respSources] = await Promise.all([
+          fetch(`${estado.backendUrl}/api/feeds`),
+          fetch(`${estado.backendUrl}/api/sources`)
+        ]);
+
+        if (!respFeeds.ok) throw new Error(`Backend retornou HTTP ${respFeeds.status}`);
+
+        const noticias = await respFeeds.json();
+        const fontes   = respSources.ok ? await respSources.json() : [];
+
+        estado.noticiasBruto = noticias;
+
+        // Popular select de fontes
+        popularSelectFontes(fontes);
+
+        // Renderizar status
+        renderizarStatusFontes(fontes);
+
+        // Aplicar filtros e renderizar tabela
+        aplicarFiltrosFontes();
+
+      } catch (err) {
+        el.fontesLoading.classList.add('hidden');
+        el.fontesVazio.classList.remove('hidden');
+        el.fontesVazio.innerHTML = `
+          <div class="icone-vazio">&#9888;</div>
+          <p>Não foi possível conectar ao backend.</p>
+          <p style="font-size:0.75rem; color:#b33a3a; margin-top:0.4rem;">${err.message}</p>
+          <p style="font-size:0.75rem; margin-top:0.5rem;">Verifique se o servidor está rodando em <code>${estado.backendUrl}</code></p>`;
+        toast('Backend inacessível. Verifique se o servidor está rodando.', 'erro', 7000);
+      } finally {
+        el.btnAtualizarFontes.disabled = false;
+      }
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — POPULAR SELECT DE FONTES
+    ============================================ */
+    function popularSelectFontes(fontes) {
+      el.fontesFiltroFonte.innerHTML = '<option value="">Todas as fontes</option>';
+      fontes.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value       = f.slug;
+        opt.textContent = f.name;
+        el.fontesFiltroFonte.appendChild(opt);
+      });
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — APLICAR FILTROS
+    ============================================ */
+    function aplicarFiltrosFontes() {
+      const fonte     = el.fontesFiltroFonte.value;
+      const categoria = el.fontesFiltroCategoria.value;
+      const periodoH  = parseInt(el.fontesFiltroPeriodo.value) || 0;
+      const busca     = el.fontesBusca.value.trim().toLowerCase();
+
+      let lista = [...estado.noticiasBruto];
+
+      if (fonte)     lista = lista.filter(n => n.source_slug === fonte);
+      if (categoria) lista = lista.filter(n => n.category    === categoria);
+      if (periodoH > 0) {
+        const limite = new Date(Date.now() - periodoH * 3600 * 1000);
+        lista = lista.filter(n => new Date(n.published_at) >= limite);
+      }
+      if (busca) {
+        lista = lista.filter(n =>
+          n.title.toLowerCase().includes(busca) ||
+          (n.summary || '').toLowerCase().includes(busca)
+        );
+      }
+
+      estado.noticiasFiltradas = lista;
+      renderizarTabelaNoticias(lista);
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — RENDERIZAR TABELA
+    ============================================ */
+    function renderizarTabelaNoticias(noticias) {
+      el.fontesLoading.classList.add('hidden');
+
+      if (!noticias || noticias.length === 0) {
+        el.noticiasTbody.innerHTML = '';
+        el.fontesVazio.classList.remove('hidden');
+        el.fontesTotal.textContent = '0 notícias';
+        return;
+      }
+
+      el.fontesVazio.classList.add('hidden');
+      el.fontesTotal.textContent = `${noticias.length.toLocaleString('pt-BR')} notícia${noticias.length !== 1 ? 's' : ''}`;
+
+      // Atualizar badge da aba
+      el.abaBadgeFontes.textContent = noticias.length > 99 ? '99+' : noticias.length;
+      el.abaBadgeFontes.style.display = 'inline-block';
+
+      el.noticiasTbody.innerHTML = '';
+
+      noticias.forEach((noticia, idx) => {
+        if (idx >= 200) return; // limitar renderização a 200 linhas por vez
+
+        const tr = document.createElement('tr');
+        tr.dataset.idx = idx;
+
+        const tituloTruncado = noticia.title.length > 90
+          ? noticia.title.slice(0, 90) + '…'
+          : noticia.title;
+
+        const resumoMini = (noticia.summary || '').slice(0, 100);
+
+        tr.innerHTML = `
+          <td class="col-fonte">
+            <span class="badge-fonte ${noticia.category || 'regional'}" title="${noticia.source}">
+              ${noticia.source}
+            </span>
+          </td>
+          <td class="col-titulo">
+            <div class="noticia-titulo-cell">
+              ${tituloTruncado}
+              ${resumoMini ? `<div class="noticia-resumo-mini">${resumoMini}</div>` : ''}
+            </div>
+          </td>
+          <td class="col-data">${formatarDataRelativa(noticia.published_at)}</td>
+          <td class="col-acoes">
+            <div class="acoes-tabela">
+              <button class="btn btn-secundario btn-ler" data-idx="${idx}">Ler</button>
+              <button class="btn btn-primario btn-reescrever-ext" data-idx="${idx}">&#10024; IA</button>
+            </div>
+          </td>
+        `;
+
+        // Clicar na linha abre o modal de leitura
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          abrirModalLeitura(noticia);
+        });
+
+        tr.querySelector('.btn-ler').addEventListener('click', (e) => {
+          e.stopPropagation();
+          abrirModalLeitura(noticia);
+        });
+
+        tr.querySelector('.btn-reescrever-ext').addEventListener('click', (e) => {
+          e.stopPropagation();
+          reescreverFonteExterna(noticia);
+        });
+
+        el.noticiasTbody.appendChild(tr);
+      });
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — FORMATAR DATA RELATIVA
+    ============================================ */
+    function formatarDataRelativa(iso) {
+      if (!iso) return '—';
+      try {
+        const d    = new Date(iso);
+        const diff = Date.now() - d.getTime();
+        const min  = Math.floor(diff / 60000);
+        const h    = Math.floor(diff / 3600000);
+        const dias = Math.floor(diff / 86400000);
+        if (min < 1)   return 'agora';
+        if (min < 60)  return `${min}min`;
+        if (h < 24)    return `${h}h`;
+        if (dias < 7)  return `${dias}d`;
+        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      } catch { return '—'; }
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — RENDERIZAR STATUS
+    ============================================ */
+    function renderizarStatusFontes(fontes) {
+      if (!fontes || fontes.length === 0) {
+        el.statusFontesGrid.innerHTML = '<div style="padding:1rem; font-size:0.8rem; color:var(--grafite-lt);">Nenhuma fonte disponível.</div>';
+        return;
+      }
+
+      el.statusFontesGrid.innerHTML = fontes.map(f => `
+        <div class="status-item">
+          <span class="status-dot ${f.status || 'pending'}"></span>
+          <span title="${f.error || ''}">${f.name}</span>
+          <span class="status-count">${f.count || 0}</span>
+        </div>
+      `).join('');
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — ABRIR MODAL DE LEITURA
+    ============================================ */
+    async function abrirModalLeitura(noticia) {
+      estado.artigoAtual = noticia;
+
+      el.modalLeituraFonte.textContent  = noticia.source;
+      el.modalLeituraTitulo.textContent = noticia.title;
+      el.modalLeituraData.textContent   = noticia.published_at
+        ? new Date(noticia.published_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : '';
+      el.modalLeituraLink.href = noticia.url;
+
+      // Imagem
+      if (noticia.image) {
+        el.modalLeituraImagem.src = noticia.image;
+        el.modalLeituraImagem.classList.remove('hidden');
+      } else {
+        el.modalLeituraImagem.classList.add('hidden');
+      }
+
+      // Abre o modal imediatamente
+      el.overlayLeitura.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      // Verifica se o conteúdo já está completo (cache de busca anterior)
+      const textoAtual = (noticia.content || '').replace(/<[^>]*>/g, '').trim();
+      const precisaBuscar = textoAtual.length < 500 && estado.backendUrl && noticia.url;
+
+      if (precisaBuscar) {
+        // Mostra spinner enquanto busca
+        el.modalLeituraCorpo.innerHTML = '<div class="leitura-carregando">Carregando artigo completo…</div>';
+
+        try {
+          const resp = await fetch(`${estado.backendUrl}/api/article?url=${encodeURIComponent(noticia.url)}`);
+          if (resp.ok) {
+            const dados = await resp.json();
+            const textoNovo = (dados.content || '').replace(/<[^>]*>/g, '').trim();
+
+            if (textoNovo.length > textoAtual.length) {
+              // Cacheia no objeto para não rebuscar ao reabrir
+              noticia.content = dados.content;
+
+              // Atualiza imagem se veio uma melhor
+              if (!noticia.image && dados.imagem) {
+                noticia.image = dados.imagem;
+                el.modalLeituraImagem.src = dados.imagem;
+                el.modalLeituraImagem.classList.remove('hidden');
+              }
+
+              // Se o modal ainda está aberto com este artigo, atualiza o corpo
+              if (estado.artigoAtual === noticia) {
+                el.modalLeituraCorpo.innerHTML = dados.content;
+              }
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn('[leitura] Falha ao buscar conteúdo completo:', err.message);
+        }
+
+        // Fallback: usa o que tiver
+        if (estado.artigoAtual === noticia) {
+          el.modalLeituraCorpo.innerHTML = noticia.content || noticia.summary
+            || '<p><em>Conteúdo não disponível. Clique em "Ver original" para ler no site.</em></p>';
+        }
+      } else {
+        // Conteúdo já suficiente ou sem backend configurado
+        el.modalLeituraCorpo.innerHTML = noticia.content || noticia.summary
+          || '<p><em>Conteúdo não disponível. Clique em "Ver original" para ler no site.</em></p>';
+      }
+    }
+
+    function fecharModalLeitura() {
+      el.overlayLeitura.classList.add('hidden');
+      document.body.style.overflow = '';
+      estado.artigoAtual = null;
+    }
+
+    /* ============================================
+       FONTES EXTERNAS — REESCREVER COM IA
+    ============================================ */
+    async function reescreverFonteExterna(noticia) {
+      fecharModalLeitura();
+
+      // Registrar origem
+      estado.origemReescrita = {
+        url:  noticia.url,
+        nome: noticia.source,
+        slug: noticia.source_slug
+      };
+
+      // Tentar buscar conteúdo completo via backend
+      let conteudoCompleto = noticia.content || noticia.summary || '';
+
+      if (estado.backendUrl && noticia.url) {
+        try {
+          const resp = await fetch(`${estado.backendUrl}/api/article?url=${encodeURIComponent(noticia.url)}`);
+          if (resp.ok) {
+            const dados = await resp.json();
+            if (dados.content && dados.content.length > conteudoCompleto.length) {
+              conteudoCompleto = dados.content;
+            }
+          }
+        } catch (err) {
+          console.warn('Não foi possível buscar conteúdo completo:', err.message);
+        }
+      }
+
+      // Montar um "post virtual" com a mesma estrutura que o WP usa
+      // Assim o fluxo de reescrita existente funciona sem alterações
+      estado.postAtual = {
+        id:             null, // null = criar novo post ao publicar
+        title:          { rendered: noticia.title },
+        content:        { rendered: conteudoCompleto },
+        featured_media: 0
+      };
+
+      // Imagem destacada do artigo externo
+      resetarEstadoImagem();
+      if (noticia.image) {
+        estado.imagemAtualUrl = noticia.image;
+        atualizarPreviewImagem();
+      }
+
+      // Montar tela de editor
+      el.editorTituloHeader.textContent = noticia.title;
+      el.origTitulo.innerHTML           = noticia.title;
+      el.origCorpo.innerHTML            = conteudoCompleto || '<p><em>Conteúdo não disponível</em></p>';
+
+      // Mostrar imagem no painel original se houver
+      if (noticia.image) {
+        el.origImagem.src = noticia.image;
+        el.origImagemContainer.classList.remove('hidden');
+      } else {
+        el.origImagemContainer.classList.add('hidden');
+      }
+
+      // Resetar painel IA
+      el.iaAguardando.classList.remove('hidden');
+      el.loadingIa.classList.add('hidden');
+      el.formResultado.classList.add('hidden');
+      estado.iaResultado = null;
+
+      preencherSelectCategorias();
+      atualizarPreviewImagem();
+      mostrarTela('editor');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      toast(`Artigo de ${noticia.source} carregado. Clique em "Reescrever com IA" para continuar.`, 'info', 4000);
+    }
+
+    /* ============================================
+       EVENTOS
+    ============================================ */
+
+    // Contador de caracteres no campo de prompt
+    el.cfgPromptIa.addEventListener('input', atualizarContadorPrompt);
+
+    // Restaurar prompt padrão
+    el.btnRestaurarPrompt.addEventListener('click', () => {
+      if (el.cfgPromptIa.value.trim() && !confirm('Deseja restaurar as instruções padrão do sistema?\n\nAs suas instruções personalizadas serão apagadas.')) return;
+      el.cfgPromptIa.value = '';
+      atualizarContadorPrompt();
+      toast('Instruções restauradas para o padrão do sistema.', 'info');
+    });
+
+    // Salvar configurações
+    el.btnSalvarConfig.addEventListener('click', async () => {
+      const wpUrl = el.cfgWpUrl.value.trim().replace(/\/$/, '');
+      const wpUsuario = el.cfgWpUsuario.value.trim();
+      const wpSenha = el.cfgWpSenha.value.trim();
+      const geminiKey  = el.cfgGeminiKey.value.trim();
+      const backendUrl = el.cfgBackendUrl.value.trim().replace(/\/$/, '');
+      const promptIa   = el.cfgPromptIa.value.trim();
+
+      if (!wpUrl || !wpUsuario || !wpSenha || !geminiKey) {
+        toast('Preencha todos os campos antes de salvar.', 'aviso');
+        return;
+      }
+
+      if (!wpUrl.startsWith('http')) {
+        toast('A URL do WordPress deve começar com http:// ou https://', 'aviso');
+        return;
+      }
+
+      const cfg = { wpUrl, wpUsuario, wpSenha, geminiKey, backendUrl, promptIa };
+      salvarConfig(cfg);
+      estado.config              = cfg;
+      estado.promptPersonalizado = promptIa;
+      estado.backendUrl          = backendUrl;
+
+      el.btnSalvarConfig.disabled = true;
+      el.btnSalvarConfig.textContent = 'Conectando...';
+
+      mostrarTela('lista');
+      await carregarEExibirRascunhos();
+
+      el.btnSalvarConfig.disabled = false;
+      el.btnSalvarConfig.textContent = 'Salvar e Conectar';
+    });
+
+    // Botão de configurações no header — mostra botão Voltar
+    el.btnConfigHeader.addEventListener('click', () => {
+      preencherFormConfig(estado.config);
+      el.btnVoltarConfig.style.display = 'inline-flex';
+      mostrarTela('config');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Link "Editar instruções" no banner também mostra botão Voltar
+    el.linkEditarPrompt.addEventListener('click', () => {
+      preencherFormConfig(estado.config);
+      el.btnVoltarConfig.style.display = 'inline-flex';
+      mostrarTela('config');
+      setTimeout(() => el.cfgPromptIa.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+    });
+
+    // Botão Voltar nas configurações — retorna para a lista
+    el.btnVoltarConfig.addEventListener('click', () => {
+      mostrarTela('lista');
+    });
+
+    // Atualizar lista de rascunhos
+    el.btnAtualizarLista.addEventListener('click', () => carregarEExibirRascunhos());
+
+    // Voltar para a lista — aba correta conforme origem
+    el.btnVoltarLista.addEventListener('click', () => {
+      mostrarTela('lista');
+      if (estado.postAtual?.id === null && estado.origemReescrita !== null) {
+        trocarAba('fontes');
+      }
+      estado.origemReescrita = null;
+    });
+
+    // Reescrever com IA
+    el.btnReescrever.addEventListener('click', acionarReescrita);
+    el.btnReescreverNov.addEventListener('click', acionarReescrita);
+
+    // Baixar HTML
+    el.btnBaixarHtml.addEventListener('click', () => {
+      if (!estado.iaResultado) return;
+
+      const titulo = estado.iaResultado.titulo || estado.postAtual?.title?.rendered || 'artigo';
+      const conteudo = estado.iaResultado.corpo || '';
+      const tags = (estado.iaResultado.tags || []).join(', ');
+      const imagemUrl = estado.novaImagemPreview || estado.imagemAtualUrl || '';
+
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${titulo.replace(/</g, '&lt;')}</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 780px; margin: 2rem auto; padding: 0 1rem; color: #222; line-height: 1.75; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .meta { font-size: 0.85rem; color: #888; margin-bottom: 2rem; }
+    .imagem-destaque { width: 100%; max-height: 460px; object-fit: cover; border-radius: 8px; margin-bottom: 1.5rem; display: block; }
+    .conteudo p { margin-bottom: 1rem; }
+    .conteudo h2, .conteudo h3 { margin: 1.5rem 0 0.5rem; }
+    .conteudo img { max-width: 100%; border-radius: 6px; margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <h1>${titulo.replace(/</g, '&lt;')}</h1>
+  ${tags ? `<div class="meta">Tags: ${tags}</div>` : ''}
+  ${imagemUrl ? `<img src="${imagemUrl}" alt="${titulo.replace(/"/g, '&quot;')}" class="imagem-destaque" />` : ''}
+  <div class="conteudo">${conteudo}</div>
+</body>
+</html>`;
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = titulo.replace(/[^a-z0-9\u00C0-\u024F\s-]/gi, '').trim().replace(/\s+/g, '-').toLowerCase().slice(0, 80) + '.html';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('HTML baixado com sucesso!', 'sucesso');
+    });
+
+    // Selecionar nova imagem — abre o file picker
+    el.btnSelecionarImagem.addEventListener('click', () => {
+      el.inputImagemNova.click();
+    });
+
+    // Quando o gestor escolhe um arquivo
+    el.inputImagemNova.addEventListener('change', () => {
+      const file = el.inputImagemNova.files?.[0];
+      if (!file) return;
+
+      // Validar tamanho (máx 10 MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast('A imagem não pode ultrapassar 10 MB.', 'aviso');
+        el.inputImagemNova.value = '';
+        return;
+      }
+
+      // Liberar blob URL anterior
+      if (estado.novaImagemPreview) URL.revokeObjectURL(estado.novaImagemPreview);
+
+      estado.novaImagemFile    = file;
+      estado.novaImagemPreview = URL.createObjectURL(file);
+      estado.removerImagem     = false;
+
+      mostrarStatusUpload(`✓ "${file.name}" selecionada — será enviada ao publicar`, 'ok');
+      atualizarPreviewImagem();
+    });
+
+    // Remover imagem destacada
+    el.btnRemoverImagem.addEventListener('click', () => {
+      // Liberar blob URL se houver
+      if (estado.novaImagemPreview) URL.revokeObjectURL(estado.novaImagemPreview);
+      estado.novaImagemFile    = null;
+      estado.novaImagemPreview = '';
+      estado.removerImagem     = true;
+      el.inputImagemNova.value = '';
+      mostrarStatusUpload('Imagem será removida ao publicar', 'aviso');
+      atualizarPreviewImagem();
+    });
+
+    // Publicar — abrir modal de confirmação
+    el.btnPublicar.addEventListener('click', () => {
+      el.overlayModal.classList.remove('hidden');
+    });
+
+    // Modal — cancelar
+    el.btnModalCancelar.addEventListener('click', () => {
+      el.overlayModal.classList.add('hidden');
+    });
+
+    // Modal — confirmar publicação
+    el.btnModalConfirmar.addEventListener('click', confirmarPublicacao);
+
+    // Fechar modal ao clicar fora
+    el.overlayModal.addEventListener('click', (e) => {
+      if (e.target === el.overlayModal) el.overlayModal.classList.add('hidden');
+    });
+
+    // Fechar modal de publicação com ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (!el.overlayModal.classList.contains('hidden'))   el.overlayModal.classList.add('hidden');
+        if (!el.overlayLeitura.classList.contains('hidden')) fecharModalLeitura();
+      }
+    });
+
+    // ── Abas ──────────────────────────────────────────
+    el.abaBtnRascunhos.addEventListener('click', () => trocarAba('rascunhos'));
+    el.abaBtnFontes.addEventListener('click',    () => trocarAba('fontes'));
+
+    // ── Fontes externas — filtros (ao mudar qualquer filtro, re-renderiza) ──
+    el.fontesFiltroFonte.addEventListener('change',     aplicarFiltrosFontes);
+    el.fontesFiltroCategoria.addEventListener('change', aplicarFiltrosFontes);
+    el.fontesFiltroPeriodo.addEventListener('change',   aplicarFiltrosFontes);
+    el.fontesBusca.addEventListener('input', () => {
+      clearTimeout(el.fontesBusca._debounce);
+      el.fontesBusca._debounce = setTimeout(aplicarFiltrosFontes, 280);
+    });
+
+    // ── Fontes externas — atualizar ──
+    el.btnAtualizarFontes.addEventListener('click', carregarFontesExternas);
+
+    // ── Modal de leitura — fechar ──
+    el.btnFecharLeitura.addEventListener('click', fecharModalLeitura);
+    el.overlayLeitura.addEventListener('click', (e) => {
+      if (e.target === el.overlayLeitura) fecharModalLeitura();
+    });
+
+    // ── Modal de leitura — botão "Reescrever com IA" ──
+    el.btnReescreverExterno.addEventListener('click', () => {
+      if (estado.artigoAtual) reescreverFonteExterna(estado.artigoAtual);
+    });
+
+    /* ============================================
+       INICIAR APLICAÇÃO
+    ============================================ */
+    inicializar();
+  </script>
+</body>
+</html>

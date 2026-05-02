@@ -1,0 +1,286 @@
+[
+  {
+    "name": "Metrópoles",
+    "slug": "metropoles",
+    "type": "rss",
+    "url": "https://metropoles.com/feed/",
+    "active": true,
+    "category": "nacional",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  },
+  {
+    "name": "Jovem Pan",
+    "slug": "jovempan",
+    "type": "rss",
+    "url": "https://jovempan.com.br/feed",
+    "active": true,
+    "category": "nacional"
+  },
+  {
+    "name": "CNN Brasil",
+    "slug": "cnnbrasil",
+    "type": "rss",
+    "url": "https://www.cnnbrasil.com.br/feed",
+    "active": true,
+    "category": "nacional"
+  },
+  {
+    "name": "Agência Brasil",
+    "slug": "agenciabrasil",
+    "type": "rss",
+    "url": "http://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml",
+    "active": true,
+    "category": "nacional"
+  },
+  {
+    "name": "Lance",
+    "slug": "lance",
+    "type": "scraping",
+    "url": "https://www.lance.com.br/",
+    "active": true,
+    "category": "esporte",
+    "scraping": {
+      "itemSelector": "a[href$=\".html\"]",
+      "titleSelector": "h2, h3, h4",
+      "linkSelector": "a",
+      "imageSelector": "img",
+      "linkFilter": "lance\\.com\\.br\\/(futebol|esporte|mais-esportes|fora-de-campo|tenis|volei|nba|lutas|lancebiz|palmeiras|flamengo|corinthians|atletico|fluminense|sao-paulo|botafogo|vasco|cruzeiro|gremio|internacional|rugby|formula)"
+    }
+  },
+  {
+    "name": "Portal do Agronegócio",
+    "slug": "agronegocio",
+    "type": "rss",
+    "url": "https://www.portaldoagronegocio.com.br/feed",
+    "active": true,
+    "category": "agro"
+  },
+  {
+    "name": "Agência Esporte",
+    "slug": "agenciaesporte",
+    "type": "rss",
+    "url": "https://agenciaesporte.com.br/feed",
+    "active": true,
+    "category": "esporte"
+  },
+  {
+    "name": "ND+",
+    "slug": "ndmais",
+    "type": "rss",
+    "url": "https://ndmais.com.br/feed",
+    "active": true,
+    "category": "regional"
+  },
+  {
+    "name": "NSC Total",
+    "slug": "nsctotal",
+    "type": "scraping",
+    "url": "https://www.nsctotal.com.br/noticias",
+    "active": true,
+    "category": "regional",
+    "scraping": {
+      "itemSelector": "[class*=news]",
+      "titleSelector": "h2, h3, h4",
+      "linkSelector": "a",
+      "imageSelector": "img",
+      "linkFilter": "/noticias/"
+    }
+  },
+  {
+    "name": "Engeplus",
+    "slug": "engeplus",
+    "type": "rss",
+    "url": "https://www.engeplus.com.br/feed",
+    "active": false,
+    "category": "regional",
+    "_obs": "Site sem RSS disponível"
+  },
+  {
+    "name": "Governo de SC",
+    "slug": "govsc",
+    "type": "scraping",
+    "url": "https://estado.sc.gov.br/noticias",
+    "active": true,
+    "category": "governo",
+    "scraping": {
+      "itemSelector": "article a[href*=\"/noticias/\"]",
+      "titleSelector": "h2, h3, h4",
+      "linkSelector": "a",
+      "imageSelector": "img",
+      "linkFilter": "estado\\.sc\\.gov\\.br\\/noticias\\/[a-z][a-z0-9]*(-[a-z0-9]+){5,}\\/"
+    }
+  },
+  {
+    "name": "Governo do RS",
+    "slug": "govrs",
+    "type": "scraping",
+    "url": "https://estado.rs.gov.br/ultimas-noticias",
+    "active": false,
+    "category": "governo",
+    "_obs": "Site renderizado por JavaScript — scraping sem headless browser não funciona"
+  },
+  {
+    "name": "Assembleia SC",
+    "slug": "alesc",
+    "type": "rss",
+    "url": "https://www.alesc.sc.gov.br/agenciaal/feed/",
+    "active": true,
+    "category": "governo"
+  },
+  {
+    "name": "Assembleia RS",
+    "slug": "alers",
+    "type": "scraping",
+    "url": "https://ww4.al.rs.gov.br/noticias",
+    "active": true,
+    "category": "governo",
+    "scraping": {
+      "itemSelector": "a[href*='/noticia/']",
+      "titleSelector": "h3, h2, h4, .title, .titulo",
+      "linkSelector": "a[href*='/noticia/']",
+      "imageSelector": "img.image-style-wide, img[src*='/sites/default/files/'], img[class*='image-style']",
+      "linkFilter": "/noticia/\\d+",
+      "dateSelector": "time, .date, .data"
+    }
+  },
+  {
+    "name": "Danúzio News",
+    "slug": "danuzio",
+    "type": "rss",
+    "url": "https://danuzionews.com/feed",
+    "active": true,
+    "category": "regional"
+  },
+  {
+    "name": "Brasil Paralelo Notícias",
+    "slug": "brasilparalelo",
+    "type": "rss",
+    "url": "https://www.brasilparalelo.com.br/noticias/feed.xml",
+    "active": true,
+    "category": "nacional"
+  },
+  {
+    "name": "Portal C1",
+    "slug": "c1",
+    "type": "rss",
+    "url": "https://portalc1.com.br/feed/",
+    "active": true,
+    "category": "regional"
+  },
+  {
+    "name": "Jarbas Vieira",
+    "slug": "jarbasvieira",
+    "type": "rss",
+    "url": "https://www.jarbasvieira.com/blog-feed.xml",
+    "active": true,
+    "category": "regional"
+  },
+  {
+    "name": "Enfoque SC",
+    "slug": "enfoquepopular",
+    "type": "rss",
+    "url": "https://enfoquesc.com.br/feed/",
+    "active": true,
+    "category": "regional"
+  },
+  {
+    "name": "Pref. Sombrio",
+    "slug": "pref-sombrio",
+    "type": "scraping",
+    "url": "https://sombrio.sc.gov.br/noticias",
+    "active": true,
+    "category": "prefeitura",
+    "scraping": {
+      "itemSelector": "article",
+      "titleSelector": ".elementor-post__title",
+      "dateSelector": ".elementor-post-date",
+      "linkSelector": "a.elementor-post__thumbnail__link",
+      "imageSelector": ".elementor-post__thumbnail img",
+      "linkFilter": "/202[56]/"
+    }
+  },
+  {
+    "name": "Pref. Torres",
+    "slug": "pref-torres",
+    "type": "scraping",
+    "url": "https://torres.rs.gov.br/todas-as-noticias/",
+    "active": true,
+    "category": "prefeitura",
+    "scraping": {
+      "itemSelector": ".jet-listing-grid__item",
+      "titleSelector": ".elementor-cta__title",
+      "linkSelector": "a.elementor-cta",
+      "imageSelector": "img"
+    }
+  },
+  {
+    "name": "Pref. Arroio do Sal",
+    "slug": "pref-arroiodosal",
+    "type": "scraping",
+    "url": "https://www.arroiodosal.rs.gov.br/noticias",
+    "active": true,
+    "category": "prefeitura",
+    "scraping": {
+      "itemSelector": ".news",
+      "titleSelector": ".titulo, h4",
+      "linkSelector": ".caption a",
+      "imageSelector": "img, .div-img"
+    }
+  },
+  {
+    "name": "Pref. Capão da Canoa",
+    "slug": "pref-capaodacanoa",
+    "type": "scraping",
+    "url": "https://www.capaodacanoa.rs.gov.br/",
+    "active": true,
+    "category": "prefeitura",
+    "scraping": {
+      "itemSelector": ".noticia-principal",
+      "titleSelector": "a",
+      "linkSelector": "a",
+      "imageSelector": "img"
+    }
+  },
+  {
+    "name": "Pref. Bal. Passo de Torres",
+    "slug": "pref-passdetorres",
+    "type": "scraping",
+    "url": "https://passodetorres.sc.gov.br/noticias",
+    "active": false,
+    "category": "prefeitura",
+    "_obs": "Site retorna 403 em todas as rotas"
+  },
+  {
+    "name": "Pref. Bal. Gaivota",
+    "slug": "pref-gaivota",
+    "type": "scraping",
+    "url": "https://balneariogaivota.sc.gov.br/noticias",
+    "active": false,
+    "category": "prefeitura",
+    "_obs": "RSS com XML malformado; /noticias excede timeout (>20s)"
+  },
+  {
+    "name": "Pref. São João do Sul",
+    "slug": "pref-saojoaodosul",
+    "type": "rss",
+    "url": "https://saojoaodosul.atende.net/cidadao/rss/noticias",
+    "active": true,
+    "category": "prefeitura"
+  },
+  {
+    "name": "Pref. Praia Grande",
+    "slug": "pref-praiagrande",
+    "type": "rss",
+    "url": "https://praiagrande.atende.net/cidadao/rss/noticias",
+    "active": true,
+    "category": "prefeitura"
+  },
+  {
+    "name": "Pref. Jacinto Machado",
+    "slug": "pref-jacintomachado",
+    "type": "rss",
+    "url": "https://jacintomachado.atende.net/cidadao/rss/noticias",
+    "active": true,
+    "category": "prefeitura"
+  }
+]

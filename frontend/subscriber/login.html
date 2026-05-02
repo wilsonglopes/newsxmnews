@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RB24Horas — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --vermelho:    #b91c1c;
+      --vermelho-lt: #dc2626;
+      --grafite:     #1a1a1a;
+      --grafite-md:  #374151;
+      --grafite-lt:  #9ca3af;
+      --borda:       #e5e7eb;
+      --papel:       #f9f8f6;
+      --papel-alt:   #f3f2ef;
+      --branco:      #ffffff;
+      --radius:      6px;
+      --font-titulo: 'Playfair Display', Georgia, serif;
+      --font-corpo:  'Inter', system-ui, sans-serif;
+      --sombra:      0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+      --sombra-md:   0 4px 16px rgba(0,0,0,.10);
+    }
+
+    body {
+      font-family: var(--font-corpo);
+      background: var(--papel);
+      color: var(--grafite);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .logo {
+      font-family: var(--font-titulo);
+      font-size: 2rem;
+      color: var(--vermelho);
+      letter-spacing: -0.5px;
+      margin-bottom: 0.25rem;
+    }
+    .logo-sub {
+      font-size: 0.8rem;
+      color: var(--grafite-lt);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+
+    .card {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: var(--radius);
+      box-shadow: var(--sombra-md);
+      padding: 2rem 2.5rem;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .card h2 {
+      font-family: var(--font-titulo);
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+      color: var(--grafite);
+    }
+
+    .campo-grupo {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+    }
+    .campo-grupo label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--grafite-md);
+    }
+    .campo-grupo input {
+      border: 1px solid var(--borda);
+      border-radius: var(--radius);
+      padding: 0.6rem 0.75rem;
+      font-size: 0.9rem;
+      font-family: var(--font-corpo);
+      color: var(--grafite);
+      background: var(--branco);
+      transition: border-color .15s;
+      width: 100%;
+    }
+    .campo-grupo input:focus {
+      outline: none;
+      border-color: var(--vermelho);
+      box-shadow: 0 0 0 2px rgba(185,28,28,.12);
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 0.7rem;
+      background: var(--vermelho);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: var(--font-corpo);
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: background .15s;
+    }
+    .btn-login:hover:not(:disabled) { background: var(--vermelho-lt); }
+    .btn-login:disabled { opacity: .6; cursor: not-allowed; }
+
+    .erro {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: var(--vermelho);
+      border-radius: var(--radius);
+      padding: 0.65rem 0.85rem;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+      display: none;
+    }
+    .erro.visivel { display: block; }
+  </style>
+</head>
+<body>
+  <div class="logo">RB24Horas</div>
+  <div class="logo-sub">Painel do Assinante</div>
+
+  <div class="card">
+    <h2>Entrar</h2>
+
+    <form id="form-login">
+      <div class="campo-grupo">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com.br" autocomplete="email" required />
+      </div>
+      <div class="campo-grupo">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      <button class="btn-login" type="submit" id="btn-entrar">Entrar</button>
+      <div class="erro" id="msg-erro">E-mail ou senha incorretos.</div>
+    </form>
+  </div>
+
+  <script>
+    const BACKEND = window.location.origin.startsWith('http://localhost') ? window.location.origin : 'http://localhost:3000';
+
+    // Se já tem token, valida no servidor antes de redirecionar
+    // (evita loop infinito se o token estiver expirado ou o servidor fora do ar)
+    (async () => {
+      const token = localStorage.getItem('rb24_token');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${BACKEND}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          window.location.href = 'index.html';
+        } else {
+          // Token inválido/expirado — limpa e mostra o formulário
+          localStorage.removeItem('rb24_token');
+          localStorage.removeItem('rb24_subscriber');
+        }
+      } catch {
+        // Servidor fora do ar — limpa token e mostra aviso
+        localStorage.removeItem('rb24_token');
+        localStorage.removeItem('rb24_subscriber');
+        const erro = document.getElementById('msg-erro');
+        erro.textContent = 'Servidor indisponível. Verifique se o backend está rodando na porta 3000.';
+        erro.classList.add('visivel');
+      }
+    })();
+
+    document.getElementById('form-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn   = document.getElementById('btn-entrar');
+      const erro  = document.getElementById('msg-erro');
+      const email = document.getElementById('email').value.trim();
+      const senha = document.getElementById('senha').value;
+
+      btn.disabled     = true;
+      btn.textContent  = 'Entrando…';
+      erro.classList.remove('visivel');
+
+      try {
+        const resp = await fetch(`${BACKEND}/api/auth/login`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ email, password: senha })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.token) {
+          throw new Error(data.error || 'Falha no login');
+        }
+
+        localStorage.setItem('rb24_token',      data.token);
+        localStorage.setItem('rb24_subscriber', JSON.stringify(data.subscriber));
+        // Admin vai para o painel administrativo
+        try {
+          const p = JSON.parse(atob(data.token.split('.')[1]));
+          window.location.href = p.is_admin ? 'admin.html' : 'index.html';
+        } catch { window.location.href = 'index.html'; }
+      } catch (err) {
+        erro.textContent = err.message === 'Credenciais inválidas.' ? 'E-mail ou senha incorretos.' : err.message;
+        erro.classList.add('visivel');
+        btn.disabled    = false;
+        btn.textContent = 'Entrar';
+      }
+    });
+  </script>
+</body>
+</html>

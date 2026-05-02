@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RB24Horas — Painel do Assinante</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --vermelho:    #b91c1c;
+      --vermelho-lt: #dc2626;
+      --verde:       #15803d;
+      --verde-lt:    #16a34a;
+      --azul:        #1d4ed8;
+      --laranja:     #c2410c;
+      --amarelo:     #92400e;
+      --cinza-badge: #374151;
+      --grafite:     #1a1a1a;
+      --grafite-md:  #374151;
+      --grafite-lt:  #9ca3af;
+      --borda:       #e5e7eb;
+      --papel:       #f9f8f6;
+      --papel-alt:   #f3f2ef;
+      --branco:      #ffffff;
+      --radius:      6px;
+      --font-titulo: 'Playfair Display', Georgia, serif;
+      --font-corpo:  'Inter', system-ui, sans-serif;
+      --sombra:      0 1px 3px rgba(0,0,0,.08);
+      --sombra-md:   0 4px 16px rgba(0,0,0,.10);
+    }
+    body { font-family: var(--font-corpo); background: var(--papel); color: var(--grafite); min-height: 100vh; }
+
+    /* ── Header ── */
+    .header {
+      background: var(--grafite);
+      color: #fff;
+      padding: 0 1.5rem;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-logo { font-family: var(--font-titulo); font-size: 1.3rem; color: var(--vermelho); flex: 1; }
+    .header-info { font-size: 0.8rem; color: #d1d5db; display: flex; align-items: center; gap: 0.75rem; }
+    .badge-plano { background: var(--vermelho); color: #fff; border-radius: 3px; padding: 2px 7px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+    .header-btn { background: transparent; border: 1px solid #4b5563; color: #d1d5db; border-radius: var(--radius); padding: 4px 12px; font-size: 0.78rem; cursor: pointer; font-family: var(--font-corpo); transition: border-color .15s, color .15s; }
+    .header-btn:hover { border-color: #9ca3af; color: #fff; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; border-bottom: 2px solid var(--borda); background: var(--branco); padding: 0 1.5rem; gap: 0; }
+    .tab { padding: 0.75rem 1.25rem; font-size: 0.85rem; font-weight: 500; color: var(--grafite-lt); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .15s, border-color .15s; white-space: nowrap; }
+    .tab.ativa { color: var(--vermelho); border-bottom-color: var(--vermelho); }
+    .tab:hover:not(.ativa) { color: var(--grafite-md); }
+
+    /* ── Tela ── */
+    .tela { display: none; padding: 1.25rem 1.5rem; max-width: 1100px; margin: 0 auto; }
+    .tela.visivel { display: block; }
+
+    /* ── Filtros ── */
+    .filtros { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+    .filtros select, .filtros input[type=text] {
+      border: 1px solid var(--borda); border-radius: var(--radius); padding: 0.45rem 0.65rem;
+      font-size: 0.83rem; font-family: var(--font-corpo); color: var(--grafite); background: var(--branco);
+    }
+    .filtros select:focus, .filtros input:focus { outline: none; border-color: var(--vermelho); }
+
+    /* ── Botões ── */
+    .btn { border: none; border-radius: var(--radius); padding: 0.5rem 1rem; font-size: 0.83rem; font-weight: 600; font-family: var(--font-corpo); cursor: pointer; transition: background .15s; }
+    .btn-primario  { background: var(--vermelho); color: #fff; }
+    .btn-primario:hover { background: var(--vermelho-lt); }
+    .btn-secundario { background: var(--papel-alt); color: var(--grafite-md); border: 1px solid var(--borda); }
+    .btn-secundario:hover { background: var(--borda); }
+    .btn-ia { background: var(--grafite); color: #fff; }
+    .btn-ia:hover { background: #374151; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Tabela ── */
+    .tabela-wrap { background: var(--branco); border: 1px solid var(--borda); border-radius: var(--radius); overflow: hidden; box-shadow: var(--sombra); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead th { background: var(--papel-alt); padding: 0.6rem 0.85rem; text-align: left; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--grafite-lt); border-bottom: 1px solid var(--borda); }
+    tbody tr { border-bottom: 1px solid var(--borda); cursor: pointer; transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--papel); }
+    td { padding: 0.65rem 0.85rem; color: var(--grafite-md); vertical-align: middle; }
+    td.titulo-cell { color: var(--grafite); font-weight: 500; max-width: 400px; }
+
+    /* Badges de categoria */
+    .badge { display: inline-block; font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; color: #fff; }
+    .badge-nacional   { background: var(--vermelho); }
+    .badge-regional   { background: var(--verde); }
+    .badge-governo    { background: var(--azul); }
+    .badge-esporte    { background: var(--laranja); }
+    .badge-agro       { background: var(--amarelo); }
+    .badge-prefeitura { background: var(--cinza-badge); }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--grafite-lt); font-size: 0.88rem; }
+    .empty svg { display: block; margin: 0 auto 0.75rem; opacity: .3; }
+
+    /* ── Loading ── */
+    .loading-wrap { text-align: center; padding: 2.5rem; color: var(--grafite-lt); font-size: 0.85rem; }
+    .spinner { width: 28px; height: 28px; border: 3px solid var(--borda); border-top-color: var(--vermelho); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 0.75rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Paginação ── */
+    .paginacao { display: flex; align-items: center; gap: 0.5rem; justify-content: center; margin-top: 1rem; font-size: 0.83rem; }
+    .paginacao button { border: 1px solid var(--borda); background: var(--branco); border-radius: var(--radius); padding: 4px 10px; cursor: pointer; color: var(--grafite-md); }
+    .paginacao button:disabled { opacity: .4; cursor: not-allowed; }
+    .paginacao span { color: var(--grafite-lt); }
+
+    /* ── Modal ── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .overlay.hidden { display: none; }
+    .modal { background: var(--branco); border-radius: var(--radius); width: 100%; max-width: 760px; max-height: 90vh; overflow-y: auto; box-shadow: var(--sombra-md); display: flex; flex-direction: column; }
+    .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--borda); display: flex; align-items: flex-start; gap: 0.75rem; }
+    .modal-header-info { flex: 1; }
+    .modal-fonte-nome { font-size: 0.75rem; color: var(--grafite-lt); margin-bottom: 0.25rem; }
+    .modal-header h2 { font-family: var(--font-titulo); font-size: 1.2rem; line-height: 1.35; color: var(--grafite); }
+    .modal-data { font-size: 0.75rem; color: var(--grafite-lt); margin-top: 0.25rem; }
+    .modal-fechar { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--grafite-lt); padding: 4px; line-height: 1; }
+    .modal-fechar:hover { color: var(--grafite); }
+    .modal-imagem { width: 100%; max-height: 260px; object-fit: cover; display: block; }
+    .modal-imagem.hidden { display: none; }
+    .modal-corpo { padding: 1rem 1.25rem; font-size: 0.87rem; line-height: 1.75; color: var(--grafite-md); flex: 1; }
+    .modal-corpo p { margin-bottom: 0.75rem; }
+    .modal-corpo h2, .modal-corpo h3 { font-family: var(--font-titulo); margin: 1rem 0 0.5rem; }
+    .modal-corpo img { max-width: 100%; border-radius: var(--radius); margin: 0.5rem 0; }
+    .modal-carregando { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 2rem; color: var(--grafite-lt); font-size: 0.85rem; }
+    .modal-carregando::before { content: ''; width: 28px; height: 28px; border: 3px solid var(--borda); border-top-color: var(--vermelho); border-radius: 50%; animation: spin .7s linear infinite; }
+    .modal-footer { padding: 0.85rem 1.25rem; border-top: 1px solid var(--borda); display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; background: var(--papel-alt); }
+    .link-original { font-size: 0.8rem; color: var(--grafite-lt); text-decoration: none; margin-left: auto; }
+    .link-original:hover { color: var(--grafite); }
+
+    /* ── Resultado da IA ── */
+    .ia-resultado { padding: 1rem 1.25rem; border-top: 2px solid var(--vermelho); }
+    .ia-resultado.hidden { display: none; }
+    .ia-resultado h3 { font-family: var(--font-titulo); font-size: 1rem; margin-bottom: 1rem; color: var(--grafite); }
+    .campo-grupo { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.85rem; }
+    .campo-grupo label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--grafite-lt); }
+    .campo-grupo input, .campo-grupo textarea, .campo-grupo select {
+      border: 1px solid var(--borda); border-radius: var(--radius); padding: 0.55rem 0.7rem;
+      font-size: 0.85rem; font-family: var(--font-corpo); color: var(--grafite); background: var(--branco); width: 100%;
+    }
+    .campo-grupo input:focus, .campo-grupo textarea:focus, .campo-grupo select:focus { outline: none; border-color: var(--vermelho); }
+    .campo-grupo textarea { min-height: 180px; resize: vertical; line-height: 1.6; }
+    /* ── Barra de publicação ── */
+    .publicar-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+      background: var(--papel-alt);
+      border: 1px solid var(--borda);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+    }
+    .publicar-bar-selects {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+    .publicar-sel-grupo {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .publicar-sel-grupo label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--grafite-lt);
+    }
+    .publicar-sel-grupo select {
+      width: 100%;
+      padding: 0.5rem 2rem 0.5rem 0.75rem;
+      border: 1.5px solid var(--borda);
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-family: var(--font-corpo);
+      color: var(--grafite);
+      background: var(--branco) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 0.65rem center;
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .publicar-sel-grupo select:focus { outline: none; border-color: var(--vermelho); }
+    .publicar-bar-acoes {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--borda);
+    }
+    .btn-publicar {
+      flex: 1;
+      padding: 0.6rem 1.1rem;
+      background: linear-gradient(135deg, #b91c1c, #dc2626);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: var(--font-corpo);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: opacity .15s, transform .1s;
+      box-shadow: 0 2px 6px rgba(185,28,28,.25);
+    }
+    .btn-publicar:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+    .btn-publicar:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-acao-bar {
+      padding: 0.55rem 0.9rem;
+      border: 1.5px solid var(--borda);
+      border-radius: 8px;
+      background: var(--branco);
+      font-size: 0.84rem;
+      font-family: var(--font-corpo);
+      color: var(--grafite-md);
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .btn-acao-bar:hover { border-color: var(--grafite-md); background: var(--papel); }
+    .btn-acao-bar.verde {
+      border-color: #16a34a;
+      color: #15803d;
+    }
+    .btn-acao-bar.verde:hover { background: #f0fdf4; border-color: #15803d; }
+    .link-publicado { display: none; font-size: 0.82rem; color: var(--verde); font-weight: 500; margin-top: 0.5rem; }
+    .link-publicado a { color: inherit; }
+    .link-publicado.visivel { display: block; }
+
+    /* ── Config ── */
+    .config-secao { background: var(--branco); border: 1px solid var(--borda); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--sombra); }
+    .config-secao-titulo { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--vermelho); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--borda); }
+    .sites-lista { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+    .site-item { display: flex; align-items: center; gap: 0.75rem; background: var(--papel); border: 1px solid var(--borda); border-radius: var(--radius); padding: 0.65rem 0.85rem; }
+    .site-item-info { flex: 1; }
+    .site-item-nome { font-weight: 600; font-size: 0.88rem; }
+    .site-item-plat { font-size: 0.75rem; color: var(--grafite-lt); }
+    .btn-remover-site { background: none; border: none; color: var(--grafite-lt); cursor: pointer; font-size: 1rem; padding: 2px 6px; border-radius: 3px; }
+    .btn-remover-site:hover { background: #fee2e2; color: var(--vermelho); }
+    .form-add-site { display: none; background: var(--papel-alt); border: 1px solid var(--borda); border-radius: var(--radius); padding: 1rem; margin-top: 0.75rem; }
+    .form-add-site.visivel { display: block; }
+    .platform-fields { display: none; }
+    .platform-fields.visivel { display: block; }
+    .plano-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+    .plano-stat { background: var(--papel); border: 1px solid var(--borda); border-radius: var(--radius); padding: 0.85rem; text-align: center; }
+    .plano-stat-val { font-size: 1.5rem; font-weight: 700; color: var(--vermelho); }
+    .plano-stat-label { font-size: 0.72rem; color: var(--grafite-lt); margin-top: 0.2rem; }
+
+    /* ── Toast ── */
+    .toast-wrap { position: fixed; bottom: 1.5rem; right: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 999; }
+    .toast { background: var(--grafite); color: #fff; padding: 0.65rem 1rem; border-radius: var(--radius); font-size: 0.83rem; box-shadow: var(--sombra-md); display: flex; align-items: center; gap: 0.5rem; animation: slideIn .2s ease; max-width: 340px; }
+    .toast.sucesso { background: var(--verde); }
+    .toast.erro    { background: var(--vermelho); }
+    .toast.aviso   { background: #92400e; }
+    @keyframes slideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+    /* ── Histórico ── */
+    .historico-lista { display: flex; flex-direction: column; gap: 0.75rem; }
+    .draft-card { background: var(--branco); border: 1px solid var(--borda); border-radius: var(--radius); padding: 1rem 1.1rem; box-shadow: var(--sombra); }
+    .draft-card-header { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .draft-card-info { flex: 1; min-width: 0; }
+    .draft-card-fonte { font-size: 0.72rem; color: var(--grafite-lt); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.2rem; }
+    .draft-card-artigo { font-size: 0.83rem; color: var(--grafite-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .draft-card-data { font-size: 0.72rem; color: var(--grafite-lt); white-space: nowrap; }
+    .draft-chapeu { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--vermelho); margin-bottom: 0.25rem; }
+    .draft-titulo { font-size: 0.92rem; font-weight: 600; color: var(--grafite); margin-bottom: 0.5rem; line-height: 1.35; }
+    .draft-resumo { font-size: 0.82rem; color: var(--grafite-md); line-height: 1.5; margin-bottom: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .draft-acoes { display: flex; gap: 0.5rem; padding-top: 0.6rem; border-top: 1px solid var(--borda); }
+    .btn-usar-draft { flex: 1; padding: 0.5rem 1rem; background: var(--vermelho); color: #fff; border: none; border-radius: var(--radius); font-size: 0.83rem; font-weight: 600; font-family: var(--font-corpo); cursor: pointer; transition: background .15s; }
+    .btn-usar-draft:hover { background: var(--vermelho-lt); }
+    .btn-del-draft { padding: 0.5rem 0.75rem; background: transparent; border: 1px solid var(--borda); border-radius: var(--radius); font-size: 0.83rem; color: var(--grafite-lt); cursor: pointer; transition: border-color .15s, color .15s; }
+    .btn-del-draft:hover { border-color: var(--vermelho); color: var(--vermelho); }
+
+    /* ── Minhas Fontes ── */
+    .btn-cat-filtro {
+      border: 1px solid var(--borda); background: var(--branco); border-radius: 20px;
+      padding: 4px 14px; font-size: 0.78rem; font-weight: 500; cursor: pointer;
+      font-family: var(--font-corpo); color: var(--grafite-md); transition: all .15s;
+    }
+    .btn-cat-filtro.ativo { background: var(--vermelho); color: #fff; border-color: var(--vermelho); }
+    .btn-cat-filtro:hover:not(.ativo) { border-color: var(--grafite-lt); }
+
+    .fontes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: .75rem;
+    }
+    .fonte-card {
+      background: var(--branco); border: 2px solid var(--borda); border-radius: var(--radius);
+      padding: .85rem 1rem; display: flex; align-items: center; gap: .75rem;
+      cursor: pointer; transition: border-color .15s, box-shadow .15s;
+    }
+    .fonte-card:hover { border-color: var(--grafite-lt); box-shadow: var(--sombra); }
+    .fonte-card.selecionada { border-color: var(--verde); background: #f0fdf4; }
+    .fonte-card.selecionada:hover { border-color: var(--verde-lt); }
+    .fonte-card-check {
+      width: 20px; height: 20px; border: 2px solid var(--borda); border-radius: 4px;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      font-size: .8rem; transition: all .15s;
+    }
+    .fonte-card.selecionada .fonte-card-check { background: var(--verde); border-color: var(--verde); color: #fff; }
+    .fonte-card-info { flex: 1; min-width: 0; }
+    .fonte-card-nome { font-size: .85rem; font-weight: 600; color: var(--grafite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fonte-card-cat { font-size: .7rem; color: var(--grafite-lt); text-transform: uppercase; letter-spacing: .4px; margin-top: 2px; }
+    .fonte-card-tipo { font-size: .68rem; border-radius: 3px; padding: 1px 5px; font-weight: 600; text-transform: uppercase; }
+    .fonte-card-tipo.rss { background: #dbeafe; color: #1d4ed8; }
+    .fonte-card-tipo.scraping { background: #ede9fe; color: #6d28d9; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-logo">RB24Horas</div>
+  <div class="header-info">
+    <span id="hd-nome">—</span>
+    <span class="badge-plano" id="hd-plano">—</span>
+  </div>
+  <button class="header-btn" id="btn-admin-hd" style="display:none;background:var(--red);color:#fff;border-color:var(--red)" onclick="location.href='admin.html'">⚙ Admin</button>
+  <button class="header-btn" id="btn-config-hd">⚙ Configurações</button>
+  <button class="header-btn" id="btn-sair">Sair</button>
+</header>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab ativa" data-tab="artigos">Artigos</div>
+  <div class="tab" data-tab="historico">📋 Histórico</div>
+  <div class="tab" data-tab="fontes">📡 Minhas Fontes</div>
+  <div class="tab" data-tab="config">Configurações</div>
+</div>
+
+<!-- Tela: Artigos -->
+<div class="tela visivel" id="tela-artigos">
+  <div class="filtros">
+    <select id="filtro-fonte"><option value="">Todas as fontes</option></select>
+    <select id="filtro-periodo">
+      <option value="">Qualquer período</option>
+      <option value="today">Hoje</option>
+      <option value="24h">Últimas 24h</option>
+      <option value="3d">Últimos 3 dias</option>
+    </select>
+    <input type="text" id="filtro-busca" placeholder="Buscar por título…" style="min-width:200px;" autocomplete="new-password" name="busca-titulo" />
+    <button class="btn btn-secundario" id="btn-atualizar">↻ Atualizar</button>
+  </div>
+
+  <div id="artigos-conteudo">
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      Carregando artigos…
+    </div>
+  </div>
+
+  <div class="paginacao" id="paginacao" style="display:none;">
+    <button id="pg-anterior">← Anterior</button>
+    <span id="pg-info"></span>
+    <button id="pg-proximo">Próximo →</button>
+  </div>
+</div>
+
+<!-- Tela: Histórico -->
+<div class="tela" id="tela-historico">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+    <div>
+      <h2 style="font-family:var(--font-titulo);font-size:1.15rem;margin-bottom:.2rem;">Artigos convertidos com IA</h2>
+      <p style="font-size:.82rem;color:var(--grafite-lt);">Todos os artigos que você gerou ficam salvos aqui — sem precisar converter novamente.</p>
+    </div>
+    <button class="btn btn-secundario" id="btn-atualizar-historico">↻ Atualizar</button>
+  </div>
+  <div id="historico-lista">
+    <div class="loading-wrap"><div class="spinner"></div>Carregando histórico…</div>
+  </div>
+</div>
+
+<!-- Tela: Minhas Fontes -->
+<div class="tela" id="tela-fontes">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+    <div>
+      <h2 style="font-family:var(--font-titulo);font-size:1.15rem;margin-bottom:.2rem;">Minhas Fontes</h2>
+      <p style="font-size:.82rem;color:var(--grafite-lt);">Portais disponíveis no seu plano. <span id="fontes-contador" style="font-weight:600;color:var(--vermelho);"></span></p>
+    </div>
+  </div>
+
+  <!-- Filtro de categoria -->
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+    <button class="btn-cat-filtro ativo" data-cat="">Todas</button>
+    <button class="btn-cat-filtro" data-cat="nacional">Nacional</button>
+    <button class="btn-cat-filtro" data-cat="regional">Regional</button>
+    <button class="btn-cat-filtro" data-cat="esporte">Esporte</button>
+    <button class="btn-cat-filtro" data-cat="governo">Governo</button>
+    <button class="btn-cat-filtro" data-cat="prefeitura">Prefeitura</button>
+    <button class="btn-cat-filtro" data-cat="agro">Agro</button>
+  </div>
+
+  <div id="fontes-grid">
+    <div class="loading-wrap"><div class="spinner"></div>Carregando catálogo…</div>
+  </div>
+</div>
+
+<!-- Tela: Configurações -->
+<div class="tela" id="tela-config">
+
+  <!-- Chave de IA -->
+  <div class="config-secao">
+    <div class="config-secao-titulo">🤖 Chave de IA (Gemini)</div>
+    <div class="campo-grupo">
+      <label for="cfg-gemini-key">Gemini API Key</label>
+      <input type="password" id="cfg-gemini-key" placeholder="AIza…" autocomplete="off" />
+    </div>
+    <button class="btn btn-primario" id="btn-salvar-key">Salvar chave</button>
+  </div>
+
+  <!-- Meus sites -->
+  <div class="config-secao">
+    <div class="config-secao-titulo">🌐 Meus Sites</div>
+    <div class="sites-lista" id="lista-sites">
+      <div style="color:var(--grafite-lt);font-size:.83rem;">Carregando…</div>
+    </div>
+    <button class="btn btn-secundario" id="btn-add-site">+ Adicionar site</button>
+    <input type="hidden" id="site-edit-id" value="" />
+
+    <div class="form-add-site" id="form-add-site">
+      <div class="campo-grupo">
+        <label>Nome do site</label>
+        <input type="text" id="site-nome" placeholder="Meu Portal de Notícias" />
+      </div>
+      <div class="campo-grupo">
+        <label>Plataforma</label>
+        <select id="site-platform">
+          <option value="wordpress">WordPress</option>
+          <option value="blogger">Blogger</option>
+          <option value="webhook">Webhook</option>
+        </select>
+      </div>
+
+      <!-- WordPress -->
+      <div class="platform-fields visivel" id="fields-wordpress">
+        <div class="campo-grupo">
+          <label>URL do site</label>
+          <input type="url" id="wp-url" placeholder="https://meusite.com.br" />
+        </div>
+        <div class="campo-grupo">
+          <label>Usuário WordPress</label>
+          <input type="text" id="wp-user" />
+        </div>
+        <div class="campo-grupo">
+          <label>Application Password</label>
+          <input type="password" id="wp-pass" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" />
+        </div>
+        <div class="campo-grupo" style="background:var(--papel-alt);border:1px solid var(--borda);border-radius:var(--radius);padding:.75rem 1rem;">
+          <label style="display:flex;align-items:center;gap:.4rem;">
+            <span style="background:#b91c1c;color:#fff;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:1px 6px;border-radius:3px;">XIXO Plugin</span>
+            Chave do Plugin XIXO <span style="font-weight:400;color:var(--grafite-lt);font-size:.78rem;">(opcional — recomendado)</span>
+          </label>
+          <input type="text" id="wp-xixo-key" placeholder="Cole a chave gerada pelo plugin instalado no WordPress" style="font-family:monospace;font-size:.82rem;" />
+          <small style="color:var(--grafite-lt);font-size:.76rem;margin-top:.3rem;display:block;">
+            Com o plugin instalado, a publicação fica independente do tema — sem injeção de CSS.
+            <a href="https://github.com/xixo/publisher" target="_blank" rel="noopener" style="color:var(--grafite-lt);">Como instalar?</a>
+          </small>
+        </div>
+      </div>
+
+      <!-- Blogger -->
+      <div class="platform-fields" id="fields-blogger">
+        <div class="campo-grupo">
+          <label>Blog ID</label>
+          <input type="text" id="bl-blogid" placeholder="1234567890" />
+        </div>
+        <div style="font-size:.82rem;color:var(--grafite-lt);margin-bottom:.75rem;">
+          Para conectar com Google OAuth, configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET no servidor.
+        </div>
+      </div>
+
+      <!-- Webhook -->
+      <div class="platform-fields" id="fields-webhook">
+        <div class="campo-grupo">
+          <label>URL do webhook</label>
+          <input type="url" id="wh-url" placeholder="https://seusite.com/webhook" />
+        </div>
+        <div class="campo-grupo">
+          <label>Chave secreta</label>
+          <input type="text" id="wh-secret" placeholder="sua-chave-secreta" />
+        </div>
+      </div>
+
+      <div class="campo-grupo" id="campo-post-format">
+        <label>Modo de publicação <span style="font-weight:400;color:var(--grafite-lt);font-size:.78rem;">(ignorado quando o Plugin XIXO está ativo)</span></label>
+        <select id="site-post-format">
+          <option value="editorial">Editorial — injeta chapéu, título e imagem no conteúdo (temas sem exibição automática)</option>
+          <option value="standard">Padrão do tema — usa título e imagem nativa do WordPress (temas que já exibem automaticamente)</option>
+        </select>
+        <small style="color:var(--grafite-lt);font-size:.78rem;">Use <strong>Padrão do tema</strong> quando o site já exibe a imagem destacada e o título automaticamente. Com o Plugin XIXO instalado, esta opção é irrelevante.</small>
+      </div>
+
+      <div class="campo-grupo">
+        <label>Prompt de estilo (opcional)</label>
+        <textarea id="site-prompt" rows="3" placeholder="Ex: Escreva sempre em tom formal, com linguagem jornalística…"></textarea>
+      </div>
+
+      <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+        <button class="btn btn-primario" id="btn-salvar-site">Salvar site</button>
+        <button class="btn btn-secundario" id="btn-cancelar-site">Cancelar</button>
+        <button class="btn btn-secundario" id="btn-testar-site" type="button">🔌 Testar conexão</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meu plano -->
+  <div class="config-secao">
+    <div class="config-secao-titulo">📋 Meu Plano</div>
+    <div class="plano-info" id="plano-info">
+      <div class="plano-stat"><div class="plano-stat-val" id="pl-nome">—</div><div class="plano-stat-label">Plano atual</div></div>
+      <div class="plano-stat"><div class="plano-stat-val" id="pl-fontes">—</div><div class="plano-stat-label">Fontes disponíveis</div></div>
+      <div class="plano-stat"><div class="plano-stat-val" id="pl-pubs">—</div><div class="plano-stat-label">Publicações/mês</div></div>
+      <div class="plano-stat"><div class="plano-stat-val" id="pl-sites">—</div><div class="plano-stat-label">Sites conectados</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de leitura -->
+<div class="overlay hidden" id="overlay-leitura">
+  <div class="modal" id="modal-leitura">
+    <div class="modal-header">
+      <div class="modal-header-info">
+        <div class="modal-fonte-nome" id="ml-fonte"></div>
+        <h2 id="ml-titulo"></h2>
+        <div class="modal-data" id="ml-data"></div>
+      </div>
+      <button class="modal-fechar" id="btn-fechar-leitura">✕</button>
+    </div>
+    <img id="ml-imagem" src="" alt="" class="modal-imagem hidden" />
+    <div class="modal-corpo" id="ml-corpo"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ia" id="btn-gerar-ia">✦ Gerar com IA e Publicar</button>
+      <a id="ml-link" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
+    </div>
+
+    <!-- Resultado da IA -->
+    <div class="ia-resultado hidden" id="ia-resultado">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+        <h3 style="margin:0;">Resultado Editorial</h3>
+        <span id="badge-rascunho" style="display:none;font-size:.75rem;color:var(--grafite-lt);display:flex;align-items:center;gap:.5rem;">
+          <span id="rascunho-info" style="background:#fff8e1;border:1px solid #ffe082;color:#795548;border-radius:4px;padding:2px 8px;font-size:.73rem;">📝 rascunho salvo</span>
+          <button id="btn-descartar-rascunho" title="Descartar rascunho e fechar" style="background:none;border:none;cursor:pointer;color:#c62828;font-size:.8rem;padding:0 4px;">✕ descartar</button>
+        </span>
+      </div>
+      <div class="campo-grupo">
+        <label>Chapéu</label>
+        <input type="text" id="ia-chapeu" maxlength="80" />
+      </div>
+      <div class="campo-grupo">
+        <label>Título</label>
+        <input type="text" id="ia-titulo" />
+      </div>
+      <div class="campo-grupo">
+        <label>Resumo</label>
+        <input type="text" id="ia-resumo" />
+      </div>
+      <div class="campo-grupo">
+        <label>Corpo</label>
+        <textarea id="ia-corpo"></textarea>
+      </div>
+      <div class="campo-grupo">
+        <label>Tags</label>
+        <input type="text" id="ia-tags" placeholder="separadas por vírgula" />
+      </div>
+      <div class="publicar-bar">
+        <div class="publicar-bar-selects">
+          <div class="publicar-sel-grupo">
+            <label>🌐 Portal de destino</label>
+            <select id="sel-site"><option value="">Selecione um site…</option></select>
+          </div>
+          <div class="publicar-sel-grupo">
+            <label>🗂 Categoria</label>
+            <select id="sel-categoria">
+              <option value="">Selecione o site primeiro…</option>
+            </select>
+          </div>
+        </div>
+        <div class="publicar-bar-acoes">
+          <button class="btn-publicar" id="btn-publicar-agora">✓ Publicar agora</button>
+          <button class="btn-acao-bar" id="btn-regenerar" title="Regenerar com IA">↻ Regenerar</button>
+          <button class="btn-acao-bar verde" id="btn-baixar-html" title="Baixar HTML para revisão">⬇ HTML</button>
+          <button class="btn-acao-bar" id="btn-visualizar-html" title="Visualizar artigo no navegador">👁 Visualizar</button>
+        </div>
+      </div>
+      <div class="link-publicado" id="link-publicado"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+'use strict';
+
+const BACKEND = window.location.origin.startsWith('http://localhost') ? window.location.origin : 'http://localhost:3000';
+
+// Proxy de imagens: roteia via backend para contornar hotlink protection
+function proxyImg(url) {
+  if (!url) return '';
+  // Não proxear URLs que já são do nosso próprio backend
+  if (url.startsWith(BACKEND) || url.startsWith('/')) return url;
+  return `${BACKEND}/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+let token      = localStorage.getItem('rb24_token');
+let subscriber = null;
+let artigoAtual = null;
+let paginaAtual = 1;
+let totalPaginas = 1;
+let debounceTimer = null;
+
+// ── Autenticação ──────────────────────────────────────────────────────────────
+function logout() {
+  localStorage.removeItem('rb24_token');
+  localStorage.removeItem('rb24_subscriber');
+  window.location.href = 'login.html';
+}
+
+if (!token) { window.location.href = 'login.html'; }
+
+try { subscriber = JSON.parse(localStorage.getItem('rb24_subscriber') || 'null'); } catch {}
+
+function authHeader() { return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }; }
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, tipo = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${tipo}`;
+  el.textContent = msg;
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+function inicializarHeader() {
+  if (!subscriber) return;
+  document.getElementById('hd-nome').textContent  = subscriber.name || '';
+  document.getElementById('hd-plano').textContent = subscriber.plan?.name || 'Sem plano';
+  document.getElementById('pl-nome').textContent   = subscriber.plan?.name || '—';
+  document.getElementById('pl-fontes').textContent = subscriber.plan?.max_sources === 0 ? '∞' : (subscriber.plan?.max_sources || '—');
+  document.getElementById('pl-pubs').textContent   = subscriber.plan?.max_publications_per_month || '∞';
+  document.getElementById('pl-sites').textContent  = subscriber.plan?.max_sites || '—';
+
+  // Mostra botão Admin se o usuário for administrador
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.is_admin) {
+      document.getElementById('btn-admin-hd').style.display = '';
+    }
+  } catch {}
+
+  // Aviso de vencimento de plano (≤5 dias)
+  if (subscriber.plan_expires_at) {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const venc = new Date(subscriber.plan_expires_at); venc.setHours(0,0,0,0);
+    const dias = Math.round((venc - hoje) / 86400000);
+    if (dias <= 5) {
+      const aviso = document.createElement('div');
+      aviso.style.cssText = 'background:' + (dias < 0 ? '#fef2f2' : '#fffbeb') + ';border-bottom:2px solid ' + (dias < 0 ? '#dc2626' : '#f59e0b') + ';padding:8px 20px;font-size:.83rem;text-align:center;font-weight:600;color:' + (dias < 0 ? '#991b1b' : '#92400e') + ';z-index:200;position:relative';
+      aviso.textContent = dias < 0
+        ? `⚠️ Seu plano venceu há ${Math.abs(dias)} dia(s). Entre em contato para renovar.`
+        : dias === 0
+          ? '⚠️ Seu plano vence hoje! Entre em contato para renovar.'
+          : `⚠️ Seu plano vence em ${dias} dia(s). Entre em contato para renovar.`;
+      const header = document.querySelector('header.header') || document.querySelector('.header');
+      if (header) header.insertAdjacentElement('afterend', aviso);
+      else document.body.prepend(aviso);
+    }
+  }
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativa'));
+    document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
+    tab.classList.add('ativa');
+    document.getElementById('tela-' + tab.dataset.tab).classList.add('visivel');
+    if (tab.dataset.tab === 'config')   carregarSites();
+    if (tab.dataset.tab === 'historico') carregarHistorico();
+    if (tab.dataset.tab === 'fontes')   carregarTellaFontes();
+  });
+});
+
+document.getElementById('btn-config-hd').addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativa'));
+  document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
+  document.querySelector('[data-tab="config"]').classList.add('ativa');
+  document.getElementById('tela-config').classList.add('visivel');
+  carregarSites();
+});
+
+document.getElementById('btn-sair').addEventListener('click', logout);
+
+// ── Filtros de categoria (tela Minhas Fontes) ─────────────────────────────────
+document.querySelectorAll('.btn-cat-filtro').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.btn-cat-filtro').forEach(b => b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    filtroCategoria = btn.dataset.cat;
+    renderFontesGrid();
+  });
+});
+
+// ── Catálogo de fontes (cache local) ─────────────────────────────────────────
+let catalogoFontes = [];
+
+// ── Carregar fontes no filtro (só as selecionadas pelo assinante) ─────────────
+async function carregarFontes() {
+  try {
+    const res  = await fetch(`${BACKEND}/api/subscriber/sources`, { headers: authHeader() });
+    catalogoFontes = await res.json();
+    const sel  = document.getElementById('filtro-fonte');
+    // Limpa opções exceto a primeira ("Todas as fontes")
+    while (sel.options.length > 1) sel.remove(1);
+    catalogoFontes.filter(f => f.selected).forEach(f => {
+      const opt = document.createElement('option');
+      opt.value       = f.slug;
+      opt.textContent = f.name;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+// ── Tela: Minhas Fontes ───────────────────────────────────────────────────────
+let filtroCategoria = '';
+
+async function carregarTellaFontes() {
+  const grid = document.getElementById('fontes-grid');
+  grid.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Carregando catálogo…</div>';
+
+  try {
+    if (catalogoFontes.length === 0) {
+      const res = await fetch(`${BACKEND}/api/subscriber/sources`, { headers: authHeader() });
+      catalogoFontes = await res.json();
+    }
+    renderFontesGrid();
+  } catch {
+    grid.innerHTML = '<div class="empty">Erro ao carregar fontes.</div>';
+  }
+}
+
+function renderFontesGrid() {
+  const grid       = document.getElementById('fontes-grid');
+  const selecionadas = catalogoFontes.filter(f => f.selected).length;
+  const filtradas  = filtroCategoria
+    ? catalogoFontes.filter(f => f.category === filtroCategoria)
+    : catalogoFontes;
+
+  // Atualiza contador
+  const contador = document.getElementById('fontes-contador');
+  if (contador) {
+    contador.textContent = `${selecionadas} portal(is) disponível(is)`;
+  }
+
+  if (filtradas.length === 0) {
+    grid.innerHTML = '<div class="empty">Nenhuma fonte nesta categoria.</div>';
+    return;
+  }
+
+  grid.className = 'fontes-grid';
+  grid.innerHTML = '';
+  filtradas.forEach(f => {
+    const card = document.createElement('div');
+    // Somente leitura: sem cursor pointer, sem interação
+    card.className = 'fonte-card' + (f.selected ? ' selecionada' : '');
+    card.style.cursor = 'default';
+    card.innerHTML = `
+      <div class="fonte-card-check">${f.selected ? '✓' : ''}</div>
+      <div class="fonte-card-info">
+        <div class="fonte-card-nome">${f.name}</div>
+        <div class="fonte-card-cat">${f.category || ''} <span class="fonte-card-tipo ${f.type}">${f.type}</span></div>
+      </div>`;
+    // Sem addEventListener — somente visualização
+    grid.appendChild(card);
+  });
+}
+
+async function toggleFonte(fonte, card, maxFontes, selecionadas) {
+  const adicionando = !fonte.selected;
+
+  // Verifica limite antes de adicionar
+  if (adicionando && maxFontes > 0 && selecionadas >= maxFontes) {
+    toast(`Limite do plano atingido (${maxFontes} fontes). Faça upgrade para adicionar mais.`, 'erro');
+    return;
+  }
+
+  // Atualiza UI imediatamente (otimista)
+  fonte.selected = adicionando;
+  card.className = 'fonte-card' + (adicionando ? ' selecionada' : '');
+  card.querySelector('.fonte-card-check').textContent = adicionando ? '✓' : '';
+
+  try {
+    const method = adicionando ? 'POST' : 'DELETE';
+    const res = await fetch(`${BACKEND}/api/subscriber/sources/${fonte.slug}`, {
+      method,
+      headers: authHeader()
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      // Reverte se erro
+      fonte.selected = !adicionando;
+      card.className = 'fonte-card' + (fonte.selected ? ' selecionada' : '');
+      card.querySelector('.fonte-card-check').textContent = fonte.selected ? '✓' : '';
+      toast(data.error || 'Erro ao atualizar fonte.', 'erro');
+      return;
+    }
+
+    // Atualiza o dropdown de filtro também
+    await carregarFontes();
+    renderFontesGrid();
+    toast(adicionando ? `"${fonte.name}" adicionada!` : `"${fonte.name}" removida.`, adicionando ? 'sucesso' : 'info');
+  } catch {
+    // Reverte
+    fonte.selected = !adicionando;
+    card.className = 'fonte-card' + (fonte.selected ? ' selecionada' : '');
+    card.querySelector('.fonte-card-check').textContent = fonte.selected ? '✓' : '';
+    toast('Erro de conexão.', 'erro');
+  }
+}
+
+// ── Artigos ───────────────────────────────────────────────────────────────────
+async function carregarArtigos(pagina = 1) {
+  paginaAtual = pagina;
+  const fonte  = document.getElementById('filtro-fonte').value;
+  const busca  = document.getElementById('filtro-busca').value.trim();
+  const periodo = document.getElementById('filtro-periodo').value;
+
+  const params = new URLSearchParams({ page: pagina, limit: 30 });
+  if (fonte)   params.set('source', fonte);
+  if (busca)   params.set('search', busca);
+  if (periodo) params.set('period', periodo);
+
+  const conteudo = document.getElementById('artigos-conteudo');
+  conteudo.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Carregando artigos…<br><small style="margin-top:.5rem;display:block;opacity:.6">Aguarde — o banco pode demorar até 30s na primeira consulta.</small></div>';
+  document.getElementById('paginacao').style.display = 'none';
+
+  // Timeout de 45 segundos (Supabase free tier tem cold start longo)
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 45000);
+
+  try {
+    const res  = await fetch(`${BACKEND}/api/articles?${params}`, {
+      headers: authHeader(),
+      signal:  ctrl.signal
+    });
+    clearTimeout(timer);
+    if (res.status === 401) { logout(); return; }
+    const data = await res.json();
+
+    if (!data.articles?.length) {
+      conteudo.innerHTML = '<div class="empty">Nenhum artigo encontrado.</div>';
+      return;
+    }
+
+    totalPaginas = data.pages || 1;
+    renderizarTabela(data.articles);
+    atualizarPaginacao(data.page, data.pages, data.total);
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      conteudo.innerHTML = `<div class="empty">
+        ⏱ Tempo limite esgotado.<br>
+        <small>O servidor pode estar iniciando. <a href="#" onclick="carregarArtigos(${pagina});return false;">Tentar novamente</a></small>
+      </div>`;
+    } else {
+      conteudo.innerHTML = `<div class="empty">
+        Erro ao carregar artigos: ${err.message}<br>
+        <small><a href="#" onclick="carregarArtigos(${pagina});return false;">Tentar novamente</a></small>
+      </div>`;
+    }
+  }
+}
+
+function badgeCategoria(cat) {
+  const mapa = { nacional: 'badge-nacional', regional: 'badge-regional', governo: 'badge-governo', esporte: 'badge-esporte', agro: 'badge-agro', prefeitura: 'badge-prefeitura' };
+  return `<span class="badge ${mapa[cat] || 'badge-regional'}">${cat || ''}</span>`;
+}
+
+function tempoRelativo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3600000);
+  if (h < 1)  return `${Math.floor(diff / 60000)}min`;
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+function renderizarTabela(artigos) {
+  const conteudo = document.getElementById('artigos-conteudo');
+  const rows = artigos.map(a => `
+    <tr data-id="${a.id}" data-json='${JSON.stringify(a).replace(/'/g, '&#39;')}'>
+      <td>${badgeCategoria(a.category)}<br><span style="font-size:.75rem;color:var(--grafite-lt);">${a.source_name || ''}</span></td>
+      <td style="max-width:70px;font-size:.78rem;color:var(--grafite-lt);">${(a.chapeu || '').slice(0, 30)}</td>
+      <td class="titulo-cell">${(a.title || '').slice(0, 80)}${a.title?.length > 80 ? '…' : ''}</td>
+      <td style="white-space:nowrap;">${tempoRelativo(a.published_at)}</td>
+    </tr>`).join('');
+
+  conteudo.innerHTML = `
+    <div class="tabela-wrap">
+      <table>
+        <thead><tr><th>Fonte</th><th>Chapéu</th><th>Título</th><th>Publicado</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  conteudo.querySelectorAll('tbody tr').forEach(tr => {
+    tr.addEventListener('click', () => {
+      try { abrirModal(JSON.parse(tr.dataset.json.replace(/&#39;/g, "'"))); } catch {}
+    });
+  });
+}
+
+function atualizarPaginacao(pagina, paginas, total) {
+  if (paginas <= 1) { document.getElementById('paginacao').style.display = 'none'; return; }
+  document.getElementById('paginacao').style.display = 'flex';
+  document.getElementById('pg-info').textContent = `Página ${pagina} de ${paginas} — ${total} artigos`;
+  document.getElementById('pg-anterior').disabled = pagina <= 1;
+  document.getElementById('pg-proximo').disabled  = pagina >= paginas;
+}
+
+document.getElementById('pg-anterior').addEventListener('click', () => carregarArtigos(paginaAtual - 1));
+document.getElementById('pg-proximo').addEventListener('click',  () => carregarArtigos(paginaAtual + 1));
+document.getElementById('btn-atualizar').addEventListener('click', () => carregarArtigos(1));
+document.getElementById('filtro-fonte').addEventListener('change',  () => carregarArtigos(1));
+document.getElementById('filtro-periodo').addEventListener('change', () => carregarArtigos(1));
+document.getElementById('filtro-busca').addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => carregarArtigos(1), 300);
+});
+
+// ── Modal de leitura ──────────────────────────────────────────────────────────
+async function abrirModal(artigo) {
+  artigoAtual = artigo;
+  document.getElementById('ml-fonte').textContent  = artigo.source_name || '';
+  document.getElementById('ml-titulo').textContent = artigo.title || '';
+  document.getElementById('ml-data').textContent   = artigo.published_at
+    ? new Date(artigo.published_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+    : '';
+  document.getElementById('ml-link').href = artigo.external_url || '#';
+
+  const imgEl = document.getElementById('ml-imagem');
+  if (artigo.image_url) { imgEl.src = proxyImg(artigo.image_url); imgEl.classList.remove('hidden'); }
+  else                  { imgEl.classList.add('hidden'); }
+
+  // Verifica rascunho salvo para este artigo
+  const temRascunho = carregarRascunho(artigo.id);
+  if (!temRascunho) {
+    document.getElementById('ia-resultado').classList.add('hidden');
+  }
+  document.getElementById('link-publicado').classList.remove('visivel');
+  document.getElementById('btn-gerar-ia').disabled = false;
+  document.getElementById('btn-gerar-ia').textContent = '✦ Gerar com IA e Publicar';
+
+  const corpo = document.getElementById('ml-corpo');
+
+  // Busca full-content apenas uma vez por sessão por artigo (bodyFetched = flag em memória).
+  // Evita re-scraping infinito em sites sem conteúdo estático (ex: Wix).
+  const precisaBuscar = !artigo.bodyFetched;
+
+  if (!precisaBuscar) {
+    // Já foi buscado nesta sessão — usa o que está em memória
+    corpo.innerHTML = artigo.body || (artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>');
+  } else {
+    corpo.innerHTML = '<div class="modal-carregando">Carregando artigo completo…</div>';
+    try {
+      const res  = await fetch(`${BACKEND}/api/articles/${artigo.id}/full-content`, { headers: authHeader() });
+      const data = await res.json();
+
+      artigo.bodyFetched = true; // marca como buscado independente do resultado
+
+      // Atualiza corpo — se vier vazio, fallback para summary
+      if (data.body) {
+        artigo.body = data.body;
+        corpo.innerHTML = data.body;
+      } else {
+        corpo.innerHTML = artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>';
+      }
+
+      // Atualiza imagem com versão do full-content (og:image — alta qualidade)
+      if (data.image_url) {
+        artigo.image_url = data.image_url;
+        imgEl.src = proxyImg(data.image_url);
+        imgEl.classList.remove('hidden');
+      }
+    } catch {
+      artigo.bodyFetched = true; // mesmo em erro, não repetir a cada abertura
+      corpo.innerHTML = artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Não foi possível carregar o conteúdo.</em></p>';
+    }
+  }
+
+  document.getElementById('overlay-leitura').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function fecharModal() {
+  document.getElementById('overlay-leitura').classList.add('hidden');
+  document.body.style.overflow = '';
+  artigoAtual = null;
+}
+
+document.getElementById('btn-fechar-leitura').addEventListener('click', fecharModal);
+// Fechamento apenas pelo botão X — clique fora não fecha para evitar perda de conteúdo
+
+// ── Rascunho IA (localStorage) ────────────────────────────────────────────────
+function salvarRascunho(artId) {
+  const draft = {
+    chapeu:  document.getElementById('ia-chapeu').value,
+    titulo:  document.getElementById('ia-titulo').value,
+    resumo:  document.getElementById('ia-resumo').value,
+    corpo:   document.getElementById('ia-corpo').value,
+    tags:    document.getElementById('ia-tags').value,
+    savedAt: Date.now()
+  };
+  localStorage.setItem(`rb24_draft_${artId}`, JSON.stringify(draft));
+}
+
+function carregarRascunho(artId) {
+  try {
+    const raw = localStorage.getItem(`rb24_draft_${artId}`);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    document.getElementById('ia-chapeu').value = d.chapeu || '';
+    document.getElementById('ia-titulo').value = d.titulo || '';
+    document.getElementById('ia-resumo').value = d.resumo || '';
+    document.getElementById('ia-corpo').value  = d.corpo  || '';
+    document.getElementById('ia-tags').value   = d.tags   || '';
+
+    // Mostra badge com hora do rascunho
+    const hora = new Date(d.savedAt).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    document.getElementById('rascunho-info').textContent = `📝 rascunho salvo às ${hora}`;
+    document.getElementById('badge-rascunho').style.display = 'flex';
+
+    document.getElementById('ia-resultado').classList.remove('hidden');
+    document.getElementById('btn-publicar-agora').disabled = false;
+    sugerirCategoria();
+    return true;
+  } catch { return false; }
+}
+
+function limparRascunho(artId) {
+  if (artId) localStorage.removeItem(`rb24_draft_${artId}`);
+  document.getElementById('badge-rascunho').style.display = 'none';
+}
+
+// Auto-save ao editar campos manualmente
+let draftSaveTimer = null;
+['ia-chapeu','ia-titulo','ia-resumo','ia-corpo','ia-tags'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (!artigoAtual) return;
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = setTimeout(() => {
+      salvarRascunho(artigoAtual.id);
+      document.getElementById('rascunho-info').textContent = `📝 rascunho salvo às ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+      document.getElementById('badge-rascunho').style.display = 'flex';
+    }, 1000); // salva 1s após parar de digitar
+  });
+});
+
+// Botão descartar rascunho
+document.getElementById('btn-descartar-rascunho').addEventListener('click', () => {
+  if (artigoAtual) limparRascunho(artigoAtual.id);
+  document.getElementById('ia-resultado').classList.add('hidden');
+  document.getElementById('link-publicado').classList.remove('visivel');
+});
+
+// ── Gerar com IA ──────────────────────────────────────────────────────────────
+document.getElementById('btn-gerar-ia').addEventListener('click', gerarComIA);
+document.getElementById('btn-regenerar').addEventListener('click', gerarComIA);
+
+async function gerarComIA() {
+  const geminiKey = localStorage.getItem('rb24_gemini_key') || '';
+  if (!geminiKey) {
+    toast('Configure sua Gemini API Key nas Configurações.', 'aviso');
+    return;
+  }
+  if (!artigoAtual) return;
+
+  const btn = document.getElementById('btn-gerar-ia');
+  btn.disabled    = true;
+  btn.textContent = 'Reescrevendo…';
+  document.getElementById('ia-resultado').classList.add('hidden');
+
+  const corpo       = (artigoAtual.body || artigoAtual.summary || '').replace(/<[^>]*>/g, '').trim();
+  const promptIa    = subscriber?.ai_prompt || '';
+  const promptSistema = promptIa ||
+    `Você é um editor de notícias profissional. Reescreva a matéria abaixo com linguagem jornalística clara e objetiva.
+Retorne SOMENTE um JSON com: { "chapeu": string(máx 60 chars), "titulo": string, "resumo": string(máx 200 chars), "corpo": string(HTML com <p>), "tags": string[] }.`;
+
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: promptSistema }] },
+          contents: [{ role: 'user', parts: [{ text: `TÍTULO: ${artigoAtual.title}\n\nCONTEÚDO:\n${corpo}` }] }],
+          generationConfig: { maxOutputTokens: 4096 }
+        })
+      }
+    );
+    const dados   = await resp.json();
+    const textoIA = dados.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const resultado = extrairJSON(textoIA);
+    if (!resultado) throw new Error('Não foi possível interpretar a resposta da IA.');
+
+    document.getElementById('ia-chapeu').value  = resultado.chapeu  || '';
+    document.getElementById('ia-titulo').value  = resultado.titulo  || resultado.title || '';
+    document.getElementById('ia-resumo').value  = resultado.resumo  || resultado.summary || '';
+    document.getElementById('ia-corpo').value   = resultado.corpo   || resultado.body || '';
+    document.getElementById('ia-tags').value    = (resultado.tags || []).join(', ');
+    document.getElementById('link-publicado').classList.remove('visivel');
+    document.getElementById('ia-resultado').classList.remove('hidden');
+    sugerirCategoria(); // tenta auto-selecionar categoria com base no artigo
+    // Salva rascunho no localStorage
+    limparRascunho(artigoAtual?.id); // limpa badge antes de salvar (regeneração)
+    salvarRascunho(artigoAtual.id);
+    document.getElementById('badge-rascunho').style.display = 'none'; // gerado agora, não é rascunho antigo
+    document.getElementById('btn-publicar-agora').disabled = false;
+    document.getElementById('btn-publicar-agora').textContent = '✓ Publicar agora';
+    // Salva no banco de dados (aba Histórico) — dispara sem await para não atrasar UI
+    saveDraftDB(artigoAtual, resultado);
+  } catch (err) {
+    toast('Erro na IA: ' + err.message, 'erro');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '✦ Gerar com IA e Publicar';
+  }
+}
+
+function extrairJSON(texto) {
+  if (!texto) return null;
+  try { return JSON.parse(texto.trim()); } catch {}
+  try { const m = texto.match(/\{[\s\S]*\}/); if (m) return JSON.parse(m[0]); } catch {}
+  try { const m = texto.match(/```(?:json)?\s*([\s\S]*?)\s*```/); if (m) return JSON.parse(m[1]); } catch {}
+  return null;
+}
+
+// ── Publicar ──────────────────────────────────────────────────────────────────
+document.getElementById('btn-publicar-agora').addEventListener('click', async () => {
+  const siteId = document.getElementById('sel-site').value;
+  if (!siteId) { toast('Selecione um site para publicar.', 'aviso'); return; }
+  if (!artigoAtual) return;
+
+  const btn = document.getElementById('btn-publicar-agora');
+  btn.disabled    = true;
+  btn.textContent = 'Publicando…';
+
+  const catId = document.getElementById('sel-categoria').value;
+  const rewritten = {
+    chapeu:      document.getElementById('ia-chapeu').value,
+    title:       document.getElementById('ia-titulo').value,
+    summary:     document.getElementById('ia-resumo').value,
+    body:        document.getElementById('ia-corpo').value,
+    tags:        document.getElementById('ia-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+    category_id: catId ? Number(catId) : null
+  };
+
+  const publicarReq = async (force = false) => {
+    return fetch(`${BACKEND}/api/publish`, {
+      method:  'POST',
+      headers: authHeader(),
+      body:    JSON.stringify({ article_id: artigoAtual.id, site_id: siteId, rewritten, force })
+    });
+  };
+
+  try {
+    let res  = await publicarReq(false);
+    let data = await res.json();
+
+    // Artigo já publicado neste site — pede confirmação para re-publicar
+    if (res.status === 409 && data.already_published) {
+      btn.disabled    = false;
+      btn.textContent = '✓ Publicar agora';
+      const ok = confirm('⚠️ Este artigo já foi publicado neste site anteriormente.\n\nDeseja publicar novamente mesmo assim?');
+      if (!ok) return;
+
+      btn.disabled    = true;
+      btn.textContent = 'Re-publicando…';
+      res  = await publicarReq(true);
+      data = await res.json();
+    }
+
+    if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
+
+    const linkEl = document.getElementById('link-publicado');
+    linkEl.innerHTML = `✔ Publicado! <a href="${data.post_url}" target="_blank" rel="noopener">${data.post_url}</a>`;
+    linkEl.classList.add('visivel');
+    toast('Publicado com sucesso!', 'sucesso');
+    btn.textContent = '✓ Publicado';
+    limparRascunho(artigoAtual?.id);
+  } catch (err) {
+    toast('Erro ao publicar: ' + err.message, 'erro');
+    btn.disabled    = false;
+    btn.textContent = '✓ Publicar agora';
+  }
+});
+
+// ── Baixar HTML ───────────────────────────────────────────────────────────────
+document.getElementById('btn-baixar-html').addEventListener('click', () => {
+  const chapeu  = document.getElementById('ia-chapeu').value.trim();
+  const titulo  = document.getElementById('ia-titulo').value.trim();
+  const resumo  = document.getElementById('ia-resumo').value.trim();
+  const corpo   = document.getElementById('ia-corpo').value.trim();
+  const tags    = document.getElementById('ia-tags').value.trim();
+  const imagem  = artigoAtual?.image_url || '';
+  const fonte   = artigoAtual?.source_name || '';
+  const urlOrig = artigoAtual?.external_url || '#';
+
+  if (!titulo && !corpo) { toast('Gere o conteúdo com IA antes de baixar.', 'aviso'); return; }
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${titulo}</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.7; color: #222; }
+    .chapeu { font-size: .85rem; text-transform: uppercase; letter-spacing: 1px; color: #cc0000; font-weight: 700; margin-bottom: 8px; }
+    h1 { font-size: 2rem; margin: 0 0 12px; line-height: 1.2; }
+    .resumo { font-size: 1.1rem; color: #444; margin-bottom: 20px; font-style: italic; }
+    .img-destaque { width: 100%; max-height: 480px; object-fit: cover; border-radius: 6px; margin-bottom: 24px; }
+    .corpo p { margin-bottom: 1rem; }
+    .meta { font-size: .8rem; color: #888; margin-bottom: 24px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
+    .tags { margin-top: 24px; font-size: .8rem; color: #888; }
+    .tags span { background: #f0f0f0; padding: 3px 8px; border-radius: 3px; margin-right: 4px; }
+  </style>
+</head>
+<body>
+  ${chapeu ? `<div class="chapeu">${chapeu}</div>` : ''}
+  <h1>${titulo}</h1>
+  <p class="resumo">${resumo}</p>
+  <div class="meta">Fonte: <a href="${urlOrig}" target="_blank">${fonte}</a></div>
+  ${imagem ? `<img src="${imagem}" alt="${titulo}" class="img-destaque" />` : ''}
+  <div class="corpo">${corpo}</div>
+  ${tags ? `<div class="tags">Tags: ${tags.split(',').map(t => `<span>${t.trim()}</span>`).join('')}</div>` : ''}
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const a    = document.createElement('a');
+  const slug = titulo.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60);
+  a.href     = URL.createObjectURL(blob);
+  a.download = `artigo-${slug}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('HTML baixado com sucesso!', 'sucesso');
+});
+
+// ── Visualizar HTML ───────────────────────────────────────────────────────────
+document.getElementById('btn-visualizar-html').addEventListener('click', () => {
+  const chapeu  = document.getElementById('ia-chapeu').value.trim();
+  const titulo  = document.getElementById('ia-titulo').value.trim();
+  const resumo  = document.getElementById('ia-resumo').value.trim();
+  const corpo   = document.getElementById('ia-corpo').value.trim();
+  const tags    = document.getElementById('ia-tags').value.trim();
+  const imagem  = artigoAtual?.image_url || '';
+  const fonte   = artigoAtual?.source_name || '';
+  const urlOrig = artigoAtual?.external_url || '#';
+
+  if (!titulo && !corpo) { toast('Gere o conteúdo com IA antes de visualizar.', 'aviso'); return; }
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${titulo}</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.7; color: #222; }
+    .chapeu { font-size: .85rem; text-transform: uppercase; letter-spacing: 1px; color: #cc0000; font-weight: 700; margin-bottom: 8px; }
+    h1 { font-size: 2rem; margin: 0 0 12px; line-height: 1.2; }
+    .resumo { font-size: 1.1rem; color: #444; margin-bottom: 20px; font-style: italic; }
+    .img-destaque { width: 100%; max-height: 480px; object-fit: cover; border-radius: 6px; margin-bottom: 24px; }
+    .corpo p { margin-bottom: 1rem; }
+    .meta { font-size: .8rem; color: #888; margin-bottom: 24px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
+    .tags { margin-top: 24px; font-size: .8rem; color: #888; }
+    .tags span { background: #f0f0f0; padding: 3px 8px; border-radius: 3px; margin-right: 4px; }
+  </style>
+</head>
+<body>
+  ${chapeu ? `<div class="chapeu">${chapeu}</div>` : ''}
+  <h1>${titulo}</h1>
+  <p class="resumo">${resumo}</p>
+  <div class="meta">Fonte: <a href="${urlOrig}" target="_blank">${fonte}</a></div>
+  ${imagem ? `<img src="${imagem}" alt="${titulo}" class="img-destaque" />` : ''}
+  <div class="corpo">${corpo}</div>
+  ${tags ? `<div class="tags">Tags: ${tags.split(',').map(t => `<span>${t.trim()}</span>`).join('')}</div>` : ''}
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+});
+
+// ── Categorias WP ─────────────────────────────────────────────────────────────
+let wpCategorias = []; // cache das categorias do site selecionado
+
+async function carregarCategoriasWP(siteId) {
+  const sel = document.getElementById('sel-categoria');
+  sel.innerHTML = '<option value="">Carregando categorias…</option>';
+  sel.disabled  = true;
+  wpCategorias  = [];
+
+  if (!siteId) {
+    sel.innerHTML = '<option value="">Selecione o site primeiro…</option>';
+    return;
+  }
+
+  try {
+    const res  = await fetch(`${BACKEND}/api/sites/${siteId}/wp-categories`, { headers: authHeader() });
+    const cats = await res.json();
+
+    if (!Array.isArray(cats) || !cats.length) {
+      sel.innerHTML = '<option value="">Sem categorias / não é WordPress</option>';
+      return;
+    }
+
+    wpCategorias = cats;
+    sel.innerHTML = '<option value="">— Sem categoria —</option>'
+      + cats.map(c => `<option value="${c.id}">${c.name}${c.count ? ` (${c.count})` : ''}</option>`).join('');
+    sel.disabled = false;
+
+    // Tenta sugestão automática com base na categoria do artigo atual
+    sugerirCategoria();
+  } catch (e) {
+    sel.innerHTML = '<option value="">Erro ao buscar categorias</option>';
+    console.warn('[cats]', e.message);
+  }
+}
+
+function sugerirCategoria() {
+  if (!artigoAtual || !wpCategorias.length) return;
+  const sel = document.getElementById('sel-categoria');
+
+  // Palavras-chave da categoria do artigo original (ex: "Futebol", "Política", "Esportes")
+  const categoriaArtigo = (artigoAtual.category || artigoAtual.source_name || '').toLowerCase();
+  if (!categoriaArtigo) return;
+
+  // Tenta match exato → match parcial → match de palavra
+  let melhor = null;
+  for (const cat of wpCategorias) {
+    const nome = cat.name.toLowerCase();
+    if (nome === categoriaArtigo)          { melhor = cat; break; }
+    if (!melhor && nome.includes(categoriaArtigo)) melhor = cat;
+    if (!melhor && categoriaArtigo.includes(nome))  melhor = cat;
+  }
+
+  if (melhor) {
+    sel.value = melhor.id;
+    // Indica visualmente que foi sugerida pela IA
+    sel.title = `Categoria sugerida automaticamente: "${melhor.name}"`;
+  }
+}
+
+// Quando o operador troca de site, recarrega as categorias
+document.getElementById('sel-site').addEventListener('change', function () {
+  carregarCategoriasWP(this.value);
+  // Reabilita publicação ao trocar de portal
+  const btn = document.getElementById('btn-publicar-agora');
+  if (btn.disabled) {
+    btn.disabled    = false;
+    btn.textContent = '✓ Publicar agora';
+  }
+  document.getElementById('link-publicado').classList.remove('visivel');
+});
+
+// ── Sites ─────────────────────────────────────────────────────────────────────
+async function carregarSites() {
+  const lista = document.getElementById('lista-sites');
+  const sel   = document.getElementById('sel-site');
+  lista.innerHTML = '<div style="color:var(--grafite-lt);font-size:.83rem;">Carregando…</div>';
+
+  try {
+    const res   = await fetch(`${BACKEND}/api/sites`, { headers: authHeader() });
+    const sites = await res.json();
+
+    // Preenche dropdown do modal
+    sel.innerHTML = '<option value="">Selecione um site…</option>';
+    sites.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id; opt.textContent = `${s.name} (${s.platform})`;
+      sel.appendChild(opt);
+    });
+
+    if (!sites.length) {
+      lista.innerHTML = '<div style="color:var(--grafite-lt);font-size:.83rem;">Nenhum site cadastrado.</div>';
+      return;
+    }
+    lista.innerHTML = sites.map(s => `
+      <div class="site-item">
+        <div class="site-item-info">
+          <div class="site-item-nome">${s.name}</div>
+          <div class="site-item-plat">${s.platform} — ${s.site_url || '<em style="color:#c00">URL não configurada</em>'}</div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="btn-editar-site" data-site='${JSON.stringify(s).replace(/'/g,"&#39;")}' title="Editar" style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;cursor:pointer;font-size:.8rem;">✎ Editar</button>
+          <button class="btn-remover-site" data-id="${s.id}" title="Remover" style="background:none;border:1px solid #ffcdd2;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:.8rem;color:#c62828;">✕</button>
+        </div>
+      </div>`).join('');
+
+    lista.querySelectorAll('.btn-editar-site').forEach(btn => {
+      btn.addEventListener('click', () => {
+        try {
+          const s = JSON.parse(btn.dataset.site.replace(/&#39;/g, "'"));
+          // Preenche o formulário com os dados do site
+          document.getElementById('site-edit-id').value = s.id;
+          document.getElementById('site-nome').value     = s.name || '';
+          document.getElementById('site-platform').value = s.platform || 'wordpress';
+          document.getElementById('site-platform').dispatchEvent(new Event('change'));
+          if (s.platform === 'wordpress' || !s.platform) {
+            document.getElementById('wp-url').value      = s.site_url || '';
+            document.getElementById('wp-user').value     = s.wp_username || '';
+            document.getElementById('wp-pass').value     = ''; // senha não retorna por segurança
+            document.getElementById('wp-xixo-key').value = s.xixo_api_key || '';
+            atualizarVisibilidadePostFormat(); // atualiza post_format toggle após setar a chave
+          } else if (s.platform === 'blogger') {
+            document.getElementById('bl-blogid').value = s.blogger_blog_id || '';
+          } else if (s.platform === 'webhook') {
+            document.getElementById('wh-url').value    = s.webhook_url    || '';
+            document.getElementById('wh-secret').value = s.webhook_secret  || '';
+          }
+          document.getElementById('site-post-format').value = s.post_format || 'editorial';
+          document.getElementById('site-prompt').value      = s.ai_prompt   || '';
+          document.getElementById('btn-salvar-site').textContent = '💾 Atualizar site';
+          document.getElementById('form-add-site').classList.add('visivel');
+          document.getElementById('form-add-site').scrollIntoView({ behavior: 'smooth' });
+        } catch {}
+      });
+    });
+
+    lista.querySelectorAll('.btn-remover-site').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Remover este site?')) return;
+        await fetch(`${BACKEND}/api/sites/${btn.dataset.id}`, { method: 'DELETE', headers: authHeader() });
+        carregarSites();
+        toast('Site removido.', 'sucesso');
+      });
+    });
+  } catch (err) {
+    lista.innerHTML = `<div style="color:var(--vermelho);font-size:.83rem;">${err.message}</div>`;
+  }
+}
+
+// Toggle formulário de adicionar site
+document.getElementById('btn-add-site').addEventListener('click', () => {
+  document.getElementById('form-add-site').classList.toggle('visivel');
+});
+document.getElementById('btn-cancelar-site').addEventListener('click', () => {
+  document.getElementById('form-add-site').classList.remove('visivel');
+  document.getElementById('site-edit-id').value = '';
+  document.getElementById('btn-salvar-site').textContent = 'Salvar site';
+  ['site-nome','wp-url','wp-user','wp-pass','wp-xixo-key','bl-blogid','wh-url','wh-secret','site-prompt'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('site-post-format').value = 'editorial';
+  atualizarVisibilidadePostFormat();
+});
+
+// Mostrar campos por plataforma
+document.getElementById('site-platform').addEventListener('change', function() {
+  document.querySelectorAll('.platform-fields').forEach(f => f.classList.remove('visivel'));
+  document.getElementById('fields-' + this.value)?.classList.add('visivel');
+});
+
+// Ocultar "Modo de publicação" quando a chave do Plugin XIXO está preenchida
+// (o plugin torna esse campo irrelevante)
+function atualizarVisibilidadePostFormat() {
+  const temPlugin = (document.getElementById('wp-xixo-key').value || '').trim().length > 0;
+  document.getElementById('campo-post-format').style.opacity  = temPlugin ? '0.4' : '1';
+  document.getElementById('campo-post-format').style.pointerEvents = temPlugin ? 'none' : '';
+  document.getElementById('site-post-format').disabled = temPlugin;
+}
+document.getElementById('wp-xixo-key').addEventListener('input', atualizarVisibilidadePostFormat);
+
+// Salvar / Atualizar site
+document.getElementById('btn-salvar-site').addEventListener('click', async () => {
+  const platform = document.getElementById('site-platform').value;
+  const nome     = document.getElementById('site-nome').value.trim();
+  const editId   = document.getElementById('site-edit-id').value;
+  if (!nome) { toast('Informe o nome do site.', 'aviso'); return; }
+
+  const body = { name: nome, platform };
+  if (platform === 'wordpress') {
+    body.site_url    = document.getElementById('wp-url').value.trim();
+    body.wp_username = document.getElementById('wp-user').value.trim();
+    const pwd = document.getElementById('wp-pass').value.trim();
+    if (pwd) body.wp_app_password = pwd; // só envia senha se preenchida
+    body.xixo_api_key = document.getElementById('wp-xixo-key').value.trim() || null;
+  } else if (platform === 'blogger') {
+    body.blogger_blog_id = document.getElementById('bl-blogid').value.trim();
+  } else {
+    body.webhook_url    = document.getElementById('wh-url').value.trim();
+    body.webhook_secret = document.getElementById('wh-secret').value.trim();
+  }
+  body.ai_prompt    = document.getElementById('site-prompt').value.trim() || null;
+  body.post_format  = document.getElementById('site-post-format').value || 'editorial';
+
+  try {
+    const isEdit = !!editId;
+    const url    = isEdit ? `${BACKEND}/api/sites/${editId}` : `${BACKEND}/api/sites`;
+    const res    = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: authHeader(), body: JSON.stringify(body) });
+    const data   = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast(isEdit ? 'Site atualizado!' : 'Site cadastrado!', 'sucesso');
+    document.getElementById('form-add-site').classList.remove('visivel');
+    document.getElementById('site-edit-id').value = '';
+    document.getElementById('btn-salvar-site').textContent = 'Salvar site';
+    // Limpa formulário
+    ['site-nome','wp-url','wp-user','wp-pass','wp-xixo-key','bl-blogid','wh-url','wh-secret','site-prompt'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('site-post-format').value = 'editorial';
+    atualizarVisibilidadePostFormat(); // reabilita o campo post_format
+    carregarSites();
+  } catch (err) {
+    toast('Erro: ' + err.message, 'erro');
+  }
+});
+
+// Testar conexão WordPress
+document.getElementById('btn-testar-site').addEventListener('click', async () => {
+  const url  = document.getElementById('wp-url').value.trim();
+  const user = document.getElementById('wp-user').value.trim();
+  const pwd  = document.getElementById('wp-pass').value.trim();
+
+  if (!url) { toast('Informe o URL do site primeiro.', 'aviso'); return; }
+
+  const btn = document.getElementById('btn-testar-site');
+  btn.textContent = '…'; btn.disabled = true;
+
+  try {
+    // Usa o endpoint de teste no backend (não expõe credenciais no frontend)
+    const res  = await fetch(`${BACKEND}/api/sites/test-wp`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: JSON.stringify({ site_url: url, wp_username: user, wp_app_password: pwd })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Falha na conexão');
+    toast(`✅ Conectado! WordPress ${data.version || ''}`, 'sucesso');
+  } catch (err) {
+    toast('❌ Erro: ' + err.message, 'erro');
+  } finally {
+    btn.textContent = '🔌 Testar conexão'; btn.disabled = false;
+  }
+});
+
+// ── Chave Gemini ──────────────────────────────────────────────────────────────
+const cfgGemini = document.getElementById('cfg-gemini-key');
+cfgGemini.value = localStorage.getItem('rb24_gemini_key') || '';
+document.getElementById('btn-salvar-key').addEventListener('click', () => {
+  const key = cfgGemini.value.trim();
+  if (!key) { toast('Informe a chave.', 'aviso'); return; }
+  localStorage.setItem('rb24_gemini_key', key);
+  toast('Chave salva!', 'sucesso');
+});
+
+// ── Histórico (drafts no banco) ───────────────────────────────────────────────
+
+async function saveDraftDB(artigo, resultado) {
+  try {
+    await fetch(`${BACKEND}/api/drafts`, {
+      method:  'POST',
+      headers: authHeader(),
+      body: JSON.stringify({
+        article_id:           artigo.id,
+        chapeu:               resultado.chapeu  || '',
+        title:                resultado.titulo  || resultado.title   || '',
+        summary:              resultado.resumo  || resultado.summary || '',
+        body:                 resultado.corpo   || resultado.body    || '',
+        tags:                 Array.isArray(resultado.tags) ? resultado.tags.join(', ') : (resultado.tags || ''),
+        article_title:        artigo.title        || '',
+        article_source:       artigo.source_name  || '',
+        article_image_url:    artigo.image_url     || '',
+        article_external_url: artigo.external_url  || ''
+      })
+    });
+  } catch (e) {
+    console.warn('[saveDraftDB]', e.message);
+  }
+}
+
+async function carregarHistorico() {
+  const lista = document.getElementById('historico-lista');
+  lista.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Carregando histórico…</div>';
+  try {
+    const res    = await fetch(`${BACKEND}/api/drafts`, { headers: authHeader() });
+    const drafts = await res.json();
+    if (!Array.isArray(drafts) || !drafts.length) {
+      lista.innerHTML = `<div class="empty">
+        <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Nenhum artigo convertido ainda.<br>
+        <small>Gere artigos com IA na aba <strong>Artigos</strong> — eles aparecem aqui automaticamente.</small>
+      </div>`;
+      return;
+    }
+    lista.innerHTML = `<div class="historico-lista">${drafts.map(renderDraftCard).join('')}</div>`;
+    lista.querySelectorAll('.btn-usar-draft').forEach(btn => {
+      btn.addEventListener('click', () => {
+        try { usarDraft(JSON.parse(btn.dataset.draft.replace(/&#39;/g, "'"))); } catch(e) { console.error(e); }
+      });
+    });
+    lista.querySelectorAll('.btn-del-draft').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Remover este rascunho do histórico?')) return;
+        await fetch(`${BACKEND}/api/drafts/${btn.dataset.id}`, { method: 'DELETE', headers: authHeader() });
+        carregarHistorico();
+        toast('Rascunho removido.', 'sucesso');
+      });
+    });
+  } catch (err) {
+    lista.innerHTML = `<div class="empty">Erro ao carregar histórico: ${err.message}</div>`;
+  }
+}
+
+function renderDraftCard(d) {
+  const data = new Date(d.updated_at).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+  const draftJson = JSON.stringify(d).replace(/'/g, '&#39;');
+  const artTitle  = (d.article_title || '').slice(0, 90) + ((d.article_title||'').length > 90 ? '…' : '');
+  const resumo    = (d.summary || '').slice(0, 130) + ((d.summary||'').length > 130 ? '…' : '');
+  return `
+    <div class="draft-card">
+      <div class="draft-card-header">
+        <div class="draft-card-info">
+          <div class="draft-card-fonte">${d.article_source || ''}</div>
+          <div class="draft-card-artigo">${artTitle}</div>
+        </div>
+        <div class="draft-card-data">${data}</div>
+      </div>
+      ${d.chapeu ? `<div class="draft-chapeu">${d.chapeu}</div>` : ''}
+      <div class="draft-titulo">${d.title || ''}</div>
+      ${resumo ? `<div class="draft-resumo">${resumo}</div>` : ''}
+      <div class="draft-acoes">
+        <button class="btn-usar-draft" data-draft='${draftJson}'>✎ Usar este artigo</button>
+        <button class="btn-del-draft"  data-id="${d.id}">🗑 Remover</button>
+      </div>
+    </div>`;
+}
+
+function usarDraft(d) {
+  // Reconstrói objeto artigo a partir do draft
+  artigoAtual = {
+    id:           d.article_id,
+    title:        d.article_title || d.title || '',
+    source_name:  d.article_source || '',
+    image_url:    d.article_image_url || '',
+    external_url: d.article_external_url || '',
+    body:         '',
+    summary:      ''
+  };
+
+  // Muda para aba Artigos e abre modal
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativa'));
+  document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
+  document.querySelector('[data-tab="artigos"]').classList.add('ativa');
+  document.getElementById('tela-artigos').classList.add('visivel');
+
+  // Preenche cabeçalho do modal
+  document.getElementById('ml-fonte').textContent  = artigoAtual.source_name;
+  document.getElementById('ml-titulo').textContent = artigoAtual.title;
+  document.getElementById('ml-data').textContent   = '';
+  document.getElementById('ml-link').href          = artigoAtual.external_url || '#';
+
+  const imgEl = document.getElementById('ml-imagem');
+  if (artigoAtual.image_url) { imgEl.src = proxyImg(artigoAtual.image_url); imgEl.classList.remove('hidden'); }
+  else                       { imgEl.classList.add('hidden'); }
+
+  document.getElementById('ml-corpo').innerHTML =
+    `<p style="color:var(--grafite-lt);font-style:italic;font-size:.87rem;">Carregado do histórico. Edite os campos abaixo e publique.</p>`;
+
+  // Preenche campos da IA com o draft salvo
+  document.getElementById('ia-chapeu').value = d.chapeu  || '';
+  document.getElementById('ia-titulo').value = d.title   || '';
+  document.getElementById('ia-resumo').value = d.summary || '';
+  document.getElementById('ia-corpo').value  = d.body    || '';
+  document.getElementById('ia-tags').value   = d.tags    || '';
+
+  // Reseta estado do modal
+  document.getElementById('ia-resultado').classList.remove('hidden');
+  document.getElementById('link-publicado').classList.remove('visivel');
+  document.getElementById('btn-publicar-agora').disabled    = false;
+  document.getElementById('btn-publicar-agora').textContent = '✓ Publicar agora';
+  document.getElementById('badge-rascunho').style.display   = 'none';
+  document.getElementById('btn-gerar-ia').disabled    = false;
+  document.getElementById('btn-gerar-ia').textContent = '✦ Gerar com IA e Publicar';
+
+  document.getElementById('overlay-leitura').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  sugerirCategoria();
+}
+
+document.getElementById('btn-atualizar-historico').addEventListener('click', carregarHistorico);
+
+// ── Inicializar ───────────────────────────────────────────────────────────────
+inicializarHeader();
+carregarFontes();
+carregarSites(); // popula o select de sites no modal de publicação
+// Chrome preenche autocomplete DEPOIS do JS — limpa com delay e recarrega se necessário
+const campoBusca = document.getElementById('filtro-busca');
+campoBusca.value = '';
+setTimeout(() => { campoBusca.value = ''; }, 200);
+carregarArtigos();
+</script>
+</body>
+</html>

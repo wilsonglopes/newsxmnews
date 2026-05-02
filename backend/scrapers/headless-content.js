@@ -1,0 +1,174 @@
+'use strict';
+
+/**
+ * scrapers/headless-content.js
+ *
+ * Fallback de scraping usando Puppeteer (Chromium headless).
+ * Só é acionado quando o scraping estático (axios + cheerio) retorna
+ * conteúdo insuficiente E o HTML indica um site JS-rendered (ex: Wix).
+ *
+ * NÃO é chamado para portais que já funcionam com scraping estático.
+ */
+
+const cheerio       = require('cheerio');
+const { normalizeBody } = require('./normalizer');
+
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+// Tipos de recurso que podem ser bloqueados para acelerar o carregamento.
+// Imagens são bloqueadas — o og:image vem do <meta>, não do download da imagem.
+const BLOCK_TYPES = new Set(['image', 'stylesheet', 'font', 'media', 'ping', 'tracking']);
+
+// Seletores tentados em ordem para extrair o corpo do artigo após renderização JS.
+// Inclui seletores específicos de Wix + genéricos.
+const HEADLESS_SELECTORS = [
+  // Wix Blog (público, sem autenticação)
+  '[data-hook="post-description"]',
+  '[class*="blog-post-page-font"]',
+  // Genéricos — funcionam também em outros sites JS-rendered
+  '[itemprop="articleBody"]',
+  'article .entry-content',
+  'article .post-content',
+  '.entry-content',
+  '.post-content',
+  'article',
+  'main',
+];
+
+/**
+ * Detecta se o HTML estático de uma URL indica renderização via JavaScript.
+ * Usado para decidir se vale a pena acionar o Puppeteer.
+ *
+ * @param {string} html - HTML bruto retornado pelo axios
+ * @returns {boolean}
+ */
+function isJsRenderedSite(html) {
+  // Wix — fingerprint confiável
+  if (html.includes('static.wixstatic.com'))       return true;
+  if (html.includes('"wixConfig"'))                 return true;
+  if (html.includes('window.__WIX'))                return true;
+  // React/Next.js com hydration e pouco conteúdo SSR
+  if (html.includes('data-reactroot') && html.replace(/<[^>]*>/g, '').trim().length < 300) return true;
+  return false;
+}
+
+/**
+ * Carrega a URL no Chromium headless, aguarda a renderização JS e extrai
+ * o corpo do artigo + og:image.
+ *
+ * @param {string} url
+ * @returns {Promise<{ body: string|null, image_url: string|null }>}
+ */
+async function fetchWithHeadless(url) {
+  let puppeteer;
+  try {
+    puppeteer = require('puppeteer');
+  } catch {
+    console.warn('[headless] puppeteer não encontrado. Execute: npm install puppeteer');
+    return { body: null, image_url: null };
+  }
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+      ],
+      timeout: 30000,
+    });
+
+    const page = await browser.newPage();
+    await page.setUserAgent(USER_AGENT);
+
+    // Bloqueia recursos que não contribuem para o conteúdo textual
+    await page.setRequestInterception(true);
+    page.on('request', req => {
+      if (BLOCK_TYPES.has(req.resourceType())) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    // Navega até a página e aguarda o JS renderizar o conteúdo
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+
+    // Aguarda o seletor de artigo aparecer no DOM (máx 8s) — Wix demora um pouco
+    try {
+      await page.waitForFunction(
+        selectors => selectors.some(s => {
+          const el = document.querySelector(s);
+          return el && el.innerText.trim().length > 100;
+        }),
+        { timeout: 8000 },
+        HEADLESS_SELECTORS
+      );
+    } catch {
+      // Se o wait timeout, tenta mesmo assim com o que foi renderizado
+    }
+
+    // Extrai og:image do <head> (presente mesmo com JS rendering)
+    const image_url = await page.evaluate(() => {
+      const el = document.querySelector('meta[property="og:image"], meta[name="og:image"]');
+      return el ? el.getAttribute('content') : null;
+    });
+
+    // Extrai corpo do artigo — tenta os seletores em ordem
+    const rawHtml = await page.evaluate(selectors => {
+      for (const sel of selectors) {
+        try {
+          const el = document.querySelector(sel);
+          if (el && el.innerText.trim().length > 150) {
+            // Clona para não modificar o DOM ao limpar elementos indesejados
+            const clone = el.cloneNode(true);
+            // Remove elementos que não são conteúdo editorial
+            const lixo = clone.querySelectorAll(
+              'script, style, nav, footer, aside, .related, .comments, ' +
+              '.social, .share, .tags, .ad, [class*="sidebar"], [class*="menu"], ' +
+              '[class*="newsletter"], [class*="subscribe"], [class*="banner"]'
+            );
+            lixo.forEach(n => n.remove());
+            return clone.innerHTML || '';
+          }
+        } catch { /* seletor inválido, continua */ }
+      }
+
+      // Último recurso: coleta todos os <p> com conteúdo relevante
+      const ps = Array.from(document.querySelectorAll('p'))
+        .filter(p => {
+          const txt = p.innerText.trim();
+          return txt.length > 60 && txt.length < 3000 &&
+                 !txt.match(/^(cookie|copyright|©|publicidade|leia também|veja mais)/i);
+        });
+      return ps.length >= 2
+        ? ps.map(p => `<p>${p.innerText.trim()}</p>`).join('\n')
+        : '';
+    }, HEADLESS_SELECTORS);
+
+    if (!rawHtml || rawHtml.trim().length < 100) {
+      return { body: null, image_url: image_url || null };
+    }
+
+    // Normaliza o HTML extraído (remove tags indevidas, links internos, etc.)
+    const body = normalizeBody(rawHtml, url) || null;
+
+    console.log(`[headless] ${url} → ${body ? body.replace(/<[^>]*>/g, '').trim().length + ' chars' : 'sem conteúdo'}`);
+    return { body, image_url: image_url || null };
+
+  } catch (err) {
+    console.error('[headless] Erro ao carregar', url, ':', err.message);
+    return { body: null, image_url: null };
+  } finally {
+    if (browser) {
+      try { await browser.close(); } catch {}
+    }
+  }
+}
+
+module.exports = { fetchWithHeadless, isJsRenderedSite };

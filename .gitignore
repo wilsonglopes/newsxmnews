@@ -1,0 +1,24 @@
+# Dependências
+node_modules/
+.npm/
+
+# Logs
+*.log
+server_output.log
+server2.log
+
+# Variáveis de ambiente (segurança)
+.env
+.env.*
+!.env.example
+
+# Puppeteer / Chromium cache
+.cache/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
