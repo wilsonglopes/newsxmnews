@@ -661,11 +661,12 @@ function inicializarHeader() {
   document.getElementById('pl-pubs').textContent   = subscriber.plan?.max_publications_per_month || '∞';
   document.getElementById('pl-sites').textContent  = subscriber.plan?.max_sites || '—';
 
-  // Mostra botão Admin se o usuário for administrador
+  // Redireciona admin direto para o painel
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     if (payload.is_admin) {
-      document.getElementById('btn-admin-hd').style.display = '';
+      window.location.href = 'admin.html';
+      return;
     }
   } catch {}
 

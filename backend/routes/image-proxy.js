@@ -48,10 +48,15 @@ router.get('/', async (req, res) => {
     // Permissivo: deixa passar — o content-type vai validar
   }
 
+  // Limite máximo de 10 MB para evitar abuso de banda
+  const MAX_BYTES = 10 * 1024 * 1024;
+
   try {
     const resp = await axios.get(url, {
       responseType: 'arraybuffer',
       timeout: 8000,
+      maxContentLength: MAX_BYTES,
+      maxBodyLength:    MAX_BYTES,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
@@ -59,19 +64,27 @@ router.get('/', async (req, res) => {
         // Sem Referer — mascara a origem
       },
       maxRedirects: 5,
+      validateStatus: s => s >= 200 && s < 300,
     });
 
     const ct = resp.headers['content-type'] || 'image/jpeg';
     if (!ct.startsWith('image/')) return res.status(415).send('não é imagem');
 
+    // Validação extra de tamanho (defesa em profundidade)
+    const buf = Buffer.from(resp.data);
+    if (buf.length > MAX_BYTES) return res.status(413).send('imagem muito grande');
+
     res.set('Content-Type', ct);
+    res.set('Content-Length', buf.length);
     res.set('Cache-Control', 'public, max-age=86400'); // cache 24h
     res.set('Access-Control-Allow-Origin', '*');
-    res.send(Buffer.from(resp.data));
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.send(buf);
 
   } catch (err) {
     console.error('[proxy-image]', err.message);
-    res.status(502).send('erro ao buscar imagem');
+    const status = err.response?.status || 502;
+    res.status(status >= 400 && status < 600 ? status : 502).send('erro ao buscar imagem');
   }
 });
 

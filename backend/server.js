@@ -291,7 +291,7 @@ async function persistirArtigos(itens, sourceSlug, source) {
       // Rejeita artigos mais antigos que 45 dias
       if (norm.published_at) {
         const idadeMs = Date.now() - new Date(norm.published_at).getTime();
-        if (idadeMs > 45 * 86400000) continue;
+        if (idadeMs > 2 * 86400000) continue;
       }
 
       // Verifica se já existe pela URL
@@ -400,10 +400,25 @@ async function atualizarTodasFontes() {
   console.log('[CRON] Atualização concluída.');
 }
 
+// ─── Limpeza de artigos com mais de 2 dias ────────────────────────────────────
+async function limparArtigosAntigos() {
+  if (!pool) return;
+  try {
+    const r = await pool.query(
+      `DELETE FROM articles WHERE published_at < NOW() - INTERVAL '2 days'`
+    );
+    if (r.rowCount > 0) console.log(`[CLEANUP] ${r.rowCount} artigos antigos removidos.`);
+  } catch (e) {
+    console.error('[CLEANUP] Erro:', e.message);
+  }
+}
+
 // ─── Carga inicial e agendamento ──────────────────────────────────────────────
 criarIndicesBanco().catch(() => {});
 atualizarTodasFontes();
+limparArtigosAntigos();
 cron.schedule('*/15 * * * *', atualizarTodasFontes);
+cron.schedule('0 * * * *', limparArtigosAntigos); // limpeza a cada hora
 
 // ─── ROTAS ────────────────────────────────────────────────────────────────────
 
