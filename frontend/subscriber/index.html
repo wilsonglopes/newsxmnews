@@ -520,7 +520,7 @@
 <script>
 'use strict';
 
-const BACKEND = window.location.origin.startsWith('http://localhost') ? window.location.origin : 'http://localhost:3000';
+const BACKEND = window.location.origin;
 
 // Proxy de imagens: roteia via backend para contornar hotlink protection
 function proxyImg(url) {

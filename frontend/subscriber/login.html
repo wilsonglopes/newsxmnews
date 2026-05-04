@@ -154,7 +154,7 @@
   </div>
 
   <script>
-    const BACKEND = window.location.origin.startsWith('http://localhost') ? window.location.origin : 'http://localhost:3000';
+    const BACKEND = window.location.origin;
 
     // Se já tem token, valida no servidor antes de redirecionar
     // (evita loop infinito se o token estiver expirado ou o servidor fora do ar)
