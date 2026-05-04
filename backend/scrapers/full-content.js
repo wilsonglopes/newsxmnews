@@ -271,9 +271,27 @@ async function fetchFullContent(url, source) {
     if (!rawHtml) {
       for (const sel of CONTENT_SELECTORS) {
         const $el = $(sel);
-        if ($el.length && $el.text().trim().length > 150) {
-          rawHtml = $el.html() || '';
-          break;
+        if (!$el.length) continue;
+
+        // Quando há múltiplos elementos com o mesmo seletor (ex: .descricao no atende.net),
+        // coleta apenas os que têm conteúdo textual real e os concatena.
+        if ($el.length > 1) {
+          const partes = [];
+          $el.each((_, el) => {
+            const txt = $(el).text().trim();
+            const h   = $(el).html() || '';
+            if (txt.length > 80) partes.push(h);
+          });
+          if (partes.length > 0 && partes.join('').replace(/<[^>]*>/g,'').trim().length > 150) {
+            rawHtml = partes.join('\n');
+            break;
+          }
+        } else {
+          const txt = $el.text().trim();
+          if (txt.length > 150) {
+            rawHtml = $el.html() || '';
+            break;
+          }
         }
       }
     }
