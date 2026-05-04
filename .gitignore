@@ -6,6 +6,8 @@ node_modules/
 *.log
 server_output.log
 server2.log
+server_err.log
+server-err.log
 
 # Variáveis de ambiente (segurança)
 .env
@@ -21,4 +23,17 @@ Thumbs.db
 
 # Editor
 .vscode/
+.claude/
 *.swp
+
+# Arquivos sensíveis / credenciais locais
+credenciais*.txt
+senha*.txt
+*.credentials.txt
+
+# Arquivos temporários / gerados localmente
+artigo-*.html
+files.zip
+
+# Imagens grandes de referência de design
+modelo modal admin.png

@@ -211,7 +211,8 @@
       "titleSelector": ".elementor-cta__title",
       "linkSelector": "a.elementor-cta",
       "imageSelector": "img"
-    }
+    },
+    "extract_body_image": true
   },
   {
     "name": "Pref. Arroio do Sal",

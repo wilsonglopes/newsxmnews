@@ -6,6 +6,21 @@ const { decryptToken } = require('./encrypt');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
+/**
+ * Garante que todas as <img> do body HTML tenham width:100% responsivo.
+ * Substitui ou adiciona o atributo style nas imagens.
+ */
+function ensureImgFullWidth(html) {
+  if (!html) return html;
+  // Adiciona/substitui style nas tags <img>
+  return html.replace(/<img(\s[^>]*)?>/gi, (match, attrs) => {
+    if (!attrs) return `<img style="max-width:100%;width:100%;height:auto;display:block;margin:1rem auto;">`;
+    // Remove style existente e adiciona o novo
+    const cleaned = attrs.replace(/\s*style\s*=\s*["'][^"']*["']/gi, '');
+    return `<img${cleaned} style="max-width:100%;width:100%;height:auto;display:block;margin:1rem auto;">`;
+  });
+}
+
 // ── Publicação via Plugin XIXO (modo preferencial) ───────────────────────────
 // Usado quando o site tem o plugin XIXO Publisher instalado e a chave configurada.
 //
@@ -36,18 +51,18 @@ async function publishViaXixoPlugin(site, rewritten, article) {
     try { nomefonte = new URL(article.external_url).hostname.replace('www.',''); } catch { nomefonte = ''; }
   }
 
-  // post_format 'editorial' → plugin v1.2.0+ (envia imagem, plugin cuida de tudo)
+  // post_format 'editorial' → plugin v1.2.0+ (envia imagem, plugin faz upload e define featured_media)
   // post_format 'standard'  → plugin v1.1.0  (não envia imagem, evita duplicata)
   const postFormat   = site.post_format || 'editorial';
   const sendImageUrl = postFormat === 'editorial' ? (article.image_url || '') : '';
 
   const payload = {
-    title:       rewritten.title       || '',
-    chapeu:      rewritten.chapeu      || '',
-    summary:     rewritten.summary     || '',
-    body:        rewritten.body        || '',
+    title:       rewritten.title                  || '',
+    chapeu:      rewritten.chapeu                 || '',
+    summary:     rewritten.summary                || '',
+    body:        ensureImgFullWidth(rewritten.body || ''),
     slug:        slugify(rewritten.title),
-    source_url:  article.external_url  || '',
+    source_url:  article.external_url             || '',
     source_name: nomefonte,
     image_url:   sendImageUrl,
     tags:        rewritten.tags        || [],

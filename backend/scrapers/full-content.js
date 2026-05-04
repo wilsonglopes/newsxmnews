@@ -146,10 +146,54 @@ function extrairImagemDestacada($, bodyHtml, baseUrl) {
 }
 
 /**
+ * Quando a fonte tem extract_body_image=true:
+ * Extrai a primeira imagem válida do corpo como imagem destacada.
+ * Remove essa imagem do corpo para evitar duplicação no WordPress.
+ * Demais imagens permanecem no corpo normalmente.
+ *
+ * @param {string} bodyHtml - HTML do corpo já normalizado
+ * @param {string} baseUrl  - URL base para resolver caminhos relativos
+ * @returns {{ image_url: string|null, body: string }}
+ */
+function extrairImagemDoCorpo(bodyHtml, baseUrl) {
+  if (!bodyHtml) return { image_url: null, body: bodyHtml };
+
+  const $b = cheerio.load(bodyHtml);
+  let primeiraImagem = null;
+
+  $b('img').each((_, el) => {
+    if (primeiraImagem) return false; // já achou, para
+    const srcRaw = $b(el).attr('src') || $b(el).attr('data-src') || $b(el).attr('data-lazy-src') || '';
+    const src    = normalizarUrlImagem(srcRaw, baseUrl);
+    if (!src) return;
+    // Ignora SVGs, ícones, logos
+    if (src.match(/\.svg(\?|$)/i)) return;
+    if (src.match(/logo|icon|favicon|sprite|pixel|tracking/i)) return;
+    // Ignora imagens muito pequenas
+    const w = parseInt($b(el).attr('width')  || '0', 10);
+    const h = parseInt($b(el).attr('height') || '0', 10);
+    if (w > 0 && w < 100) return;
+    if (h > 0 && h < 80)  return;
+    primeiraImagem = src;
+    // Remove essa imagem do corpo (e o container <p> vazio que sobra, se houver)
+    const parent = $b(el).parent();
+    $b(el).remove();
+    if (parent.is('p, figure, div') && parent.children().length === 0 && !parent.text().trim()) {
+      parent.remove();
+    }
+  });
+
+  return {
+    image_url: primeiraImagem,
+    body: $b('body').html() || bodyHtml,
+  };
+}
+
+/**
  * Busca, normaliza e retorna o conteúdo completo de um artigo.
  *
  * @param {string} url        - URL do artigo
- * @param {object} [source]   - Config da fonte (content_selector, url, category)
+ * @param {object} [source]   - Config da fonte (content_selector, url, category, extract_body_image)
  * @returns {{ body: string|null, image_url: string|null }}
  */
 async function fetchFullContent(url, source) {
@@ -195,8 +239,18 @@ async function fetchFullContent(url, source) {
     // Normaliza o body extraído
     let body = rawHtml ? (normalizeBody(rawHtml, url) || null) : null;
 
-    // Extrai imagem destacada (passa baseUrl para resolver URLs relativas)
-    let image_url = extrairImagemDestacada($, body, url);
+    // Extrai imagem destacada
+    // Se extract_body_image=true: pega da 1ª img do corpo (remove ela do corpo)
+    // Caso contrário: usa og:image / twitter:image / JSON-LD como antes
+    let image_url;
+    if (source?.extract_body_image && body) {
+      const extracted = extrairImagemDoCorpo(body, url);
+      image_url = extracted.image_url;
+      body      = extracted.body;
+      console.log(`[full-content] extract_body_image: ${image_url || 'nenhuma imagem encontrada'}`);
+    } else {
+      image_url = extrairImagemDestacada($, body, url);
+    }
 
     // ── Fallback headless: aciona Puppeteer quando o scraping estático falhou ──
     //

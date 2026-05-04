@@ -772,9 +772,13 @@
 
       <!-- WordPress -->
       <div id="msc-wp-fields">
-        <div class="form-row">
-          <div class="form-group"><label>Usuário WP</label><input type="text" id="msc-wp-user" /></div>
-          <div class="form-group"><label>App Password WP</label><input type="password" id="msc-wp-pass" placeholder="xxxx xxxx xxxx…" /></div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>🔑 Chave XIXO Plugin <small style="color:var(--muted);font-weight:400">(recomendado — gerada em WP Admin → XIXO Publisher)</small></label>
+          <input type="text" id="msc-xixo-key" placeholder="Cole aqui a chave gerada pelo plugin" style="font-family:monospace;font-size:.85rem" />
+        </div>
+        <div class="form-row" style="opacity:.7">
+          <div class="form-group"><label>Usuário WP <small style="color:var(--muted)">(fallback sem plugin)</small></label><input type="text" id="msc-wp-user" /></div>
+          <div class="form-group"><label>App Password WP <small style="color:var(--muted)">(fallback)</small></label><input type="password" id="msc-wp-pass" placeholder="xxxx xxxx xxxx…" /></div>
         </div>
       </div>
 
@@ -858,6 +862,12 @@
           </div>
         </div>
       </div>
+    </div>
+    <div style="padding:0 20px 12px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer">
+        <input type="checkbox" id="mf-extract-body-image" style="width:16px;height:16px" />
+        <span>📷 Extrair imagem destacada do corpo do artigo <small style="color:var(--muted)">(para portais sem og:image — ex: prefeituras)</small></span>
+      </label>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModal('modal-fonte')">Cancelar</button>
@@ -1527,6 +1537,7 @@ function abrirModalSite(siteId) {
   document.getElementById('msc-id').value     = siteId || '';
   document.getElementById('msc-name').value   = '';
   document.getElementById('msc-url').value    = '';
+  document.getElementById('msc-xixo-key').value = '';
   document.getElementById('msc-wp-user').value  = '';
   document.getElementById('msc-wp-pass').value  = '';
   document.getElementById('msc-blog-id').value  = '';
@@ -1548,6 +1559,7 @@ function abrirModalSite(siteId) {
         if (!s) return;
         document.getElementById('msc-name').value          = s.name || '';
         document.getElementById('msc-url').value           = s.site_url || '';
+        document.getElementById('msc-xixo-key').value      = s.xixo_api_key || '';
         document.getElementById('msc-wp-user').value       = s.wp_username || '';
         document.getElementById('msc-blog-id').value       = s.blogger_blog_id || '';
         document.getElementById('msc-webhook-url').value   = s.webhook_url || '';
@@ -1579,6 +1591,7 @@ async function salvarSiteCli() {
     name:       document.getElementById('msc-name').value.trim(),
     platform,
     site_url:   document.getElementById('msc-url').value.trim() || null,
+    xixo_api_key:   platform === 'wordpress' ? document.getElementById('msc-xixo-key').value.trim() || null : null,
     wp_username:    platform === 'wordpress' ? document.getElementById('msc-wp-user').value.trim() || null : null,
     wp_app_password: platform === 'wordpress' ? document.getElementById('msc-wp-pass').value.trim() || null : null,
     blogger_blog_id: platform === 'blogger'   ? document.getElementById('msc-blog-id').value.trim() || null : null,
@@ -1840,6 +1853,7 @@ function abrirModalFonte(slug) {
   document.getElementById('mf-imageSelector').value  = s.imageSelector || '';
   document.getElementById('mf-dateSelector').value   = s.dateSelector  || '';
   document.getElementById('mf-linkFilter').value     = s.linkFilter    || '';
+  document.getElementById('mf-extract-body-image').checked = !!(f?.extract_body_image);
   toggleScrapingFields();
   document.getElementById('modal-fonte').classList.remove('hidden');
 }
@@ -1848,11 +1862,12 @@ async function salvarFonte() {
   const slugOrig = document.getElementById('mf-slug-original').value;
   const tipo = document.getElementById('mf-type').value;
   const body = {
-    name:     document.getElementById('mf-name').value.trim(),
-    slug:     document.getElementById('mf-slug').value.trim().toLowerCase().replace(/\s+/g,'-'),
-    type:     tipo,
-    url:      document.getElementById('mf-url').value.trim(),
-    category: document.getElementById('mf-category').value,
+    name:               document.getElementById('mf-name').value.trim(),
+    slug:               document.getElementById('mf-slug').value.trim().toLowerCase().replace(/\s+/g,'-'),
+    type:               tipo,
+    url:                document.getElementById('mf-url').value.trim(),
+    category:           document.getElementById('mf-category').value,
+    extract_body_image: document.getElementById('mf-extract-body-image').checked,
   };
   if (tipo === 'scraping') {
     const scr = {};

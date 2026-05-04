@@ -404,8 +404,12 @@ async function atualizarTodasFontes() {
 async function limparArtigosAntigos() {
   if (!pool) return;
   try {
+    // Exclui apenas artigos que NÃO foram publicados (sem registro em publications)
+    // Artigos publicados são preservados para manter o histórico de publicações.
     const r = await pool.query(
-      `DELETE FROM articles WHERE published_at < NOW() - INTERVAL '2 days'`
+      `DELETE FROM articles
+       WHERE published_at < NOW() - INTERVAL '2 days'
+         AND id NOT IN (SELECT DISTINCT article_id FROM publications WHERE article_id IS NOT NULL)`
     );
     if (r.rowCount > 0) console.log(`[CLEANUP] ${r.rowCount} artigos antigos removidos.`);
   } catch (e) {

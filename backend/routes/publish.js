@@ -31,11 +31,12 @@ router.post('/', async (req, res) => {
     const article = artRows[0];
     if (!article) return res.status(404).json({ error: 'Artigo não encontrado.' });
 
-    // Busca o site e confirma que pertence ao assinante
-    const { rows: siteRows } = await pool.query(
-      'SELECT * FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2 AND active = true',
-      [site_id, req.subscriber.id]
-    );
+    // Busca o site — admin pode publicar em qualquer site, assinante só nos seus
+    const siteQuery = req.subscriber.is_admin
+      ? 'SELECT * FROM subscriber_sites WHERE id = $1 AND active = true'
+      : 'SELECT * FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2 AND active = true';
+    const siteParams = req.subscriber.is_admin ? [site_id] : [site_id, req.subscriber.id];
+    const { rows: siteRows } = await pool.query(siteQuery, siteParams);
     const site = siteRows[0];
     if (!site) return res.status(404).json({ error: 'Site não encontrado ou sem permissão.' });
 
@@ -64,14 +65,15 @@ router.post('/', async (req, res) => {
       default: return res.status(400).json({ error: `Plataforma desconhecida: ${site.platform}` });
     }
 
-    // Registra publicação
+    // Registra publicação — usa subscriber_id do dono do site (admin publica em nome do cliente)
+    const pubSubscriberId = site.subscriber_id || req.subscriber.id;
     await pool.query(
       `INSERT INTO publications
          (subscriber_id, article_id, site_id, platform, external_post_id, external_post_url,
           rewritten_title, rewritten_body, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'published')`,
       [
-        req.subscriber.id, article_id, site_id, site.platform,
+        pubSubscriberId, article_id, site_id, site.platform,
         result.post_id, result.post_url,
         rewritten.title, rewritten.body
       ]
@@ -87,7 +89,7 @@ router.post('/', async (req, res) => {
         `INSERT INTO publications
            (subscriber_id, article_id, site_id, platform, status, error_message)
          VALUES ($1,$2,$3,'unknown','error',$4)`,
-        [req.subscriber.id, article_id, site_id, err.message]
+        [site?.subscriber_id || req.subscriber.id, article_id, site_id, err.message]
       );
     } catch { /* ignora erro de log */ }
 

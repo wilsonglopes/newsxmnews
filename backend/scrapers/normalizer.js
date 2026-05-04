@@ -170,6 +170,11 @@ function normalizeBody(html, sourceUrl) {
       }
     });
 
+    // Garante largura total e responsividade em todas as imagens do corpo
+    $2('img').each((_, el) => {
+      $2(el).attr('style', 'max-width:100%;width:100%;height:auto;display:block;margin:1rem auto;');
+    });
+
     return ($2.html('body') || '')
       .replace(/<body[^>]*>|<\/body>/gi, '')
       .trim();

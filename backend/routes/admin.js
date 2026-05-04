@@ -110,7 +110,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
 
   // POST /api/admin/sources — cria nova fonte
   router.post('/sources', async (req, res) => {
-    const { name, slug, type, url, category, scraping } = req.body || {};
+    const { name, slug, type, url, category, scraping, extract_body_image } = req.body || {};
     if (!name || !slug || !type || !url) {
       return res.status(400).json({ error: 'name, slug, type e url são obrigatórios.' });
     }
@@ -120,6 +120,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
 
     const novaFonte = { name, slug, type, url, active: true, category: category || 'nacional' };
     if (scraping && Object.keys(scraping).length) novaFonte.scraping = scraping;
+    if (extract_body_image) novaFonte.extract_body_image = true;
 
     sources.push(novaFonte);
     cache[slug] = { data: [], lastUpdated: null, error: null };
@@ -130,13 +131,13 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       const cfg = scraping || {};
       await pool.query(`
         INSERT INTO sources (name, slug, type, url, section_selector, title_selector,
-          date_selector, link_selector, image_selector, category, active)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-        ON CONFLICT (slug) DO UPDATE SET name=$1, url=$4, type=$3, active=$11
+          date_selector, link_selector, image_selector, category, active, extract_body_image)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        ON CONFLICT (slug) DO UPDATE SET name=$1, url=$4, type=$3, active=$11, extract_body_image=$12
       `, [name, slug, type, url,
           cfg.itemSelector || null, cfg.titleSelector || null, cfg.dateSelector || null,
           cfg.linkSelector || null, cfg.imageSelector || null,
-          category || 'nacional', true]);
+          category || 'nacional', true, !!extract_body_image]);
     } catch {}
 
     // Coleta imediatamente
@@ -150,7 +151,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
     const idx = sources.findIndex(s => s.slug === slug);
     if (idx === -1) return res.status(404).json({ error: 'Fonte não encontrada.' });
 
-    const { name, url, category, type, scraping } = req.body || {};
+    const { name, url, category, type, scraping, extract_body_image } = req.body || {};
     const fonte = sources[idx];
 
     if (name)     fonte.name     = name;
@@ -161,14 +162,15 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       if (scraping && Object.keys(scraping).length) fonte.scraping = scraping;
       else delete fonte.scraping;
     }
+    fonte.extract_body_image = !!extract_body_image;
 
     salvarSourcesJson();
 
     // Sincroniza DB
     try {
       await pool.query(
-        'UPDATE sources SET name=$1, url=$2, category=$3, type=$4 WHERE slug=$5',
-        [fonte.name, fonte.url, fonte.category, fonte.type, slug]
+        'UPDATE sources SET name=$1, url=$2, category=$3, type=$4, extract_body_image=$5 WHERE slug=$6',
+        [fonte.name, fonte.url, fonte.category, fonte.type, !!extract_body_image, slug]
       );
     } catch {}
 
@@ -394,7 +396,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       const { rows } = await pool.query(
         `SELECT id, name, platform, site_url, wp_username, ai_prompt,
                 default_category_id, webhook_url, webhook_secret,
-                blogger_blog_id, post_format, active, created_at
+                blogger_blog_id, post_format, active, created_at, xixo_api_key
          FROM subscriber_sites WHERE subscriber_id = $1 ORDER BY created_at DESC`,
         [req.params.id]
       );
@@ -406,19 +408,20 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   router.post('/subscribers/:id/sites', async (req, res) => {
     const { name, platform, site_url, wp_username, wp_app_password,
             blogger_blog_id, webhook_url, webhook_secret, ai_prompt,
-            default_category_id, post_format } = req.body || {};
+            default_category_id, post_format, xixo_api_key } = req.body || {};
     if (!name || !platform) return res.status(400).json({ error: 'name e platform obrigatórios.' });
     try {
       const { rows } = await pool.query(
         `INSERT INTO subscriber_sites
            (subscriber_id, name, platform, site_url, wp_username, wp_app_password,
-            blogger_blog_id, webhook_url, webhook_secret, ai_prompt, default_category_id, post_format)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+            blogger_blog_id, webhook_url, webhook_secret, ai_prompt, default_category_id, post_format, xixo_api_key)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          RETURNING id, name, platform, site_url, active`,
         [req.params.id, name, platform, site_url || null, wp_username || null,
          wp_app_password ? encryptToken(wp_app_password) : null,
          blogger_blog_id || null, webhook_url || null, webhook_secret || null,
-         ai_prompt || null, default_category_id || null, post_format || 'editorial']
+         ai_prompt || null, default_category_id || null, post_format || 'editorial',
+         xixo_api_key || null]
       );
       res.status(201).json(rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -428,7 +431,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   router.put('/subscribers/:id/sites/:siteId', async (req, res) => {
     const { name, platform, site_url, wp_username, wp_app_password,
             blogger_blog_id, webhook_url, webhook_secret, ai_prompt,
-            default_category_id, post_format } = req.body || {};
+            default_category_id, post_format, xixo_api_key } = req.body || {};
     try {
       const sets = []; const vals = []; let p = 1;
       if (name       !== undefined) { sets.push(`name = $${p++}`);       vals.push(name); }
@@ -442,6 +445,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       if (ai_prompt       !== undefined) { sets.push(`ai_prompt = $${p++}`);       vals.push(ai_prompt || null); }
       if (default_category_id !== undefined) { sets.push(`default_category_id = $${p++}`); vals.push(default_category_id || null); }
       if (post_format         !== undefined) { sets.push(`post_format = $${p++}`);         vals.push(post_format || 'editorial'); }
+      if (xixo_api_key        !== undefined) { sets.push(`xixo_api_key = $${p++}`);        vals.push(xixo_api_key || null); }
       if (!sets.length) return res.status(400).json({ error: 'Nada para atualizar.' });
       vals.push(req.params.siteId, req.params.id);
       const { rows } = await pool.query(

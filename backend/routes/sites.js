@@ -34,25 +34,37 @@ router.get('/', async (req, res) => {
 // ── GET /api/sites/:id/wp-categories — lista categorias do WP do site ────────
 router.get('/:id/wp-categories', async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      'SELECT site_url, wp_username, wp_app_password, platform FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2',
-      [req.params.id, req.subscriber.id]
-    );
+    // Admin pode buscar categorias de qualquer site; assinante só dos seus
+    const isAdmin = req.subscriber.is_admin;
+    const query   = isAdmin
+      ? 'SELECT site_url, wp_username, wp_app_password, platform, xixo_api_key FROM subscriber_sites WHERE id = $1'
+      : 'SELECT site_url, wp_username, wp_app_password, platform, xixo_api_key FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2';
+    const params  = isAdmin ? [req.params.id] : [req.params.id, req.subscriber.id];
+
+    const { rows } = await pool.query(query, params);
     const site = rows[0];
     if (!site) return res.status(404).json({ error: 'Site não encontrado.' });
     if (site.platform !== 'wordpress') return res.json([]);
 
-    const { decryptToken } = require('../connectors/encrypt');
-    const password = decryptToken(site.wp_app_password);
-    const baseUrl  = (site.site_url || '').replace(/\/$/, '');
-    if (!baseUrl || !password) return res.status(400).json({ error: 'Site não configurado completamente.' });
+    const baseUrl = (site.site_url || '').replace(/\/$/, '');
+    if (!baseUrl) return res.status(400).json({ error: 'URL do site não configurada.' });
 
-    const authB64 = Buffer.from(`${site.wp_username}:${password}`).toString('base64');
+    // Auth é opcional — categorias WP são públicas.
+    // Inclui credenciais básicas se disponíveis (evita cache privado em alguns hosts).
+    const headers = {};
+    if (site.wp_username && site.wp_app_password) {
+      const { decryptToken } = require('../connectors/encrypt');
+      const password = decryptToken(site.wp_app_password);
+      if (password) {
+        headers['Authorization'] = `Basic ${Buffer.from(`${site.wp_username}:${password}`).toString('base64')}`;
+      }
+    }
+
     // Busca todas as categorias (até 100) em ordem de nome
     const r = await axios.get(`${baseUrl}/wp-json/wp/v2/categories?per_page=100&orderby=name&order=asc`, {
       timeout: 10000,
       httpsAgent: HTTPS_AGENT,
-      headers: { 'Authorization': `Basic ${authB64}` }
+      headers,
     });
     const cats = (r.data || []).map(c => ({ id: c.id, name: c.name, slug: c.slug, count: c.count }));
     res.json(cats);

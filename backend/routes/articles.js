@@ -7,6 +7,18 @@ const { fetchFullContent } = require('../scrapers/full-content');
 
 const router = express.Router();
 
+// Migração idempotente — garante coluna extract_body_image
+pool.query(`
+  DO $$ BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name='sources' AND column_name='extract_body_image'
+    ) THEN
+      ALTER TABLE sources ADD COLUMN extract_body_image BOOLEAN DEFAULT false;
+    END IF;
+  END $$;
+`).catch(e => console.error('[articles] migration extract_body_image:', e.message));
+
 // Todas as rotas requerem JWT
 router.use(auth);
 
@@ -108,7 +120,8 @@ router.get('/:id/full-content', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT a.id, a.external_url, a.body, a.image_url,
               so.section_selector AS content_selector,
-              so.slug AS source_slug, so.category
+              so.slug AS source_slug, so.category,
+              so.extract_body_image
        FROM articles a
        LEFT JOIN sources so ON so.id = a.source_id
        WHERE a.id = $1`,
@@ -135,9 +148,10 @@ router.get('/:id/full-content', async (req, res) => {
 
     // Busca conteúdo completo e imagem via scraping da página do artigo
     const source = {
-      content_selector: article.content_selector || null,
-      url:              article.external_url,
-      category:         article.category,
+      content_selector:   article.content_selector || null,
+      url:                article.external_url,
+      category:           article.category,
+      extract_body_image: article.extract_body_image || false,
     };
     const { body, image_url } = await fetchFullContent(article.external_url, source);
 
