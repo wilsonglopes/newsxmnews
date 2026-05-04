@@ -139,6 +139,16 @@ function normalizeBody(html, sourceUrl) {
       if (SKIP_PREFIXES.some(pf => txt.startsWith(pf))) $(el).remove();
     });
 
+    // Converte data-src/data-lazy-src → src em <img> antes de remover atributos
+    // (sites com lazy loading não preenchem src até o JS executar)
+    $('img').each((_, el) => {
+      const tag$ = $(el);
+      if (!tag$.attr('src')) {
+        const ds = tag$.attr('data-src') || tag$.attr('data-lazy-src') || tag$.attr('data-original') || '';
+        if (ds) tag$.attr('src', ds);
+      }
+    });
+
     // Remove atributos, exceto href em <a> e src em <img>
     $('*').each((_, el) => {
       const tag = (el.tagName || '').toLowerCase();

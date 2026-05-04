@@ -9,6 +9,7 @@
 const axios   = require('axios');
 const cheerio = require('cheerio');
 const https   = require('https');
+const iconv   = require('iconv-lite');
 const { normalizeBody }                     = require('./normalizer');
 const { fetchWithHeadless, isJsRenderedSite } = require('./headless-content');
 
@@ -22,6 +23,16 @@ const CONTENT_SELECTORS = [
   '.field--type-text-with-summary',
   '.field--name-body',
   '.node__content .clearfix',
+  // Portal do Agronegócio
+  '.noticeCont',
+  // Brasil Paralelo (Next.js/Tailwind)
+  '.prose',
+  // Elementor WordPress — post content e text editor
+  '.elementor-widget-theme-post-content',
+  '.elementor-widget-text-editor .elementor-widget-container',
+  '.elementor-text-editor',
+  // atende.net (prefeituras RS/SC)
+  '.descricao',
   // Demais
   'article .entry-content',
   'article .post-content',
@@ -31,7 +42,6 @@ const CONTENT_SELECTORS = [
   '.texto-noticia',
   '.noticia-conteudo',
   '.article-text',
-  '.elementor-widget-theme-post-content',
   'article',
   '.entry-content',
   '.post-content',
@@ -212,6 +222,7 @@ async function fetchFullContent(url, source) {
 
     const resp = await axios.get(url, {
       timeout,
+      responseType: 'arraybuffer', // necessário para decodificar charset corretamente
       headers: {
         'User-Agent': USER_AGENT,
         'Accept': 'text/html,application/xhtml+xml,*/*',
@@ -222,8 +233,27 @@ async function fetchFullContent(url, source) {
       httpsAgent: HTTPS_AGENT,
     });
 
-    const $ = cheerio.load(resp.data);
+    // Detecta charset a partir do Content-Type e decodifica corretamente
+    // Sites de prefeitura (atende.net, etc.) usam iso-8859-1
+    const contentType = resp.headers['content-type'] || '';
+    const charsetMatch = contentType.match(/charset=([^\s;]+)/i);
+    const charset = charsetMatch ? charsetMatch[1].toLowerCase().replace('iso8859', 'iso-8859') : 'utf-8';
+    const htmlDecoded = iconv.decode(Buffer.from(resp.data), charset);
+
+    // Usa HTML decodificado com charset correto
+    const $ = cheerio.load(htmlDecoded);
     let rawHtml = '';
+
+    // Antes de remover atributos: converte data-src/data-lazy-src → src em <img>
+    // (sites com lazy loading não têm src preenchido até o JS executar)
+    $('img[data-src]').each((_, el) => {
+      const dataSrc = $(el).attr('data-src');
+      if (dataSrc && !$(el).attr('src')) $(el).attr('src', dataSrc);
+    });
+    $('img[data-lazy-src]').each((_, el) => {
+      const lazyStr = $(el).attr('data-lazy-src');
+      if (lazyStr && !$(el).attr('src')) $(el).attr('src', lazyStr);
+    });
 
     // Tenta seletor configurado na fonte
     const cfgSel = source?.scraping?.contentSelector || source?.content_selector;
@@ -273,7 +303,7 @@ async function fetchFullContent(url, source) {
     // Portais que já funcionam estaticamente (WordPress, etc.) nunca entram aqui.
     //
     const bodyTextLen = (body || '').replace(/<[^>]*>/g, '').trim().length;
-    if (bodyTextLen < 200 && isJsRenderedSite(resp.data || '')) {
+    if (bodyTextLen < 200 && isJsRenderedSite(htmlDecoded || '')) {
       console.log(`[full-content] Site JS-rendered detectado, usando headless: ${url}`);
       const headless = await fetchWithHeadless(url);
       const headlessLen = (headless.body || '').replace(/<[^>]*>/g, '').trim().length;
