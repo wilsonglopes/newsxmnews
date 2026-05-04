@@ -315,14 +315,16 @@ async function fetchFullContent(url, source) {
     // ── Fallback headless: aciona Puppeteer quando o scraping estático falhou ──
     //
     // Condições para usar o headless browser:
-    //   1. Body estático ausente ou muito curto (< 200 chars de texto)
-    //   2. HTML da página indica renderização por JavaScript (Wix, React SPA, etc.)
-    //
-    // Portais que já funcionam estaticamente (WordPress, etc.) nunca entram aqui.
+    //   1. Body ausente ou muito curto (< 200 chars) E site JS-rendered (Wix, React…)
+    //   2. OU body completamente vazio (< 50 chars) — independente do tipo do site
+    //      (cobre portais como atende.net onde o conteúdo real é carregado via AJAX)
     //
     const bodyTextLen = (body || '').replace(/<[^>]*>/g, '').trim().length;
-    if (bodyTextLen < 200 && isJsRenderedSite(htmlDecoded || '')) {
-      console.log(`[full-content] Site JS-rendered detectado, usando headless: ${url}`);
+    const needsHeadless = (bodyTextLen < 200 && isJsRenderedSite(htmlDecoded || ''))
+                       || bodyTextLen < 50;
+
+    if (needsHeadless) {
+      console.log(`[full-content] Conteúdo insuficiente (${bodyTextLen}c), tentando headless: ${url}`);
       const headless = await fetchWithHeadless(url);
       const headlessLen = (headless.body || '').replace(/<[^>]*>/g, '').trim().length;
       if (headlessLen > bodyTextLen) {
