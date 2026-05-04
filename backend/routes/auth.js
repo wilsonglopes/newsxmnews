@@ -92,6 +92,7 @@ router.get('/me', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT s.id, s.name, s.email, s.ai_prompt, s.plan_expires_at, s.active,
+              s.phone, s.address,
               p.id AS plan_id, p.name AS plan_name,
               p.max_sources, p.max_publications_per_month, p.max_sites
        FROM subscribers s
@@ -115,6 +116,8 @@ router.get('/me', auth, async (req, res) => {
       id:        subscriber.id,
       name:      subscriber.name,
       email:     subscriber.email,
+      phone:     subscriber.phone,
+      address:   subscriber.address,
       ai_prompt: subscriber.ai_prompt,
       active:    subscriber.active,
       plan: {
@@ -130,6 +133,31 @@ router.get('/me', auth, async (req, res) => {
   } catch (err) {
     console.error('[auth/me]', err.message);
     res.status(500).json({ error: 'Erro interno.' });
+  }
+});
+
+// ── PATCH /api/auth/profile — atualiza nome, telefone, endereço ───────────────
+router.patch('/profile', auth, async (req, res) => {
+  const { name, phone, address } = req.body || {};
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
+  try {
+    // Garante que as colunas existam (migration idempotente)
+    await pool.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subscribers' AND column_name='phone')
+          THEN ALTER TABLE subscribers ADD COLUMN phone VARCHAR(30); END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subscribers' AND column_name='address')
+          THEN ALTER TABLE subscribers ADD COLUMN address TEXT; END IF;
+      END $$;
+    `);
+    await pool.query(
+      `UPDATE subscribers SET name=$1, phone=$2, address=$3 WHERE id=$4`,
+      [name.trim(), phone?.trim() || null, address?.trim() || null, req.subscriber.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[auth/profile]', err.message);
+    res.status(500).json({ error: 'Erro ao salvar perfil.' });
   }
 });
 

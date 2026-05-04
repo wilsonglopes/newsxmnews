@@ -432,6 +432,9 @@ app.use('/api/sites',              require('./routes/sites'));
 app.use('/api/drafts',             require('./routes/drafts'));
 app.use('/api/subscriber/sources', require('./routes/subscriber-sources'));
 
+// IA — reescrita de artigos (usa GEMINI_KEY do servidor)
+app.use('/api/ia', require('./routes/ia'));
+
 // Proxy de imagens (evita bloqueio de hotlink nos portais)
 app.use('/api/proxy-image', require('./routes/image-proxy'));
 

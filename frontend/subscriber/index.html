@@ -417,121 +417,28 @@
 
 <!-- Tela: Configurações -->
 <div class="tela" id="tela-config">
+  <div class="config-secao" style="max-width:520px">
+    <div class="config-secao-titulo">👤 Meu Perfil</div>
 
-  <!-- Chave de IA -->
-  <div class="config-secao">
-    <div class="config-secao-titulo">🤖 Chave de IA (Gemini)</div>
     <div class="campo-grupo">
-      <label for="cfg-gemini-key">Gemini API Key</label>
-      <input type="password" id="cfg-gemini-key" placeholder="AIza…" autocomplete="off" />
+      <label>E-mail</label>
+      <input type="email" id="cfg-email" disabled style="background:var(--papel-alt);color:var(--grafite-lt);cursor:not-allowed" />
+      <small style="color:var(--grafite-lt);font-size:.76rem">O e-mail de cadastro não pode ser alterado.</small>
     </div>
-    <button class="btn btn-primario" id="btn-salvar-key">Salvar chave</button>
-  </div>
-
-  <!-- Meus sites -->
-  <div class="config-secao">
-    <div class="config-secao-titulo">🌐 Meus Sites</div>
-    <div class="sites-lista" id="lista-sites">
-      <div style="color:var(--grafite-lt);font-size:.83rem;">Carregando…</div>
+    <div class="campo-grupo">
+      <label>Nome completo</label>
+      <input type="text" id="cfg-nome" placeholder="Seu nome" maxlength="200" />
     </div>
-    <button class="btn btn-secundario" id="btn-add-site">+ Adicionar site</button>
-    <input type="hidden" id="site-edit-id" value="" />
-
-    <div class="form-add-site" id="form-add-site">
-      <div class="campo-grupo">
-        <label>Nome do site</label>
-        <input type="text" id="site-nome" placeholder="Meu Portal de Notícias" />
-      </div>
-      <div class="campo-grupo">
-        <label>Plataforma</label>
-        <select id="site-platform">
-          <option value="wordpress">WordPress</option>
-          <option value="blogger">Blogger</option>
-          <option value="webhook">Webhook</option>
-        </select>
-      </div>
-
-      <!-- WordPress -->
-      <div class="platform-fields visivel" id="fields-wordpress">
-        <div class="campo-grupo">
-          <label>URL do site</label>
-          <input type="url" id="wp-url" placeholder="https://meusite.com.br" />
-        </div>
-        <div class="campo-grupo">
-          <label>Usuário WordPress</label>
-          <input type="text" id="wp-user" />
-        </div>
-        <div class="campo-grupo">
-          <label>Application Password</label>
-          <input type="password" id="wp-pass" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" />
-        </div>
-        <div class="campo-grupo" style="background:var(--papel-alt);border:1px solid var(--borda);border-radius:var(--radius);padding:.75rem 1rem;">
-          <label style="display:flex;align-items:center;gap:.4rem;">
-            <span style="background:#b91c1c;color:#fff;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:1px 6px;border-radius:3px;">XIXO Plugin</span>
-            Chave do Plugin XIXO <span style="font-weight:400;color:var(--grafite-lt);font-size:.78rem;">(opcional — recomendado)</span>
-          </label>
-          <input type="text" id="wp-xixo-key" placeholder="Cole a chave gerada pelo plugin instalado no WordPress" style="font-family:monospace;font-size:.82rem;" />
-          <small style="color:var(--grafite-lt);font-size:.76rem;margin-top:.3rem;display:block;">
-            Com o plugin instalado, a publicação fica independente do tema — sem injeção de CSS.
-            <a href="https://github.com/xixo/publisher" target="_blank" rel="noopener" style="color:var(--grafite-lt);">Como instalar?</a>
-          </small>
-        </div>
-      </div>
-
-      <!-- Blogger -->
-      <div class="platform-fields" id="fields-blogger">
-        <div class="campo-grupo">
-          <label>Blog ID</label>
-          <input type="text" id="bl-blogid" placeholder="1234567890" />
-        </div>
-        <div style="font-size:.82rem;color:var(--grafite-lt);margin-bottom:.75rem;">
-          Para conectar com Google OAuth, configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET no servidor.
-        </div>
-      </div>
-
-      <!-- Webhook -->
-      <div class="platform-fields" id="fields-webhook">
-        <div class="campo-grupo">
-          <label>URL do webhook</label>
-          <input type="url" id="wh-url" placeholder="https://seusite.com/webhook" />
-        </div>
-        <div class="campo-grupo">
-          <label>Chave secreta</label>
-          <input type="text" id="wh-secret" placeholder="sua-chave-secreta" />
-        </div>
-      </div>
-
-      <div class="campo-grupo" id="campo-post-format">
-        <label>Modo de publicação <span style="font-weight:400;color:var(--grafite-lt);font-size:.78rem;">(ignorado quando o Plugin XIXO está ativo)</span></label>
-        <select id="site-post-format">
-          <option value="editorial">Editorial — injeta chapéu, título e imagem no conteúdo (temas sem exibição automática)</option>
-          <option value="standard">Padrão do tema — usa título e imagem nativa do WordPress (temas que já exibem automaticamente)</option>
-        </select>
-        <small style="color:var(--grafite-lt);font-size:.78rem;">Use <strong>Padrão do tema</strong> quando o site já exibe a imagem destacada e o título automaticamente. Com o Plugin XIXO instalado, esta opção é irrelevante.</small>
-      </div>
-
-      <div class="campo-grupo">
-        <label>Prompt de estilo (opcional)</label>
-        <textarea id="site-prompt" rows="3" placeholder="Ex: Escreva sempre em tom formal, com linguagem jornalística…"></textarea>
-      </div>
-
-      <div style="display:flex;gap:.5rem;margin-top:.5rem;">
-        <button class="btn btn-primario" id="btn-salvar-site">Salvar site</button>
-        <button class="btn btn-secundario" id="btn-cancelar-site">Cancelar</button>
-        <button class="btn btn-secundario" id="btn-testar-site" type="button">🔌 Testar conexão</button>
-      </div>
+    <div class="campo-grupo">
+      <label>Telefone</label>
+      <input type="tel" id="cfg-telefone" placeholder="(00) 00000-0000" maxlength="30" />
     </div>
-  </div>
-
-  <!-- Meu plano -->
-  <div class="config-secao">
-    <div class="config-secao-titulo">📋 Meu Plano</div>
-    <div class="plano-info" id="plano-info">
-      <div class="plano-stat"><div class="plano-stat-val" id="pl-nome">—</div><div class="plano-stat-label">Plano atual</div></div>
-      <div class="plano-stat"><div class="plano-stat-val" id="pl-fontes">—</div><div class="plano-stat-label">Fontes disponíveis</div></div>
-      <div class="plano-stat"><div class="plano-stat-val" id="pl-pubs">—</div><div class="plano-stat-label">Publicações/mês</div></div>
-      <div class="plano-stat"><div class="plano-stat-val" id="pl-sites">—</div><div class="plano-stat-label">Sites conectados</div></div>
+    <div class="campo-grupo">
+      <label>Endereço</label>
+      <textarea id="cfg-endereco" rows="2" placeholder="Rua, número, cidade…" style="resize:vertical"></textarea>
     </div>
+
+    <button class="btn btn-primario" id="btn-salvar-perfil">Salvar alterações</button>
   </div>
 </div>
 
@@ -656,10 +563,6 @@ function inicializarHeader() {
   if (!subscriber) return;
   document.getElementById('hd-nome').textContent  = subscriber.name || '';
   document.getElementById('hd-plano').textContent = subscriber.plan?.name || 'Sem plano';
-  document.getElementById('pl-nome').textContent   = subscriber.plan?.name || '—';
-  document.getElementById('pl-fontes').textContent = subscriber.plan?.max_sources === 0 ? '∞' : (subscriber.plan?.max_sources || '—');
-  document.getElementById('pl-pubs').textContent   = subscriber.plan?.max_publications_per_month || '∞';
-  document.getElementById('pl-sites').textContent  = subscriber.plan?.max_sites || '—';
 
   // Redireciona admin direto para o painel
   try {
@@ -697,7 +600,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
     tab.classList.add('ativa');
     document.getElementById('tela-' + tab.dataset.tab).classList.add('visivel');
-    if (tab.dataset.tab === 'config')   carregarSites();
+    if (tab.dataset.tab === 'config')    preencherPerfil(subscriber || {});
     if (tab.dataset.tab === 'historico') carregarHistorico();
     if (tab.dataset.tab === 'fontes')   carregarTellaFontes();
   });
@@ -708,7 +611,7 @@ document.getElementById('btn-config-hd').addEventListener('click', () => {
   document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
   document.querySelector('[data-tab="config"]').classList.add('ativa');
   document.getElementById('tela-config').classList.add('visivel');
-  carregarSites();
+  preencherPerfil(subscriber || {});
 });
 
 document.getElementById('btn-sair').addEventListener('click', logout);
@@ -1091,11 +994,6 @@ document.getElementById('btn-gerar-ia').addEventListener('click', gerarComIA);
 document.getElementById('btn-regenerar').addEventListener('click', gerarComIA);
 
 async function gerarComIA() {
-  const geminiKey = localStorage.getItem('rb24_gemini_key') || '';
-  if (!geminiKey) {
-    toast('Configure sua Gemini API Key nas Configurações.', 'aviso');
-    return;
-  }
   if (!artigoAtual) return;
 
   const btn = document.getElementById('btn-gerar-ia');
@@ -1103,29 +1001,18 @@ async function gerarComIA() {
   btn.textContent = 'Reescrevendo…';
   document.getElementById('ia-resultado').classList.add('hidden');
 
-  const corpo       = (artigoAtual.body || artigoAtual.summary || '').replace(/<[^>]*>/g, '').trim();
-  const promptIa    = subscriber?.ai_prompt || '';
-  const promptSistema = promptIa ||
-    `Você é um editor de notícias profissional. Reescreva a matéria abaixo com linguagem jornalística clara e objetiva.
-Retorne SOMENTE um JSON com: { "chapeu": string(máx 60 chars), "titulo": string, "resumo": string(máx 200 chars), "corpo": string(HTML com <p>), "tags": string[] }.`;
+  const conteudo  = (artigoAtual.body || artigoAtual.summary || '').replace(/<[^>]*>/g, '').trim();
+  const ai_prompt = subscriber?.ai_prompt || '';
 
   try {
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: promptSistema }] },
-          contents: [{ role: 'user', parts: [{ text: `TÍTULO: ${artigoAtual.title}\n\nCONTEÚDO:\n${corpo}` }] }],
-          generationConfig: { maxOutputTokens: 4096 }
-        })
-      }
-    );
-    const dados   = await resp.json();
-    const textoIA = dados.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const resultado = extrairJSON(textoIA);
-    if (!resultado) throw new Error('Não foi possível interpretar a resposta da IA.');
+    // Usa endpoint do backend — chave Gemini fica no servidor
+    const resp = await fetch(`${BACKEND}/api/ia/rewrite`, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: artigoAtual.title, content: conteudo, ai_prompt })
+    });
+    const resultado = await resp.json();
+    if (!resp.ok) throw new Error(resultado.error || 'Erro na IA');
 
     document.getElementById('ia-chapeu').value  = resultado.chapeu  || '';
     document.getElementById('ia-titulo').value  = resultado.titulo  || resultado.title || '';
@@ -1391,195 +1278,50 @@ document.getElementById('sel-site').addEventListener('change', function () {
   document.getElementById('link-publicado').classList.remove('visivel');
 });
 
-// ── Sites ─────────────────────────────────────────────────────────────────────
+// ── Sites — apenas popula o select do modal de publicação ─────────────────────
 async function carregarSites() {
-  const lista = document.getElementById('lista-sites');
-  const sel   = document.getElementById('sel-site');
-  lista.innerHTML = '<div style="color:var(--grafite-lt);font-size:.83rem;">Carregando…</div>';
-
+  const sel = document.getElementById('sel-site');
   try {
     const res   = await fetch(`${BACKEND}/api/sites`, { headers: authHeader() });
     const sites = await res.json();
-
-    // Preenche dropdown do modal
     sel.innerHTML = '<option value="">Selecione um site…</option>';
     sites.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id; opt.textContent = `${s.name} (${s.platform})`;
       sel.appendChild(opt);
     });
-
-    if (!sites.length) {
-      lista.innerHTML = '<div style="color:var(--grafite-lt);font-size:.83rem;">Nenhum site cadastrado.</div>';
-      return;
-    }
-    lista.innerHTML = sites.map(s => `
-      <div class="site-item">
-        <div class="site-item-info">
-          <div class="site-item-nome">${s.name}</div>
-          <div class="site-item-plat">${s.platform} — ${s.site_url || '<em style="color:#c00">URL não configurada</em>'}</div>
-        </div>
-        <div style="display:flex;gap:4px">
-          <button class="btn-editar-site" data-site='${JSON.stringify(s).replace(/'/g,"&#39;")}' title="Editar" style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;cursor:pointer;font-size:.8rem;">✎ Editar</button>
-          <button class="btn-remover-site" data-id="${s.id}" title="Remover" style="background:none;border:1px solid #ffcdd2;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:.8rem;color:#c62828;">✕</button>
-        </div>
-      </div>`).join('');
-
-    lista.querySelectorAll('.btn-editar-site').forEach(btn => {
-      btn.addEventListener('click', () => {
-        try {
-          const s = JSON.parse(btn.dataset.site.replace(/&#39;/g, "'"));
-          // Preenche o formulário com os dados do site
-          document.getElementById('site-edit-id').value = s.id;
-          document.getElementById('site-nome').value     = s.name || '';
-          document.getElementById('site-platform').value = s.platform || 'wordpress';
-          document.getElementById('site-platform').dispatchEvent(new Event('change'));
-          if (s.platform === 'wordpress' || !s.platform) {
-            document.getElementById('wp-url').value      = s.site_url || '';
-            document.getElementById('wp-user').value     = s.wp_username || '';
-            document.getElementById('wp-pass').value     = ''; // senha não retorna por segurança
-            document.getElementById('wp-xixo-key').value = s.xixo_api_key || '';
-            atualizarVisibilidadePostFormat(); // atualiza post_format toggle após setar a chave
-          } else if (s.platform === 'blogger') {
-            document.getElementById('bl-blogid').value = s.blogger_blog_id || '';
-          } else if (s.platform === 'webhook') {
-            document.getElementById('wh-url').value    = s.webhook_url    || '';
-            document.getElementById('wh-secret').value = s.webhook_secret  || '';
-          }
-          document.getElementById('site-post-format').value = s.post_format || 'editorial';
-          document.getElementById('site-prompt').value      = s.ai_prompt   || '';
-          document.getElementById('btn-salvar-site').textContent = '💾 Atualizar site';
-          document.getElementById('form-add-site').classList.add('visivel');
-          document.getElementById('form-add-site').scrollIntoView({ behavior: 'smooth' });
-        } catch {}
-      });
-    });
-
-    lista.querySelectorAll('.btn-remover-site').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Remover este site?')) return;
-        await fetch(`${BACKEND}/api/sites/${btn.dataset.id}`, { method: 'DELETE', headers: authHeader() });
-        carregarSites();
-        toast('Site removido.', 'sucesso');
-      });
-    });
-  } catch (err) {
-    lista.innerHTML = `<div style="color:var(--vermelho);font-size:.83rem;">${err.message}</div>`;
-  }
+  } catch {}
 }
 
-// Toggle formulário de adicionar site
-document.getElementById('btn-add-site').addEventListener('click', () => {
-  document.getElementById('form-add-site').classList.toggle('visivel');
-});
-document.getElementById('btn-cancelar-site').addEventListener('click', () => {
-  document.getElementById('form-add-site').classList.remove('visivel');
-  document.getElementById('site-edit-id').value = '';
-  document.getElementById('btn-salvar-site').textContent = 'Salvar site';
-  ['site-nome','wp-url','wp-user','wp-pass','wp-xixo-key','bl-blogid','wh-url','wh-secret','site-prompt'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  document.getElementById('site-post-format').value = 'editorial';
-  atualizarVisibilidadePostFormat();
-});
-
-// Mostrar campos por plataforma
-document.getElementById('site-platform').addEventListener('change', function() {
-  document.querySelectorAll('.platform-fields').forEach(f => f.classList.remove('visivel'));
-  document.getElementById('fields-' + this.value)?.classList.add('visivel');
-});
-
-// Ocultar "Modo de publicação" quando a chave do Plugin XIXO está preenchida
-// (o plugin torna esse campo irrelevante)
-function atualizarVisibilidadePostFormat() {
-  const temPlugin = (document.getElementById('wp-xixo-key').value || '').trim().length > 0;
-  document.getElementById('campo-post-format').style.opacity  = temPlugin ? '0.4' : '1';
-  document.getElementById('campo-post-format').style.pointerEvents = temPlugin ? 'none' : '';
-  document.getElementById('site-post-format').disabled = temPlugin;
+// ── Perfil do assinante ───────────────────────────────────────────────────────
+function preencherPerfil(sub) {
+  document.getElementById('cfg-email').value    = sub.email    || '';
+  document.getElementById('cfg-nome').value     = sub.name     || '';
+  document.getElementById('cfg-telefone').value = sub.phone    || '';
+  document.getElementById('cfg-endereco').value = sub.address  || '';
 }
-document.getElementById('wp-xixo-key').addEventListener('input', atualizarVisibilidadePostFormat);
 
-// Salvar / Atualizar site
-document.getElementById('btn-salvar-site').addEventListener('click', async () => {
-  const platform = document.getElementById('site-platform').value;
-  const nome     = document.getElementById('site-nome').value.trim();
-  const editId   = document.getElementById('site-edit-id').value;
-  if (!nome) { toast('Informe o nome do site.', 'aviso'); return; }
-
-  const body = { name: nome, platform };
-  if (platform === 'wordpress') {
-    body.site_url    = document.getElementById('wp-url').value.trim();
-    body.wp_username = document.getElementById('wp-user').value.trim();
-    const pwd = document.getElementById('wp-pass').value.trim();
-    if (pwd) body.wp_app_password = pwd; // só envia senha se preenchida
-    body.xixo_api_key = document.getElementById('wp-xixo-key').value.trim() || null;
-  } else if (platform === 'blogger') {
-    body.blogger_blog_id = document.getElementById('bl-blogid').value.trim();
-  } else {
-    body.webhook_url    = document.getElementById('wh-url').value.trim();
-    body.webhook_secret = document.getElementById('wh-secret').value.trim();
-  }
-  body.ai_prompt    = document.getElementById('site-prompt').value.trim() || null;
-  body.post_format  = document.getElementById('site-post-format').value || 'editorial';
-
+document.getElementById('btn-salvar-perfil').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-salvar-perfil');
+  btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    const isEdit = !!editId;
-    const url    = isEdit ? `${BACKEND}/api/sites/${editId}` : `${BACKEND}/api/sites`;
-    const res    = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: authHeader(), body: JSON.stringify(body) });
-    const data   = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    toast(isEdit ? 'Site atualizado!' : 'Site cadastrado!', 'sucesso');
-    document.getElementById('form-add-site').classList.remove('visivel');
-    document.getElementById('site-edit-id').value = '';
-    document.getElementById('btn-salvar-site').textContent = 'Salvar site';
-    // Limpa formulário
-    ['site-nome','wp-url','wp-user','wp-pass','wp-xixo-key','bl-blogid','wh-url','wh-secret','site-prompt'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = '';
-    });
-    document.getElementById('site-post-format').value = 'editorial';
-    atualizarVisibilidadePostFormat(); // reabilita o campo post_format
-    carregarSites();
-  } catch (err) {
-    toast('Erro: ' + err.message, 'erro');
-  }
-});
-
-// Testar conexão WordPress
-document.getElementById('btn-testar-site').addEventListener('click', async () => {
-  const url  = document.getElementById('wp-url').value.trim();
-  const user = document.getElementById('wp-user').value.trim();
-  const pwd  = document.getElementById('wp-pass').value.trim();
-
-  if (!url) { toast('Informe o URL do site primeiro.', 'aviso'); return; }
-
-  const btn = document.getElementById('btn-testar-site');
-  btn.textContent = '…'; btn.disabled = true;
-
-  try {
-    // Usa o endpoint de teste no backend (não expõe credenciais no frontend)
-    const res  = await fetch(`${BACKEND}/api/sites/test-wp`, {
-      method: 'POST',
-      headers: authHeader(),
-      body: JSON.stringify({ site_url: url, wp_username: user, wp_app_password: pwd })
+    const res = await fetch(`${BACKEND}/api/auth/profile`, {
+      method: 'PATCH',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name:    document.getElementById('cfg-nome').value.trim(),
+        phone:   document.getElementById('cfg-telefone').value.trim(),
+        address: document.getElementById('cfg-endereco').value.trim()
+      })
     });
     const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || 'Falha na conexão');
-    toast(`✅ Conectado! WordPress ${data.version || ''}`, 'sucesso');
-  } catch (err) {
-    toast('❌ Erro: ' + err.message, 'erro');
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+    toast('Perfil atualizado!', 'sucesso');
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
   } finally {
-    btn.textContent = '🔌 Testar conexão'; btn.disabled = false;
+    btn.disabled = false; btn.textContent = 'Salvar alterações';
   }
-});
-
-// ── Chave Gemini ──────────────────────────────────────────────────────────────
-const cfgGemini = document.getElementById('cfg-gemini-key');
-cfgGemini.value = localStorage.getItem('rb24_gemini_key') || '';
-document.getElementById('btn-salvar-key').addEventListener('click', () => {
-  const key = cfgGemini.value.trim();
-  if (!key) { toast('Informe a chave.', 'aviso'); return; }
-  localStorage.setItem('rb24_gemini_key', key);
-  toast('Chave salva!', 'sucesso');
 });
 
 // ── Histórico (drafts no banco) ───────────────────────────────────────────────

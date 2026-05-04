@@ -596,7 +596,7 @@
 
 <!-- Modal Artigo (Publicar) — mesmo padrão do subscriber -->
 <div class="overlay hidden" id="modal-artigo-pub">
-  <div class="modal" style="max-width:760px">
+  <div class="modal" style="width:1100px;max-width:96vw">
     <div class="modal-header">
       <div class="modal-header-info">
         <div class="modal-fonte-nome" id="map-fonte-nome"></div>
@@ -1127,33 +1127,38 @@ async function abrirArtigoModal(artigo) {
     imgEl.classList.add('hidden');
   }
 
-  // Corpo de leitura
-  const corpoTexto = artigo.body || artigo.summary || '';
-  document.getElementById('map-corpo-leitura').innerHTML =
-    corpoTexto ? corpoTexto.replace(/\n\n/g, '</p><p>').replace(/^/, '<p>').replace(/$/, '</p>') : '<p style="color:var(--muted)">Carregando conteúdo…</p>';
-
   // Esconde resultado IA e reseta campos
   document.getElementById('map-ia-resultado').classList.add('hidden');
   document.getElementById('map-link-publicado').classList.remove('visivel');
   document.getElementById('map-categoria').innerHTML = '<option value="">Selecione o site primeiro…</option>';
 
-  document.getElementById('modal-artigo-pub').classList.remove('hidden');
+  const corpo = document.getElementById('map-corpo-leitura');
 
-  // Busca corpo completo se necessário
   if (!artigo.bodyFetched) {
+    corpo.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Carregando artigo completo…</div>';
+    document.getElementById('modal-artigo-pub').classList.remove('hidden');
     try {
-      const d = await fetch(`${BACKEND}/api/articles/${artigo.id}/full-content`, { headers: authHeader() }).then(r => r.json());
+      const res  = await fetch(`${BACKEND}/api/articles/${artigo.id}/full-content`, { headers: authHeader() });
+      const data = await res.json();
       artigo.bodyFetched = true;
-      if (d.body) {
-        artigo.body = d.body;
-        document.getElementById('map-corpo-leitura').innerHTML = d.body;
+      if (data.body) {
+        artigo.body = data.body;
+        corpo.innerHTML = data.body;
+      } else {
+        corpo.innerHTML = artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>';
       }
-      if (d.image_url) {
-        artigo.image_url = d.image_url;
-        imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(d.image_url)}`;
+      if (data.image_url) {
+        artigo.image_url = data.image_url;
+        imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(data.image_url)}`;
         imgEl.classList.remove('hidden');
       }
-    } catch {}
+    } catch {
+      artigo.bodyFetched = true;
+      corpo.innerHTML = artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Não foi possível carregar o conteúdo.</em></p>';
+    }
+  } else {
+    corpo.innerHTML = artigo.body || (artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>');
+    document.getElementById('modal-artigo-pub').classList.remove('hidden');
   }
 }
 
@@ -1183,8 +1188,6 @@ function extrairJSONAdmin(texto) {
 
 async function gerarComIAModal() {
   if (!artigoSelecionado) return toast('Nenhum artigo selecionado.', 'erro');
-  const geminiKey = sub.gemini_key || localStorage.getItem('rb24_gemini_key') || '';
-  if (!geminiKey) return toast('Chave Gemini não configurada. Configure nas abas do cliente.', 'erro');
 
   const btn = document.getElementById('btn-gerar-ia-modal');
   const btnRegen = document.getElementById('btn-regen-modal');
@@ -1192,38 +1195,26 @@ async function gerarComIAModal() {
   if (btnRegen) { btnRegen.disabled = true; }
 
   const titulo   = artigoSelecionado.title || '';
-  const corpo    = (artigoSelecionado.body || artigoSelecionado.summary || '').replace(/<[^>]*>/g, '').trim();
+  const conteudo = (artigoSelecionado.body || artigoSelecionado.summary || '').replace(/<[^>]*>/g, '').trim();
   const siteId   = document.getElementById('map-site').value;
   const site     = allSitesCache.find(s => s.id === siteId);
-  const promptIa = site?.ai_prompt || sub.ai_prompt || '';
-  const promptSistema = promptIa ||
-    `Você é um editor de notícias profissional. Reescreva a matéria abaixo com linguagem jornalística clara e objetiva.
-Retorne SOMENTE um JSON com: { "chapeu": string(máx 60 chars), "titulo": string, "resumo": string(máx 200 chars), "corpo": string(HTML com <p>), "tags": string[] }.`;
+  const ai_prompt = site?.ai_prompt || sub.ai_prompt || '';
 
   try {
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: promptSistema }] },
-          contents: [{ role: 'user', parts: [{ text: `TÍTULO: ${titulo}\n\nCONTEÚDO:\n${corpo}` }] }],
-          generationConfig: { maxOutputTokens: 4096 }
-        })
-      }
-    );
-    const dados = await resp.json();
-    if (dados.error) throw new Error(dados.error.message);
-    const textoIA = dados.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const resultado = extrairJSONAdmin(textoIA);
-    if (!resultado) throw new Error('Não foi possível interpretar a resposta da IA.');
+    // Usa endpoint do backend — chave Gemini fica no servidor
+    const resp = await fetch(`${BACKEND}/api/ia/rewrite`, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: titulo, content: conteudo, ai_prompt })
+    });
+    const resultado = await resp.json();
+    if (!resp.ok) throw new Error(resultado.error || 'Erro na IA');
 
     // Preenche campos do resultado
     document.getElementById('map-chapeu').value  = resultado.chapeu  || '';
     document.getElementById('map-titulo').value  = resultado.titulo  || resultado.title  || titulo;
     document.getElementById('map-resumo').value  = resultado.resumo  || resultado.summary || '';
-    document.getElementById('map-corpo').value   = resultado.corpo   || resultado.body   || corpo;
+    document.getElementById('map-corpo').value   = resultado.corpo   || resultado.body   || conteudo;
     document.getElementById('map-tags').value    = (resultado.tags || []).join(', ');
     document.getElementById('map-imagem').value  = artigoSelecionado.image_url || '';
 
@@ -1488,9 +1479,9 @@ async function salvarCliente() {
     // Atualiza id se foi criação
     if (!id && d.id) document.getElementById('mc-id').value = d.id;
 
-    fecharModal('modal-cliente');
     await carregarClientes();
-    toast(id ? 'Cliente atualizado!' : 'Cliente criado!', 'sucesso');
+    if (!id) mudarTabCliente('sites');
+    toast(id ? 'Cliente atualizado!' : 'Cliente criado! Continue nas outras abas.', 'sucesso');
   } catch(e) { toast(e.message, 'erro'); }
   finally { btn.disabled = false; btn.textContent = 'Salvar dados'; }
 }
@@ -1529,6 +1520,8 @@ async function carregarSitesCli() {
 }
 
 function abrirModalSite(siteId) {
+  const subId = document.getElementById('mc-id').value;
+  if (!subId) { toast('Salve o cliente primeiro antes de adicionar sites.', 'aviso'); return; }
   mcSiteEditId = siteId || null;
   document.getElementById('msc-title').textContent = siteId ? 'Editar Site' : 'Novo Site';
   document.getElementById('msc-id').value     = siteId || '';
@@ -1910,7 +1903,9 @@ async function carregarPublicacoes() {
 
 function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+// modal-artigo-pub: fecha só por X ou ESC — não por clique fora
 document.querySelectorAll('.overlay').forEach(o => {
+  if (o.id === 'modal-artigo-pub') return;
   o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
 });
 document.addEventListener('keydown', e => {
