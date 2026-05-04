@@ -245,6 +245,10 @@
     .link-publicado { display: none; font-size: 0.82rem; color: var(--verde); font-weight: 500; margin-top: 0.5rem; }
     .link-publicado a { color: inherit; }
     .link-publicado.visivel { display: block; }
+    .pub-lista { list-style:none; margin:0; padding:0; }
+    .pub-lista li { padding:3px 0; border-bottom:1px solid #e5e7eb; }
+    .pub-lista li:last-child { border:none; }
+    .pub-lista .pub-site { font-weight:600; color:#374151; margin-right:6px; }
 
     /* ── Config ── */
     .config-secao { background: var(--branco); border: 1px solid var(--borda); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--sombra); }
@@ -532,6 +536,7 @@ function proxyImg(url) {
 let token      = localStorage.getItem('rb24_token');
 let subscriber = null;
 let artigoAtual = null;
+let pubHistoricoIndex = []; // Histórico de publicações do artigo atual
 let paginaAtual = 1;
 let totalPaginas = 1;
 let debounceTimer = null;
@@ -874,6 +879,8 @@ async function abrirModal(artigo) {
     document.getElementById('ia-resultado').classList.add('hidden');
   }
   document.getElementById('link-publicado').classList.remove('visivel');
+  document.getElementById('link-publicado').innerHTML = '';
+  pubHistoricoIndex = []; // Limpa histórico ao abrir novo artigo
   document.getElementById('btn-gerar-ia').disabled = false;
   document.getElementById('btn-gerar-ia').textContent = '✦ Gerar com IA e Publicar';
 
@@ -1048,7 +1055,8 @@ function extrairJSON(texto) {
 
 // ── Publicar ──────────────────────────────────────────────────────────────────
 document.getElementById('btn-publicar-agora').addEventListener('click', async () => {
-  const siteId = document.getElementById('sel-site').value;
+  const siteId   = document.getElementById('sel-site').value;
+  const siteName = document.getElementById('sel-site').options[document.getElementById('sel-site').selectedIndex]?.text || siteId;
   if (!siteId) { toast('Selecione um site para publicar.', 'aviso'); return; }
   if (!artigoAtual) return;
 
@@ -1078,14 +1086,8 @@ document.getElementById('btn-publicar-agora').addEventListener('click', async ()
     let res  = await publicarReq(false);
     let data = await res.json();
 
-    // Artigo já publicado neste site — pede confirmação para re-publicar
+    // Artigo já publicado neste site — re-publica automaticamente (sem bloquear com confirm)
     if (res.status === 409 && data.already_published) {
-      btn.disabled    = false;
-      btn.textContent = '✓ Publicar agora';
-      const ok = confirm('⚠️ Este artigo já foi publicado neste site anteriormente.\n\nDeseja publicar novamente mesmo assim?');
-      if (!ok) return;
-
-      btn.disabled    = true;
       btn.textContent = 'Re-publicando…';
       res  = await publicarReq(true);
       data = await res.json();
@@ -1093,11 +1095,20 @@ document.getElementById('btn-publicar-agora').addEventListener('click', async ()
 
     if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
 
+    // Acumula publicações do artigo atual
+    pubHistoricoIndex.push({ site: siteName, url: data.post_url });
+
     const linkEl = document.getElementById('link-publicado');
-    linkEl.innerHTML = `✔ Publicado! <a href="${data.post_url}" target="_blank" rel="noopener">${data.post_url}</a>`;
+    linkEl.innerHTML = '<ul class="pub-lista">' +
+      pubHistoricoIndex.map(p =>
+        `<li>✔ <span class="pub-site">${p.site}:</span> <a href="${p.url}" target="_blank" rel="noopener">${p.url}</a></li>`
+      ).join('') +
+      '</ul>';
     linkEl.classList.add('visivel');
-    toast('Publicado com sucesso!', 'sucesso');
-    btn.textContent = '✓ Publicado';
+    toast(`Publicado em ${siteName}!`, 'sucesso');
+    // Re-habilita imediatamente — permite publicar em outro portal sem recarregar
+    btn.disabled    = false;
+    btn.textContent = '✓ Publicar agora';
     limparRascunho(artigoAtual?.id);
   } catch (err) {
     toast('Erro ao publicar: ' + err.message, 'erro');

@@ -271,6 +271,10 @@
     .link-publicado { display:none; font-size:.82rem; color:var(--green); font-weight:500; margin-top:.5rem; }
     .link-publicado a { color:inherit; }
     .link-publicado.visivel { display:block; }
+    .pub-lista { list-style:none; margin:0; padding:0; }
+    .pub-lista li { padding:3px 0; border-bottom:1px solid #e5e7eb; }
+    .pub-lista li:last-child { border:none; }
+    .pub-lista .pub-site { font-weight:600; color:#374151; margin-right:6px; }
     .campo label { display: block; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 5px; }
     .campo input, .campo textarea, .campo select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: .85rem; font-family: var(--font); color: var(--text); }
     .campo input:focus, .campo textarea:focus, .campo select:focus { outline: none; border-color: var(--red); }
@@ -1140,7 +1144,9 @@ async function abrirArtigoModal(artigo) {
   // Esconde resultado IA e reseta campos
   document.getElementById('map-ia-resultado').classList.add('hidden');
   document.getElementById('map-link-publicado').classList.remove('visivel');
+  document.getElementById('map-link-publicado').innerHTML = '';
   document.getElementById('map-categoria').innerHTML = '<option value="">Selecione o site primeiro…</option>';
+  pubHistorico = []; // Limpa histórico de publicações do artigo anterior
 
   const corpo = document.getElementById('map-corpo-leitura');
 
@@ -1243,9 +1249,13 @@ async function gerarComIAModal() {
   }
 }
 
+// Rastreia publicações do artigo atual no modal
+let pubHistorico = [];
+
 async function publicarArtigoModal() {
   if (!artigoSelecionado) return toast('Nenhum artigo selecionado.', 'erro');
-  const siteId = document.getElementById('map-site').value;
+  const siteId   = document.getElementById('map-site').value;
+  const siteName = document.getElementById('map-site').options[document.getElementById('map-site').selectedIndex]?.text || siteId;
   if (!siteId) return toast('Selecione um site para publicar.', 'erro');
 
   const btn = document.getElementById('btn-pub-modal');
@@ -1270,22 +1280,30 @@ async function publicarArtigoModal() {
     let res  = await publicarReq(false);
     let data = await res.json();
 
+    // Artigo já publicado neste site — publica novamente sem bloquear (force automático)
     if (res.status === 409 && data.already_published) {
-      btn.disabled = false; btn.textContent = '✓ Publicar agora';
-      const ok = confirm('⚠️ Este artigo já foi publicado neste site.\n\nDeseja publicar novamente?');
-      if (!ok) return;
-      btn.disabled = true; btn.textContent = 'Re-publicando…';
+      btn.textContent = 'Re-publicando…';
       res  = await publicarReq(true);
       data = await res.json();
     }
 
     if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
 
+    // Adiciona ao histórico de publicações do artigo atual
+    pubHistorico.push({ site: siteName, url: data.post_url });
+
+    // Atualiza lista de publicações
     const linkEl = document.getElementById('map-link-publicado');
-    linkEl.innerHTML = `✔ Publicado! <a href="${data.post_url}" target="_blank">${data.post_url}</a>`;
+    linkEl.innerHTML = '<ul class="pub-lista">' +
+      pubHistorico.map(p =>
+        `<li>✔ <span class="pub-site">${p.site}:</span> <a href="${p.url}" target="_blank">${p.url}</a></li>`
+      ).join('') +
+      '</ul>';
     linkEl.classList.add('visivel');
-    toast('Publicado com sucesso!', 'sucesso');
-    btn.textContent = '✓ Publicado';
+
+    toast(`Publicado em ${siteName}!`, 'sucesso');
+    // Re-habilita imediatamente para publicar em outro portal
+    btn.disabled = false; btn.textContent = '✓ Publicar agora';
   } catch(e) {
     toast('Erro ao publicar: ' + e.message, 'erro');
     btn.disabled = false; btn.textContent = '✓ Publicar agora';

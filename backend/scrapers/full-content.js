@@ -18,6 +18,11 @@ const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 // Seletores de conteúdo, do mais específico ao mais amplo
 const CONTENT_SELECTORS = [
   '[itemprop="articleBody"]',
+  // Assembleia RS (Drupal) — ww4.al.rs.gov.br
+  '.field--type-text-with-summary',
+  '.field--name-body',
+  '.node__content .clearfix',
+  // Demais
   'article .entry-content',
   'article .post-content',
   'article .article-body',
@@ -196,10 +201,17 @@ function extrairImagemDoCorpo(bodyHtml, baseUrl) {
  * @param {object} [source]   - Config da fonte (content_selector, url, category, extract_body_image)
  * @returns {{ body: string|null, image_url: string|null }}
  */
+// Domínios conhecidos por serem lentos — usam timeout maior
+const SLOW_DOMAINS = ['al.rs.gov.br', 'al.sc.gov.br', 'alesc.sc.gov.br', '.gov.br', 'atende.net', 'sc.gov.br'];
+
 async function fetchFullContent(url, source) {
   try {
+    // Timeout maior para domínios governamentais reconhecidamente lentos
+    const isSlowDomain = SLOW_DOMAINS.some(d => url.includes(d));
+    const timeout = isSlowDomain ? 30000 : 15000;
+
     const resp = await axios.get(url, {
-      timeout: 15000,
+      timeout,
       headers: {
         'User-Agent': USER_AGENT,
         'Accept': 'text/html,application/xhtml+xml,*/*',
