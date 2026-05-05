@@ -1972,11 +1972,17 @@ function republicarDoHistorico(pubJsonStr) {
     imgEl.classList.add('hidden');
   }
 
+  // Detecta publicação sem chapéu/resumo/tags (gravadas antes do deploy que adicionou esses campos)
+  const camposNovosVazios = !p.rewritten_chapeu && !p.rewritten_summary && !p.rewritten_tags;
+
   // Corpo — aviso de que foi carregado do histórico
-  document.getElementById('map-corpo-leitura').innerHTML =
-    `<p style="color:var(--muted);font-style:italic;font-size:.87rem;padding:.5rem 0;">
-       📋 Conteúdo carregado do histórico de publicações. Edite os campos abaixo se necessário e publique.
-     </p>`;
+  document.getElementById('map-corpo-leitura').innerHTML = camposNovosVazios
+    ? `<p style="color:#92400e;font-style:italic;font-size:.87rem;padding:.5rem 0;background:#fffbeb;border-radius:6px;padding:.6rem .9rem;">
+         ⚡ Chapéu, resumo e tags não foram gravados nesta publicação (versão antiga). Regenerando com IA…
+       </p>`
+    : `<p style="color:var(--muted);font-style:italic;font-size:.87rem;padding:.5rem 0;">
+         📋 Conteúdo carregado do histórico de publicações. Edite os campos abaixo se necessário e publique.
+       </p>`;
 
   // Preenche campos da IA com o conteúdo salvo
   document.getElementById('map-chapeu').value  = p.rewritten_chapeu  || '';
@@ -1996,6 +2002,12 @@ function republicarDoHistorico(pubJsonStr) {
 
   // Abre o modal
   document.getElementById('modal-artigo-pub').classList.remove('hidden');
+
+  // Publicação antiga sem chapéu/resumo/tags → regenera com IA automaticamente
+  // O corpo salvo é usado como conteúdo base para a IA recriar os campos
+  if (camposNovosVazios && p.rewritten_body) {
+    setTimeout(() => gerarComIAModal(), 400);
+  }
 }
 
 // ══ UTILITÁRIOS ══════════════════════════════════════════════════════════════
