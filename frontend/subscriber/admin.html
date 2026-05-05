@@ -1147,7 +1147,8 @@ async function abrirArtigoModal(artigo) {
   document.getElementById('map-link-publicado').classList.remove('visivel');
   document.getElementById('map-link-publicado').innerHTML = '';
   document.getElementById('map-categoria').innerHTML = '<option value="">Selecione o site primeiro…</option>';
-  pubHistorico = []; // Limpa histórico de publicações do artigo anterior
+  pubHistorico = [];        // Limpa histórico de publicações do artigo anterior
+  pubIdParaAtualizar = null; // Não é fluxo de Republicar — não salvar de volta
 
   const corpo = document.getElementById('map-corpo-leitura');
 
@@ -1228,11 +1229,16 @@ async function gerarComIAModal() {
     if (!resp.ok) throw new Error(resultado.error || 'Erro na IA');
 
     // Preenche campos do resultado
-    document.getElementById('map-chapeu').value  = resultado.chapeu  || '';
-    document.getElementById('map-titulo').value  = resultado.titulo  || resultado.title  || titulo;
-    document.getElementById('map-resumo').value  = resultado.resumo  || resultado.summary || '';
-    document.getElementById('map-corpo').value   = resultado.corpo   || resultado.body   || conteudo;
-    document.getElementById('map-tags').value    = (resultado.tags || []).join(', ');
+    const novoChapeu  = resultado.chapeu  || '';
+    const novoTitulo  = resultado.titulo  || resultado.title  || titulo;
+    const novoResumo  = resultado.resumo  || resultado.summary || '';
+    const novoCorpo   = resultado.corpo   || resultado.body   || conteudo;
+    const novasTags   = (resultado.tags || []).join(', ');
+    document.getElementById('map-chapeu').value  = novoChapeu;
+    document.getElementById('map-titulo').value  = novoTitulo;
+    document.getElementById('map-resumo').value  = novoResumo;
+    document.getElementById('map-corpo').value   = novoCorpo;
+    document.getElementById('map-tags').value    = novasTags;
     document.getElementById('map-imagem').value  = artigoSelecionado.image_url || '';
 
     // Mostra seção de resultado
@@ -1241,6 +1247,21 @@ async function gerarComIAModal() {
     document.getElementById('btn-pub-modal').disabled    = false;
     document.getElementById('btn-pub-modal').textContent = '✓ Publicar agora';
     toast('Conteúdo gerado com IA!', 'sucesso');
+
+    // Se veio do fluxo Republicar, salva campos de volta na publicação original
+    if (pubIdParaAtualizar) {
+      fetch(`${BACKEND}/api/admin/publications/${pubIdParaAtualizar}`, {
+        method:  'PATCH',
+        headers: authHeader(),
+        body: JSON.stringify({
+          rewritten_title:   novoTitulo,
+          rewritten_body:    novoCorpo,
+          rewritten_chapeu:  novoChapeu,
+          rewritten_summary: novoResumo,
+          rewritten_tags:    novasTags
+        })
+      }).catch(e => console.warn('[pub-patch]', e.message));
+    }
   } catch(e) {
     console.error('[IA]', e);
     toast('Erro ao gerar com IA: ' + e.message, 'erro');
@@ -1252,6 +1273,9 @@ async function gerarComIAModal() {
 
 // Rastreia publicações do artigo atual no modal
 let pubHistorico = [];
+
+// ID da publicação aberta via "Republicar" — usado para salvar campos regenerados
+let pubIdParaAtualizar = null;
 
 async function publicarArtigoModal() {
   if (!artigoSelecionado) return toast('Nenhum artigo selecionado.', 'erro');
@@ -1999,6 +2023,9 @@ function republicarDoHistorico(pubJsonStr) {
   document.getElementById('btn-pub-modal').disabled    = false;
   document.getElementById('btn-pub-modal').textContent = '✓ Publicar agora';
   pubHistorico = [];
+
+  // Registra o ID desta publicação para salvar campos regenerados pela IA
+  pubIdParaAtualizar = p.id || null;
 
   // Abre o modal
   document.getElementById('modal-artigo-pub').classList.remove('hidden');

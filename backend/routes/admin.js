@@ -300,6 +300,34 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
     }
   });
 
+  // PATCH /api/admin/publications/:id — atualiza campos rewritten de uma publicação existente
+  router.patch('/publications/:id', async (req, res) => {
+    const { id } = req.params;
+    const { rewritten_title, rewritten_body, rewritten_chapeu, rewritten_summary, rewritten_tags } = req.body || {};
+    try {
+      await pool.query(
+        `UPDATE publications
+         SET rewritten_title   = COALESCE($1, rewritten_title),
+             rewritten_body    = COALESCE($2, rewritten_body),
+             rewritten_chapeu  = COALESCE($3, rewritten_chapeu),
+             rewritten_summary = COALESCE($4, rewritten_summary),
+             rewritten_tags    = COALESCE($5, rewritten_tags)
+         WHERE id = $6`,
+        [
+          rewritten_title  || null,
+          rewritten_body   || null,
+          rewritten_chapeu || null,
+          rewritten_summary|| null,
+          rewritten_tags   || null,
+          id
+        ]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // GET /api/admin/recent-publications — últimas publicações de todos os clientes
   router.get('/recent-publications', async (req, res) => {
     try {
