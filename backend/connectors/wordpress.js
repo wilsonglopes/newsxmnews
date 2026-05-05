@@ -51,20 +51,21 @@ async function publishViaXixoPlugin(site, rewritten, article) {
     try { nomefonte = new URL(article.external_url).hostname.replace('www.',''); } catch { nomefonte = ''; }
   }
 
-  // post_format 'editorial' → plugin v1.2.0+ (envia imagem, plugin faz upload e define featured_media)
-  // post_format 'standard'  → plugin v1.1.0  (não envia imagem, evita duplicata)
-  const postFormat   = site.post_format || 'editorial';
-  const sendImageUrl = postFormat === 'editorial' ? (article.image_url || '') : '';
+  // post_format controla como a imagem é exibida no plugin:
+  //   'editorial' → imagem injetada no corpo do post (para temas que não exibem featured_media)
+  //   'standard'  → imagem apenas como featured_media (para temas que já a exibem, ex: Hello Elementor)
+  const postFormat = site.post_format || 'editorial';
 
   const payload = {
-    title:       rewritten.title                  || '',
-    chapeu:      rewritten.chapeu                 || '',
-    summary:     rewritten.summary                || '',
-    body:        ensureImgFullWidth(rewritten.body || ''),
+    title:       rewritten.title       || '',
+    chapeu:      rewritten.chapeu      || '',
+    summary:     rewritten.summary     || '',
+    body:        rewritten.body        || '',
     slug:        slugify(rewritten.title),
-    source_url:  article.external_url             || '',
+    source_url:  article.external_url  || '',
     source_name: nomefonte,
-    image_url:   sendImageUrl,
+    image_url:   article.image_url     || '',
+    post_format: postFormat,
     tags:        rewritten.tags        || [],
     category_id: rewritten.category_id || null,
   };
