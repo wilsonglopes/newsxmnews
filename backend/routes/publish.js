@@ -67,15 +67,19 @@ router.post('/', async (req, res) => {
 
     // Registra publicação — usa subscriber_id do dono do site (admin publica em nome do cliente)
     const pubSubscriberId = site.subscriber_id || req.subscriber.id;
+    const tagsStr = Array.isArray(rewritten.tags)
+      ? rewritten.tags.join(', ')
+      : (rewritten.tags || null);
     await pool.query(
       `INSERT INTO publications
          (subscriber_id, article_id, site_id, platform, external_post_id, external_post_url,
-          rewritten_title, rewritten_body, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'published')`,
+          rewritten_title, rewritten_body, rewritten_chapeu, rewritten_summary, rewritten_tags, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'published')`,
       [
         pubSubscriberId, article_id, site_id, site.platform,
         result.post_id, result.post_url,
-        rewritten.title, rewritten.body
+        rewritten.title, rewritten.body,
+        rewritten.chapeu || null, rewritten.summary || null, tagsStr
       ]
     );
 

@@ -1921,16 +1921,81 @@ async function carregarPublicacoes() {
     const tbody = document.querySelector('#tbl-pubs tbody');
     if (!pubs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma publicação ainda.</td></tr>'; return; }
 
-    tbody.innerHTML = pubs.map(p => `
+    tbody.innerHTML = pubs.map(p => {
+      const btnVer = p.external_post_url
+        ? `<a href="${p.external_post_url}" target="_blank" class="btn btn-ghost btn-sm">↗ Ver</a>`
+        : '';
+      const temConteudo = p.rewritten_title || p.rewritten_body;
+      const pubJson = encodeURIComponent(JSON.stringify(p));
+      const btnRepublicar = temConteudo
+        ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="republicarDoHistorico(decodeURIComponent('${pubJson}'))">📤 Republicar</button>`
+        : '';
+      return `
       <tr>
         <td style="max-width:260px"><strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.rewritten_title||''}">${p.rewritten_title || p.original_title || '—'}</strong></td>
         <td style="font-size:.82rem">${p.subscriber_name||'—'}</td>
         <td style="font-size:.82rem;color:var(--muted)">${p.site_name||'—'}</td>
         <td><span class="badge ${p.status==='published'?'badge-green':'badge-red'}">${p.status}</span></td>
         <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">${p.published_at ? new Date(p.published_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
-        <td>${p.external_post_url ? `<a href="${p.external_post_url}" target="_blank" class="btn btn-ghost btn-sm">↗ Ver</a>` : ''}</td>
-      </tr>`).join('');
+        <td style="white-space:nowrap">${btnVer}${btnRepublicar}</td>
+      </tr>`;
+    }).join('');
   } catch(e) { console.error(e); }
+}
+
+function republicarDoHistorico(pubJsonStr) {
+  let p;
+  try { p = JSON.parse(pubJsonStr); } catch { return toast('Erro ao carregar publicação.', 'erro'); }
+
+  // Reconstrói artigoSelecionado a partir dos dados salvos na publicação
+  artigoSelecionado = {
+    id:           p.article_id || null,
+    title:        p.original_title || p.rewritten_title || '',
+    source_name:  p.article_source_name || p.subscriber_name || '',
+    image_url:    p.article_image_url   || '',
+    external_url: p.article_external_url || '',
+    bodyFetched:  true,
+    body:         p.rewritten_body || ''
+  };
+
+  // Cabeçalho do modal
+  document.getElementById('map-fonte-nome').textContent       = artigoSelecionado.source_name;
+  document.getElementById('map-titulo-leitura').textContent   = artigoSelecionado.title;
+  document.getElementById('map-link-original').href           = artigoSelecionado.external_url || '#';
+
+  // Imagem de capa
+  const imgEl = document.getElementById('map-img-el');
+  if (artigoSelecionado.image_url) {
+    imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(artigoSelecionado.image_url)}`;
+    imgEl.classList.remove('hidden');
+  } else {
+    imgEl.classList.add('hidden');
+  }
+
+  // Corpo — aviso de que foi carregado do histórico
+  document.getElementById('map-corpo-leitura').innerHTML =
+    `<p style="color:var(--muted);font-style:italic;font-size:.87rem;padding:.5rem 0;">
+       📋 Conteúdo carregado do histórico de publicações. Edite os campos abaixo se necessário e publique.
+     </p>`;
+
+  // Preenche campos da IA com o conteúdo salvo
+  document.getElementById('map-chapeu').value  = p.rewritten_chapeu  || '';
+  document.getElementById('map-titulo').value  = p.rewritten_title   || '';
+  document.getElementById('map-resumo').value  = p.rewritten_summary || '';
+  document.getElementById('map-corpo').value   = p.rewritten_body    || '';
+  document.getElementById('map-tags').value    = p.rewritten_tags    || '';
+  document.getElementById('map-imagem').value  = p.article_image_url || '';
+
+  // Reseta estado do modal e mostra seção IA
+  document.getElementById('map-ia-resultado').classList.remove('hidden');
+  document.getElementById('map-link-publicado').classList.remove('visivel');
+  document.getElementById('map-link-publicado').innerHTML = '';
+  document.getElementById('btn-pub-modal').disabled    = false;
+  document.getElementById('btn-pub-modal').textContent = '✓ Publicar agora';
+  pubHistorico = [];
+
+  // Abre o modal
+  document.getElementById('modal-artigo-pub').classList.remove('hidden');
 }
 
 // ══ UTILITÁRIOS ══════════════════════════════════════════════════════════════

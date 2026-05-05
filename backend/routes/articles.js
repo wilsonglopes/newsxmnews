@@ -19,6 +19,30 @@ pool.query(`
   END $$;
 `).catch(e => console.error('[articles] migration extract_body_image:', e.message));
 
+// Migração idempotente — garante colunas rewritten_chapeu, rewritten_summary, rewritten_tags em publications
+pool.query(`
+  DO $$ BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name='publications' AND column_name='rewritten_chapeu'
+    ) THEN
+      ALTER TABLE publications ADD COLUMN rewritten_chapeu TEXT;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name='publications' AND column_name='rewritten_summary'
+    ) THEN
+      ALTER TABLE publications ADD COLUMN rewritten_summary TEXT;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name='publications' AND column_name='rewritten_tags'
+    ) THEN
+      ALTER TABLE publications ADD COLUMN rewritten_tags TEXT;
+    END IF;
+  END $$;
+`).catch(e => console.error('[articles] migration publications columns:', e.message));
+
 // Todas as rotas requerem JWT
 router.use(auth);
 
