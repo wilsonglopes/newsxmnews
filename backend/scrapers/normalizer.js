@@ -87,7 +87,7 @@ function derivarChapeu(rssCategories, url, sourceCategory) {
 
 // ─── Normalização do corpo HTML ───────────────────────────────────────────────
 const ALLOWED_TAGS   = new Set(['p', 'h2', 'h3', 'strong', 'em', 'ul', 'ol', 'li', 'blockquote', 'a', 'img']);
-const REMOVE_TAGS    = new Set(['script', 'style', 'iframe', 'form', 'button', 'nav', 'header', 'footer', 'aside']);
+const REMOVE_TAGS    = new Set(['script', 'style', 'iframe', 'form', 'button', 'nav', 'header', 'footer', 'aside', 'svg', 'picture']);
 const AD_PATTERNS    = [
   'ad', 'ads', 'advertisement', 'banner', 'sidebar', 'social', 'share',
   'related', 'newsletter', 'subscribe', 'comments', 'tags-lista',
