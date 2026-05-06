@@ -150,6 +150,18 @@ function normalizeBody(html, sourceUrl) {
       }
     });
 
+    // Remove imagens que são ícones/vetores SVG (ex: breadcrumb icons do Lance)
+    // e logotipos (ex: LOGO-OFICIAL da Agência Esporte)
+    $('img').each((_, el) => {
+      const src = $(el).attr('src') || '';
+      if (!src) { $(el).remove(); return; }
+      // Ícones SVG referenciados via <img> (ex: CDN do Lance retorna .svg)
+      if (src.match(/\.svg($|[?/])/i)) { $(el).remove(); return; }
+      // Logotipos pelo nome do arquivo
+      const filename = src.split('/').pop() || '';
+      if (filename.match(/logo/i)) { $(el).remove(); return; }
+    });
+
     // Remove atributos, exceto href em <a> e src em <img>
     $('*').each((_, el) => {
       const tag = (el.tagName || '').toLowerCase();
