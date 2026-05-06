@@ -10,7 +10,9 @@ const axios   = require('axios');
 const cheerio = require('cheerio');
 const https   = require('https');
 const iconv   = require('iconv-lite');
-const { normalizeBody }                     = require('./normalizer');
+const { Readability }                         = require('@mozilla/readability');
+const { JSDOM }                               = require('jsdom');
+const { normalizeBody }                       = require('./normalizer');
 const { fetchWithHeadless, isJsRenderedSite } = require('./headless-content');
 
 const USER_AGENT  = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -266,7 +268,27 @@ async function fetchFullContent(url, source) {
     // Remove lixo do DOM (meta tags no <head> NÃO são afetadas)
     $('script, style, nav, footer, .ad, .ads, aside, .comments, .related, iframe, noscript, .sidebar, .menu, .share, .social, .tags-list, .breadcrumb').remove();
 
-    // Tenta seletores genéricos
+    // ── Mozilla Readability — extração automática sem seletor manual ──────────
+    // Funciona como o Modo Leitura do Firefox: identifica o artigo principal
+    // independente do tema/CMS. Usado quando não há content_selector configurado.
+    if (!rawHtml) {
+      try {
+        const dom    = new JSDOM(htmlDecoded, { url });
+        const reader = new Readability(dom.window.document, { charThreshold: 300 });
+        const parsed = reader.parse();
+        if (parsed?.content) {
+          const textLen = parsed.content.replace(/<[^>]*>/g, '').trim().length;
+          if (textLen >= 300) {
+            rawHtml = parsed.content;
+            console.log(`[full-content] Readability OK (${textLen}c): ${url}`);
+          }
+        }
+      } catch (e) {
+        console.log(`[full-content] Readability falhou, usando seletores CSS: ${e.message}`);
+      }
+    }
+
+    // Tenta seletores genéricos (fallback quando Readability não extrai bem)
     if (!rawHtml) {
       for (const sel of CONTENT_SELECTORS) {
         const $el = $(sel);

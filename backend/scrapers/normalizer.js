@@ -100,7 +100,11 @@ const SKIP_PREFIXES  = [
 
 function isAdClass(cls) {
   const c = cls.toLowerCase();
-  return AD_PATTERNS.some(p => c.includes(p));
+  // Usa \b (word boundary) para não confundir 'ad' dentro de 'readability' ou 'uploads'
+  return AD_PATTERNS.some(p => {
+    const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('\\b' + escaped + '\\b', 'i').test(c);
+  });
 }
 
 function normalizeBody(html, sourceUrl) {
@@ -185,8 +189,12 @@ function normalizeBody(html, sourceUrl) {
       if ($2(el).text().trim() === '') $2(el).remove();
     });
 
-    // Remove tags não permitidas mas mantém o conteúdo textual
-    $2('*').each((_, el) => {
+    // Remove tags não permitidas mas mantém o conteúdo textual.
+    // Itera em ordem reversa (de dentro para fora) para que elementos filhos
+    // sejam desempacotados antes dos pais — garante que nós inseridos por
+    // replaceWith() não precisem de re-processamento.
+    const allEls = $2('*').toArray().reverse();
+    allEls.forEach(el => {
       const tag = (el.tagName || '').toLowerCase();
       if (!ALLOWED_TAGS.has(tag) && tag !== 'html' && tag !== 'body' && tag !== 'head') {
         $2(el).replaceWith($2(el).html() || $2(el).text());
