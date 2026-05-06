@@ -66,7 +66,7 @@ router.get('/:id/wp-categories', async (req, res) => {
       httpsAgent: HTTPS_AGENT,
       headers,
     });
-    const cats = (r.data || []).map(c => ({ id: c.id, name: c.name, slug: c.slug, count: c.count }));
+    const cats = (r.data || []).map(c => ({ id: c.id, name: c.name, slug: c.slug, count: c.count, parent: c.parent || 0 }));
     res.json(cats);
   } catch (err) {
     console.error('[sites/wp-categories]', err.message);

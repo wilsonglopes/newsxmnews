@@ -1242,8 +1242,23 @@ async function carregarCategoriasWP(siteId) {
     }
 
     wpCategorias = cats;
-    sel.innerHTML = '<option value="">— Sem categoria —</option>'
-      + cats.map(c => `<option value="${c.id}">${c.name}${c.count ? ` (${c.count})` : ''}</option>`).join('');
+
+    // Monta hierarquia: pais primeiro, filhos indentados abaixo de cada pai
+    const pais   = cats.filter(c => !c.parent);
+    const filhos = cats.filter(c => c.parent);
+    let opts = '<option value="">— Sem categoria —</option>';
+    for (const pai of pais) {
+      opts += `<option value="${pai.id}">${pai.name}${pai.count ? ` (${pai.count})` : ''}</option>`;
+      for (const filho of filhos.filter(f => f.parent === pai.id)) {
+        opts += `<option value="${filho.id}">&nbsp;&nbsp;↳ ${filho.name}${filho.count ? ` (${filho.count})` : ''}</option>`;
+      }
+    }
+    // Subcategorias cujo pai não está na lista
+    const paiIds = new Set(pais.map(c => c.id));
+    for (const orfao of filhos.filter(f => !paiIds.has(f.parent))) {
+      opts += `<option value="${orfao.id}">${orfao.name}${orfao.count ? ` (${orfao.count})` : ''}</option>`;
+    }
+    sel.innerHTML = opts;
     sel.disabled = false;
 
     // Tenta sugestão automática com base na categoria do artigo atual
