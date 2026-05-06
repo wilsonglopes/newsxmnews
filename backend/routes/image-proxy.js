@@ -6,24 +6,31 @@ const router  = express.Router();
 
 // Domínios permitidos para proxy (segurança — evita SSRF)
 const ALLOWED_HOSTS = [
-  'nsctotal.com.br', 'img.nsctotal.com.br',
-  'metropoles.com', 'img.metropoles.com',
+  // Portais de notícia
+  'nsctotal.com.br',
+  'metropoles.com', 'metroimg.com',
   'cnnbrasil.com.br',
-  'jovempan.com.br',
-  'agenciabrasil.ebc.com.br',
+  'jovempan.com.br', 'jpimg.com.br',
+  'ebc.com.br',
   'agenciaesporte.com.br',
-  'ndmais.com.br', 'img.ndmais.com.br',
+  'ndmais.com.br',
   'portalc1.com.br',
   'danuzionews.com',
   'enfoquesc.com.br',
-  'alesc.sc.gov.br',
   'portaldoagronegocio.com.br',
-  'sombrio.sc.gov.br',
-  'praiagrande.atende.net',
-  'jacintomachado.atende.net',
   'jarbasvieira.com',
-  'static.wixstatic.com',
   'sommaior.com.br',
+  'brasilparalelo.com.br',
+  'lance.com.br', 'lncimg.lance.com.br',
+  // Assembleias legislativas
+  'alesc.sc.gov.br',
+  'al.rs.gov.br',
+  // Prefeituras (.rs.gov.br, .sc.gov.br, atende.net)
+  'rs.gov.br',
+  'sc.gov.br',
+  'atende.net',
+  // WordPress CDNs
+  'static.wixstatic.com',
   'wp.com', 'i0.wp.com', 'i1.wp.com', 'i2.wp.com',
 ];
 
