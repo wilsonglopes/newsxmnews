@@ -143,8 +143,9 @@ function normalizeBody(html, sourceUrl) {
     // (sites com lazy loading não preenchem src até o JS executar)
     $('img').each((_, el) => {
       const tag$ = $(el);
-      if (!tag$.attr('src')) {
-        const ds = tag$.attr('data-src') || tag$.attr('data-lazy-src') || tag$.attr('data-original') || '';
+      const src = tag$.attr('src') || '';
+      if (!src || src.startsWith('data:')) {
+        const ds = tag$.attr('data-src') || tag$.attr('data-lazy-src') || tag$.attr('data-original') || tag$.attr('data-img-url') || '';
         if (ds) tag$.attr('src', ds);
       }
     });

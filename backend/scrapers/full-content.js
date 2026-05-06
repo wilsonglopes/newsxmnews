@@ -245,14 +245,13 @@ async function fetchFullContent(url, source) {
     let rawHtml = '';
 
     // Antes de remover atributos: converte data-src/data-lazy-src → src em <img>
-    // (sites com lazy loading não têm src preenchido até o JS executar)
-    $('img[data-src]').each((_, el) => {
-      const dataSrc = $(el).attr('data-src');
-      if (dataSrc && !$(el).attr('src')) $(el).attr('src', dataSrc);
-    });
-    $('img[data-lazy-src]').each((_, el) => {
-      const lazyStr = $(el).attr('data-lazy-src');
-      if (lazyStr && !$(el).attr('src')) $(el).attr('src', lazyStr);
+    // (sites com lazy loading usam src vazio ou placeholder data: URI)
+    $('img').each((_, el) => {
+      const src = $(el).attr('src') || '';
+      const isPlaceholder = !src || src.startsWith('data:');
+      if (!isPlaceholder) return;
+      const real = $(el).attr('data-src') || $(el).attr('data-lazy-src') || $(el).attr('data-original') || $(el).attr('data-img-url') || '';
+      if (real) $(el).attr('src', real);
     });
 
     // Tenta seletor configurado na fonte
