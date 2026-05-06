@@ -95,12 +95,13 @@ function extrairImagemDoConteudo(html) {
   } catch { return null; }
 }
 
-// Normaliza uma data para ISO string; retorna agora se inválida
+// Normaliza uma data para ISO string; retorna agora se inválida ou futura
 function normalizarData(val) {
   if (!val) return new Date().toISOString();
   try {
     const d = new Date(val);
-    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+    if (isNaN(d.getTime()) || d.getTime() > Date.now()) return new Date().toISOString();
+    return d.toISOString();
   } catch { return new Date().toISOString(); }
 }
 
