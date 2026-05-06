@@ -143,7 +143,7 @@ router.get('/:id/full-content', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT a.id, a.external_url, a.body, a.image_url,
-              so.section_selector AS content_selector,
+              so.content_selector,
               so.slug AS source_slug, so.category,
               so.extract_body_image
        FROM articles a
