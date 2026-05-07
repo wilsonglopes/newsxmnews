@@ -461,6 +461,10 @@
     <img id="ml-imagem" src="" alt="" class="modal-imagem hidden" />
     <div class="modal-corpo" id="ml-corpo"></div>
     <div class="modal-footer">
+      <div style="flex:1;min-width:150px;max-width:240px">
+        <label style="font-size:.7rem;color:var(--grafite-lt);display:block;margin-bottom:3px">🌐 Portal de destino</label>
+        <select id="sel-site" style="width:100%;padding:5px 8px;border:1px solid var(--borda);border-radius:var(--radius);font-size:.82rem;background:var(--branco);color:var(--grafite)"><option value="">Selecione um site…</option></select>
+      </div>
       <button class="btn btn-ia" id="btn-gerar-ia">✦ Gerar com IA e Publicar</button>
       <a id="ml-link" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
     </div>
@@ -496,10 +500,6 @@
       </div>
       <div class="publicar-bar">
         <div class="publicar-bar-selects">
-          <div class="publicar-sel-grupo">
-            <label>🌐 Portal de destino</label>
-            <select id="sel-site"><option value="">Selecione um site…</option></select>
-          </div>
           <div class="publicar-sel-grupo">
             <label>🗂 Categoria</label>
             <select id="sel-categoria">
@@ -537,6 +537,7 @@ function proxyImg(url) {
 let token      = localStorage.getItem('rb24_token');
 let subscriber = null;
 let artigoAtual = null;
+let sitesData = [];
 let pubHistoricoIndex = []; // Histórico de publicações do artigo atual
 let paginaAtual = 1;
 let totalPaginas = 1;
@@ -1011,7 +1012,9 @@ async function gerarComIA() {
   document.getElementById('ia-resultado').classList.add('hidden');
 
   const conteudo  = (artigoAtual.body || artigoAtual.summary || '').replace(/<[^>]*>/g, '').trim();
-  const ai_prompt = subscriber?.ai_prompt || '';
+  const siteId    = document.getElementById('sel-site').value;
+  const siteData  = sitesData.find(s => String(s.id) === String(siteId));
+  const ai_prompt = siteData?.ai_prompt || subscriber?.ai_prompt || '';
 
   try {
     // Usa endpoint do backend — chave Gemini fica no servidor
@@ -1310,10 +1313,10 @@ document.getElementById('sel-site').addEventListener('change', function () {
 async function carregarSites() {
   const sel = document.getElementById('sel-site');
   try {
-    const res   = await fetch(`${BACKEND}/api/sites`, { headers: authHeader() });
-    const sites = await res.json();
+    const res = await fetch(`${BACKEND}/api/sites`, { headers: authHeader() });
+    sitesData = await res.json();
     sel.innerHTML = '<option value="">Selecione um site…</option>';
-    sites.forEach(s => {
+    sitesData.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id; opt.textContent = `${s.name} (${s.platform})`;
       sel.appendChild(opt);
