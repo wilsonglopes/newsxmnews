@@ -1112,6 +1112,8 @@ function atualizarBotaoGerarAdmin() {
     : `✦ Gerar para ${n} portais`;
 }
 
+document.getElementById('btn-gerar-ia-modal').addEventListener('click', gerarComIAModal);
+
 function pubBadgeCategoria(cat) {
   const mapa = { nacional:'badge-nacional', regional:'badge-regional', governo:'badge-governo', esporte:'badge-esporte', agro:'badge-agro', prefeitura:'badge-prefeitura' };
   return `<span class="badge-cat ${mapa[cat] || 'badge-regional'}">${cat || ''}</span>`;
