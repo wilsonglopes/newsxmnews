@@ -264,6 +264,18 @@
     .publicar-sel-grupo select[multiple] { background:var(--white); -webkit-appearance:none; appearance:none; padding:.3rem .5rem; min-height:110px; height:auto; }
     .publicar-sel-grupo select[multiple] option { padding:5px 6px; border-radius:4px; cursor:pointer; }
     .publicar-sel-grupo select[multiple] option:checked { background:var(--red); color:#fff; }
+    .portais-checkboxes { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
+    .portal-cb-label { display:flex; align-items:center; gap:5px; cursor:pointer; font-size:.79rem; font-weight:500; background:var(--bg); border:1.5px solid var(--border); border-radius:6px; padding:4px 10px; transition:border-color .15s,background .15s; user-select:none; }
+    .portal-cb-label:hover { border-color:var(--red-lt); background:#fff; }
+    .portal-cb-label input[type=checkbox] { accent-color:var(--red); width:13px; height:13px; cursor:pointer; }
+    .portal-cb-label.selecionado { border-color:var(--red); background:#fff; color:var(--red); }
+    .portal-tab-bar { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:.75rem; border-bottom:2px solid var(--border); padding-bottom:0; }
+    .portal-tab { padding:6px 14px; border:1.5px solid var(--border); border-bottom:none; border-radius:6px 6px 0 0; font-size:.79rem; font-weight:600; cursor:pointer; background:var(--bg); color:var(--muted); transition:all .15s; margin-bottom:-2px; }
+    .portal-tab.active { background:#fff; border-color:var(--red); color:var(--red); border-bottom-color:#fff; }
+    .portal-tab.gerando { color:#c2410c; border-color:#c2410c; animation:piscarAdmin .8s infinite alternate; }
+    .portal-tab.publicado { color:var(--green); border-color:var(--green); background:#f0fdf4; }
+    .portal-tab.erro { color:var(--red); border-color:var(--red); }
+    @keyframes piscarAdmin { from{opacity:1} to{opacity:.5} }
     .publicar-bar-acoes { grid-column:1/-1; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; padding-top:.5rem; border-top:1px solid var(--border); }
     .btn-publicar { flex:1; padding:.6rem 1.1rem; background:linear-gradient(135deg,#b91c1c,#dc2626); color:#fff; border:none; border-radius:8px; font-size:.88rem; font-weight:600; font-family:var(--font); cursor:pointer; transition:opacity .15s; }
     .btn-publicar:hover:not(:disabled) { opacity:.9; }
@@ -617,12 +629,17 @@ Portal<span class="logo-news">News</span>
          onerror="this.classList.add('hidden')" />
     <div class="modal-corpo" id="map-corpo-leitura"></div>
     <div class="modal-footer">
-      <button class="btn btn-ia" id="btn-gerar-ia-modal" onclick="gerarComIAModal()">✦ Gerar com IA e Publicar</button>
+      <div style="flex:1;min-width:200px">
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:2px">🌐 Portais de destino</label>
+        <div id="map-portais-checkboxes" class="portais-checkboxes"><span style="font-size:.78rem;color:var(--muted)">Carregando…</span></div>
+      </div>
+      <button class="btn btn-ia" id="btn-gerar-ia-modal" disabled>✦ Gerar com IA</button>
       <a id="map-link-original" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
     </div>
 
     <!-- Resultado da IA -->
     <div class="ia-resultado hidden" id="map-ia-resultado">
+      <div id="map-portal-tab-bar" class="portal-tab-bar hidden"></div>
       <h3>Resultado Editorial</h3>
       <div class="campo-grupo"><label>Chapéu</label><input type="text" id="map-chapeu" maxlength="40" placeholder="máx 2 palavras" /></div>
       <div class="campo-grupo"><label>Título</label><input type="text" id="map-titulo" /></div>
@@ -633,17 +650,14 @@ Portal<span class="logo-news">News</span>
       <div class="publicar-bar">
         <div class="publicar-bar-selects">
           <div class="publicar-sel-grupo">
-            <label>🌐 Portal de destino</label>
-            <select id="map-site"><option value="">Selecione um site…</option></select>
-          </div>
-          <div class="publicar-sel-grupo">
             <label>🗂 Categorias <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.65rem">(Ctrl+Click para múltiplas)</span></label>
             <select id="map-categoria" multiple size="5"><option value="">Selecione o site primeiro…</option></select>
           </div>
         </div>
         <div class="publicar-bar-acoes">
-          <button class="btn-publicar" id="btn-pub-modal" onclick="publicarArtigoModal()">✓ Publicar agora</button>
-          <button class="btn-acao-bar" id="btn-regen-modal" onclick="gerarComIAModal()">↻ Regenerar</button>
+          <button class="btn-publicar" id="btn-pub-modal" disabled>✓ Publicar este</button>
+          <button class="btn-publicar" id="btn-pub-todos-modal" style="display:none;background:linear-gradient(135deg,#15803d,#16a34a)">✓ Publicar todos</button>
+          <button class="btn-acao-bar" id="btn-regen-modal">↻ Regenerar</button>
           <button class="btn-acao-bar verde" id="btn-baixar-html-modal">⬇ HTML</button>
           <button class="btn-acao-bar" id="btn-visualizar-html-modal">👁 Visualizar</button>
         </div>
@@ -1008,6 +1022,8 @@ let pubPagina = 1;
 let pubTotalPag = 1;
 let artigoSelecionado = null;
 let allSitesCache = [];
+let portaisResultadosAdmin = [];
+let activePortalIndexAdmin = 0;
 
 async function iniciarPublicar() {
   await Promise.all([carregarArtigosPub(), carregarSitesModal()]);
@@ -1017,38 +1033,48 @@ async function carregarSitesModal() {
   try {
     const sites = await fetch(`${BACKEND}/api/admin/all-sites`, { headers: authHeader() }).then(r => r.json());
     allSitesCache = sites;
-
-    const sel = document.getElementById('map-site');
-    sel.innerHTML = '<option value="">Selecione um site…</option>';
-    const byClient = {};
-    sites.forEach(s => {
-      const key = s.subscriber_name || 'Sem cliente';
-      if (!byClient[key]) byClient[key] = [];
-      byClient[key].push(s);
-    });
-    Object.entries(byClient).forEach(([cli, lista]) => {
-      const grp = document.createElement('optgroup');
-      grp.label = cli;
-      lista.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = s.name + ' (' + s.platform + ')';
-        grp.appendChild(opt);
-      });
-      sel.appendChild(grp);
-    });
+    renderPortaisCheckboxesAdmin();
 
     const fSel = document.getElementById('pub-filtro-fonte');
-    if (fSel.options.length <= 1) {
+    if (fSel && fSel.options.length <= 1) {
       const fontes = await fetch(`${BACKEND}/api/admin/sources`, { headers: authHeader() }).then(r => r.json());
       fontes.forEach(f => {
         const opt = document.createElement('option');
-        opt.value = f.slug;
-        opt.textContent = f.name;
+        opt.value = f.slug; opt.textContent = f.name;
         fSel.appendChild(opt);
       });
     }
   } catch(e) { console.error(e); }
+}
+
+function renderPortaisCheckboxesAdmin() {
+  const container = document.getElementById('map-portais-checkboxes');
+  if (!container) return;
+  if (!allSitesCache.length) {
+    container.innerHTML = '<span style="font-size:.78rem;color:var(--muted)">Nenhum portal cadastrado.</span>';
+    return;
+  }
+  container.innerHTML = '';
+  allSitesCache.forEach(s => {
+    const lbl = document.createElement('label');
+    lbl.className = 'portal-cb-label';
+    lbl.innerHTML = `<input type="checkbox" value="${s.id}"> ${s.name}${s.subscriber_name ? ` <small style="opacity:.6">(${s.subscriber_name})</small>` : ''}`;
+    lbl.querySelector('input').addEventListener('change', function() {
+      lbl.classList.toggle('selecionado', this.checked);
+      atualizarBotaoGerarAdmin();
+    });
+    container.appendChild(lbl);
+  });
+}
+
+function atualizarBotaoGerarAdmin() {
+  const n = document.querySelectorAll('#map-portais-checkboxes input:checked').length;
+  const btn = document.getElementById('btn-gerar-ia-modal');
+  if (!btn) return;
+  btn.disabled = n === 0;
+  btn.textContent = n === 0 ? '✦ Gerar com IA'
+    : n === 1 ? '✦ Gerar com IA e Publicar'
+    : `✦ Gerar para ${n} portais`;
 }
 
 function pubBadgeCategoria(cat) {
@@ -1145,13 +1171,19 @@ async function abrirArtigoModal(artigo) {
     imgEl.classList.add('hidden');
   }
 
-  // Esconde resultado IA e reseta campos
+  // Esconde resultado IA e reseta estado multi-portal
+  portaisResultadosAdmin = [];
+  activePortalIndexAdmin = 0;
   document.getElementById('map-ia-resultado').classList.add('hidden');
   document.getElementById('map-link-publicado').classList.remove('visivel');
   document.getElementById('map-link-publicado').innerHTML = '';
+  document.getElementById('map-portal-tab-bar').classList.add('hidden');
+  document.getElementById('btn-pub-todos-modal').style.display = 'none';
+  document.getElementById('btn-pub-modal').disabled = true;
+  document.getElementById('btn-pub-modal').textContent = '✓ Publicar este';
   document.getElementById('map-categoria').innerHTML = '<option value="">Selecione o site primeiro…</option>';
-  pubHistorico = [];        // Limpa histórico de publicações do artigo anterior
-  pubIdParaAtualizar = null; // Não é fluxo de Republicar — não salvar de volta
+  pubHistorico = [];
+  pubIdParaAtualizar = null;
 
   const corpo = document.getElementById('map-corpo-leitura');
 
@@ -1183,9 +1215,7 @@ async function abrirArtigoModal(artigo) {
   }
 }
 
-// Categorias WP ao trocar site
-document.getElementById('map-site').addEventListener('change', async function() {
-  const siteId = this.value;
+async function carregarCatsAdmin(siteId) {
   const sel = document.getElementById('map-categoria');
   sel.innerHTML = '<option value="">Carregando…</option>';
   sel.disabled = true;
@@ -1197,7 +1227,7 @@ document.getElementById('map-site').addEventListener('change', async function() 
       cats.map(c => `<option value="${c.id}">${c.name}${c.count ? ` (${c.count})` : ''}</option>`).join('');
     sel.disabled = false;
   } catch { sel.innerHTML = '<option value="">Erro ao carregar</option>'; sel.disabled = false; }
-});
+}
 
 function extrairJSONAdmin(texto) {
   if (!texto) return null;
@@ -1210,68 +1240,91 @@ function extrairJSONAdmin(texto) {
 async function gerarComIAModal() {
   if (!artigoSelecionado) return toast('Nenhum artigo selecionado.', 'erro');
 
+  const checkedEls = Array.from(document.querySelectorAll('#map-portais-checkboxes input:checked'));
+  if (!checkedEls.length) return toast('Selecione ao menos um portal.', 'aviso');
+
   const btn = document.getElementById('btn-gerar-ia-modal');
-  const btnRegen = document.getElementById('btn-regen-modal');
   btn.disabled = true; btn.textContent = 'Gerando…';
-  if (btnRegen) { btnRegen.disabled = true; }
+  document.getElementById('map-ia-resultado').classList.add('hidden');
+  document.getElementById('map-portal-tab-bar').classList.add('hidden');
 
   const titulo   = artigoSelecionado.title || '';
   const conteudo = (artigoSelecionado.body || artigoSelecionado.summary || '').replace(/<[^>]*>/g, '').trim();
-  const siteId   = document.getElementById('map-site').value;
-  const site     = allSitesCache.find(s => s.id === siteId);
-  const ai_prompt = site?.ai_prompt || sub.ai_prompt || '';
 
-  try {
-    // Usa endpoint do backend — chave Gemini fica no servidor
-    const resp = await fetch(`${BACKEND}/api/ia/rewrite`, {
-      method: 'POST',
-      headers: { ...authHeader(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: titulo, content: conteudo, ai_prompt })
-    });
-    const resultado = await resp.json();
-    if (!resp.ok) throw new Error(resultado.error || 'Erro na IA');
+  portaisResultadosAdmin = checkedEls.map(cb => {
+    const s = allSitesCache.find(x => String(x.id) === String(cb.value));
+    return {
+      siteId:    String(cb.value),
+      siteName:  s?.name || cb.value,
+      clientName: s?.client_name || '',
+      ai_prompt: s?.ai_prompt || '',
+      status: 'gerando',
+      chapeu: '', titulo: '', resumo: '', corpo: '', tags: '',
+      categoryIds: [], postUrl: null, error: null
+    };
+  });
+  activePortalIndexAdmin = 0;
 
-    // Preenche campos do resultado
-    const novoChapeu  = resultado.chapeu  || '';
-    const novoTitulo  = resultado.titulo  || resultado.title  || titulo;
-    const novoResumo  = resultado.resumo  || resultado.summary || '';
-    const novoCorpo   = resultado.corpo   || resultado.body   || conteudo;
-    const novasTags   = (resultado.tags || []).join(', ');
-    document.getElementById('map-chapeu').value  = novoChapeu;
-    document.getElementById('map-titulo').value  = novoTitulo;
-    document.getElementById('map-resumo').value  = novoResumo;
-    document.getElementById('map-corpo').value   = novoCorpo;
-    document.getElementById('map-tags').value    = novasTags;
-    document.getElementById('map-imagem').value  = artigoSelecionado.image_url || '';
+  document.getElementById('map-ia-resultado').classList.remove('hidden');
+  document.getElementById('map-link-publicado').classList.remove('visivel');
+  document.getElementById('map-link-publicado').innerHTML = '';
+  renderTabsAdmin();
+  loadTabAdmin(0);
 
-    // Mostra seção de resultado
-    document.getElementById('map-ia-resultado').classList.remove('hidden');
-    document.getElementById('map-link-publicado').classList.remove('visivel');
-    document.getElementById('btn-pub-modal').disabled    = false;
-    document.getElementById('btn-pub-modal').textContent = '✓ Publicar agora';
-    toast('Conteúdo gerado com IA!', 'sucesso');
-
-    // Se veio do fluxo Republicar, salva campos de volta na publicação original
-    if (pubIdParaAtualizar) {
-      fetch(`${BACKEND}/api/admin/publications/${pubIdParaAtualizar}`, {
-        method:  'PATCH',
-        headers: authHeader(),
-        body: JSON.stringify({
-          rewritten_title:   novoTitulo,
-          rewritten_body:    novoCorpo,
-          rewritten_chapeu:  novoChapeu,
-          rewritten_summary: novoResumo,
-          rewritten_tags:    novasTags
-        })
-      }).catch(e => console.warn('[pub-patch]', e.message));
+  await Promise.all(portaisResultadosAdmin.map(async (portal, idx) => {
+    try {
+      const resp = await fetch(`${BACKEND}/api/ia/rewrite`, {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: titulo, content: conteudo, ai_prompt: portal.ai_prompt })
+      });
+      const r = await resp.json();
+      if (!resp.ok) throw new Error(r.error || 'Erro na IA');
+      portal.chapeu = r.chapeu || '';
+      portal.titulo = r.titulo || r.title || titulo;
+      portal.resumo = r.resumo || r.summary || '';
+      portal.corpo  = r.corpo  || r.body   || conteudo;
+      portal.tags   = (r.tags || []).join(', ');
+      portal.status = 'pronto';
+    } catch (err) {
+      portal.status = 'erro'; portal.error = err.message;
     }
-  } catch(e) {
-    console.error('[IA]', e);
-    toast('Erro ao gerar com IA: ' + e.message, 'erro');
-  } finally {
-    btn.disabled = false; btn.textContent = '✦ Gerar com IA e Publicar';
-    if (btnRegen) { btnRegen.disabled = false; }
+    renderTabsAdmin();
+    if (idx === activePortalIndexAdmin) loadTabAdmin(activePortalIndexAdmin);
+  }));
+
+  const firstReady = portaisResultadosAdmin.findIndex(p => p.status === 'pronto');
+  if (firstReady >= 0) {
+    activePortalIndexAdmin = firstReady;
+    loadTabAdmin(activePortalIndexAdmin);
+    renderTabsAdmin();
   }
+
+  document.getElementById('btn-pub-todos-modal').style.display =
+    portaisResultadosAdmin.length > 1 ? '' : 'none';
+
+  const sidAtivo = portaisResultadosAdmin[activePortalIndexAdmin]?.siteId;
+  if (sidAtivo) carregarCatsAdmin(sidAtivo);
+
+  // Se veio do fluxo Republicar, salva campos regenerados na publicação original
+  if (pubIdParaAtualizar && firstReady >= 0) {
+    const p = portaisResultadosAdmin[firstReady];
+    fetch(`${BACKEND}/api/admin/publications/${pubIdParaAtualizar}`, {
+      method:  'PATCH',
+      headers: authHeader(),
+      body: JSON.stringify({
+        rewritten_title:   p.titulo,
+        rewritten_body:    p.corpo,
+        rewritten_chapeu:  p.chapeu,
+        rewritten_summary: p.resumo,
+        rewritten_tags:    p.tags
+      })
+    }).catch(e => console.warn('[pub-patch]', e.message));
+  }
+
+  btn.disabled = false;
+  atualizarBotaoGerarAdmin();
+  toast('Conteúdo gerado com IA!', 'sucesso');
 }
 
 // Rastreia publicações do artigo atual no modal
@@ -1280,63 +1333,157 @@ let pubHistorico = [];
 // ID da publicação aberta via "Republicar" — usado para salvar campos regenerados
 let pubIdParaAtualizar = null;
 
-async function publicarArtigoModal() {
-  if (!artigoSelecionado) return toast('Nenhum artigo selecionado.', 'erro');
-  const siteId   = document.getElementById('map-site').value;
-  const siteName = document.getElementById('map-site').options[document.getElementById('map-site').selectedIndex]?.text || siteId;
-  if (!siteId) return toast('Selecione um site para publicar.', 'erro');
+// ── Helpers multi-portal (admin) ─────────────────────────────────────────────
+function renderTabsAdmin() {
+  const bar = document.getElementById('map-portal-tab-bar');
+  if (!bar) return;
+  if (portaisResultadosAdmin.length <= 1) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  bar.innerHTML = portaisResultadosAdmin.map((p, i) => {
+    const icon = p.status === 'gerando' ? '⟳' : p.status === 'publicado' ? '✔' : p.status === 'erro' ? '✗' : '✓';
+    const cls  = [p.status, i === activePortalIndexAdmin ? 'active' : ''].filter(Boolean).join(' ');
+    const label = p.clientName ? `${p.clientName} — ${p.siteName}` : p.siteName;
+    return `<button class="portal-tab ${cls}" onclick="mudarTabAdmin(${i})">${icon} ${label}</button>`;
+  }).join('');
+}
 
-  const btn = document.getElementById('btn-pub-modal');
-  btn.disabled = true; btn.textContent = 'Publicando…';
+function mudarTabAdmin(idx) {
+  saveCurrentTabAdmin();
+  activePortalIndexAdmin = idx;
+  loadTabAdmin(idx);
+  renderTabsAdmin();
+  const siteId = portaisResultadosAdmin[idx]?.siteId;
+  if (siteId) carregarCatsAdmin(siteId);
+}
 
-  const rewritten = {
-    chapeu:      document.getElementById('map-chapeu').value,
-    title:       document.getElementById('map-titulo').value,
-    summary:     document.getElementById('map-resumo').value,
-    body:        document.getElementById('map-corpo').value,
-    tags:        document.getElementById('map-tags').value.split(',').map(t => t.trim()).filter(Boolean),
-    image_url:   document.getElementById('map-imagem').value || artigoSelecionado.image_url || null,
-    category_ids: Array.from(document.getElementById('map-categoria').selectedOptions).map(o => Number(o.value)).filter(id => id > 0)
-  };
+function saveCurrentTabAdmin() {
+  const p = portaisResultadosAdmin[activePortalIndexAdmin];
+  if (!p) return;
+  p.chapeu = document.getElementById('map-chapeu').value;
+  p.titulo = document.getElementById('map-titulo').value;
+  p.resumo = document.getElementById('map-resumo').value;
+  p.corpo  = document.getElementById('map-corpo').value;
+  p.tags   = document.getElementById('map-tags').value;
+  p.categoryIds = Array.from(document.getElementById('map-categoria').selectedOptions)
+    .map(o => Number(o.value)).filter(id => id > 0);
+}
 
-  const publicarReq = (force = false) => fetch(`${BACKEND}/api/publish`, {
-    method: 'POST', headers: authHeader(),
-    body: JSON.stringify({ article_id: artigoSelecionado.id, site_id: siteId, rewritten, force })
-  });
-
-  try {
-    let res  = await publicarReq(false);
-    let data = await res.json();
-
-    // Artigo já publicado neste site — publica novamente sem bloquear (force automático)
-    if (res.status === 409 && data.already_published) {
-      btn.textContent = 'Re-publicando…';
-      res  = await publicarReq(true);
-      data = await res.json();
-    }
-
-    if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
-
-    // Adiciona ao histórico de publicações do artigo atual
-    pubHistorico.push({ site: siteName, url: data.post_url });
-
-    // Atualiza lista de publicações
-    const linkEl = document.getElementById('map-link-publicado');
-    linkEl.innerHTML = '<ul class="pub-lista">' +
-      pubHistorico.map(p =>
-        `<li>✔ <span class="pub-site">${p.site}:</span> <a href="${p.url}" target="_blank">${p.url}</a></li>`
-      ).join('') +
-      '</ul>';
+function loadTabAdmin(idx) {
+  const p = portaisResultadosAdmin[idx];
+  if (!p) return;
+  document.getElementById('map-chapeu').value = p.chapeu || '';
+  document.getElementById('map-titulo').value = p.titulo || '';
+  document.getElementById('map-resumo').value = p.resumo || '';
+  document.getElementById('map-corpo').value  = p.corpo  || '';
+  document.getElementById('map-tags').value   = p.tags   || '';
+  document.getElementById('map-imagem').value = artigoSelecionado?.image_url || '';
+  const btnPub = document.getElementById('btn-pub-modal');
+  btnPub.disabled    = p.status !== 'pronto' && p.status !== 'publicado';
+  btnPub.textContent = p.status === 'gerando' ? '⟳ Gerando…'
+    : p.status === 'publicado' ? '✔ Publicado'
+    : '✓ Publicar este';
+  const linkEl = document.getElementById('map-link-publicado');
+  if (p.postUrl) {
+    const label = p.clientName ? `${p.clientName} — ${p.siteName}` : p.siteName;
+    linkEl.innerHTML = `<ul class="pub-lista"><li>✔ <span class="pub-site">${label}:</span> <a href="${p.postUrl}" target="_blank" rel="noopener">${p.postUrl}</a></li></ul>`;
     linkEl.classList.add('visivel');
-
-    toast(`Publicado em ${siteName}!`, 'sucesso');
-    // Re-habilita imediatamente para publicar em outro portal
-    btn.disabled = false; btn.textContent = '✓ Publicar agora';
-  } catch(e) {
-    toast('Erro ao publicar: ' + e.message, 'erro');
-    btn.disabled = false; btn.textContent = '✓ Publicar agora';
+  } else {
+    linkEl.classList.remove('visivel');
   }
 }
+
+async function publicarPortalAdmin(idx) {
+  const portal = portaisResultadosAdmin[idx];
+  if (!portal || !artigoSelecionado) return;
+  saveCurrentTabAdmin();
+  const rewritten = {
+    chapeu:       portal.chapeu,
+    title:        portal.titulo,
+    summary:      portal.resumo,
+    body:         portal.corpo,
+    tags:         portal.tags.split(',').map(t => t.trim()).filter(Boolean),
+    image_url:    artigoSelecionado.image_url || null,
+    category_ids: portal.categoryIds || []
+  };
+  const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
+    method: 'POST', headers: authHeader(),
+    body: JSON.stringify({ article_id: artigoSelecionado.id, site_id: portal.siteId, rewritten, force })
+  });
+  try {
+    let res = await req(false); let data = await res.json();
+    if (res.status === 409 && data.already_published) { res = await req(true); data = await res.json(); }
+    if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
+    portal.status  = 'publicado';
+    portal.postUrl = data.post_url;
+    pubHistorico.push({ site: portal.siteName, url: data.post_url });
+    toast(`Publicado em ${portal.siteName}!`, 'sucesso');
+  } catch (err) {
+    portal.status = 'erro'; portal.error = err.message;
+    toast(`Erro em ${portal.siteName}: ${err.message}`, 'erro');
+  }
+  if (idx === activePortalIndexAdmin) loadTabAdmin(idx);
+  renderTabsAdmin();
+}
+
+// ── Eventos dos botões de publicação (admin) ──────────────────────────────────
+document.getElementById('btn-pub-modal').addEventListener('click', async () => {
+  if (!artigoSelecionado || !portaisResultadosAdmin.length) return;
+  const btn = document.getElementById('btn-pub-modal');
+  btn.disabled = true; btn.textContent = 'Publicando…';
+  await publicarPortalAdmin(activePortalIndexAdmin);
+  renderTabsAdmin();
+  loadTabAdmin(activePortalIndexAdmin);
+});
+
+document.getElementById('btn-pub-todos-modal').addEventListener('click', async () => {
+  if (!artigoSelecionado) return;
+  saveCurrentTabAdmin();
+  const btn = document.getElementById('btn-pub-todos-modal');
+  btn.disabled = true;
+  const prontos = portaisResultadosAdmin.filter(p => p.status === 'pronto').length;
+  for (let i = 0; i < portaisResultadosAdmin.length; i++) {
+    if (portaisResultadosAdmin[i].status !== 'pronto') continue;
+    btn.textContent = `Publicando… (${portaisResultadosAdmin.filter(p => p.status === 'publicado').length + 1}/${prontos})`;
+    await publicarPortalAdmin(i);
+  }
+  btn.disabled = false;
+  btn.textContent = '✓ Publicar todos';
+  renderTabsAdmin();
+  loadTabAdmin(activePortalIndexAdmin);
+});
+
+document.getElementById('btn-regen-modal').addEventListener('click', async () => {
+  if (!artigoSelecionado || !portaisResultadosAdmin.length) return;
+  saveCurrentTabAdmin();
+  const portal = portaisResultadosAdmin[activePortalIndexAdmin];
+  if (!portal) return;
+  portal.status = 'gerando';
+  renderTabsAdmin();
+  loadTabAdmin(activePortalIndexAdmin);
+  const titulo   = artigoSelecionado.title || '';
+  const conteudo = (artigoSelecionado.body || artigoSelecionado.summary || '').replace(/<[^>]*>/g, '').trim();
+  try {
+    const resp = await fetch(`${BACKEND}/api/ia/rewrite`, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: titulo, content: conteudo, ai_prompt: portal.ai_prompt })
+    });
+    const r = await resp.json();
+    if (!resp.ok) throw new Error(r.error || 'Erro na IA');
+    portal.chapeu = r.chapeu || '';
+    portal.titulo = r.titulo || r.title || titulo;
+    portal.resumo = r.resumo || r.summary || '';
+    portal.corpo  = r.corpo  || r.body   || conteudo;
+    portal.tags   = (r.tags || []).join(', ');
+    portal.status = 'pronto';
+    toast('Regenerado com sucesso!', 'sucesso');
+  } catch (err) {
+    portal.status = 'erro'; portal.error = err.message;
+    toast('Erro ao regenerar: ' + err.message, 'erro');
+  }
+  renderTabsAdmin();
+  loadTabAdmin(activePortalIndexAdmin);
+});
 
 // ── Baixar HTML ───────────────────────────────────────────────────────────────
 document.getElementById('btn-baixar-html-modal').addEventListener('click', () => {
@@ -2022,13 +2169,34 @@ async function republicarDoHistorico(pubJsonStr) {
   document.getElementById('map-tags').value    = p.rewritten_tags    || '';
   document.getElementById('map-imagem').value  = p.article_image_url || '';
 
-  // Reseta estado do modal e mostra seção IA
+  // Reseta estado multi-portal do modal
+  portaisResultadosAdmin = [];
+  activePortalIndexAdmin = 0;
+  pubHistorico = [];
   document.getElementById('map-ia-resultado').classList.remove('hidden');
   document.getElementById('map-link-publicado').classList.remove('visivel');
   document.getElementById('map-link-publicado').innerHTML = '';
-  document.getElementById('btn-pub-modal').disabled    = false;
-  document.getElementById('btn-pub-modal').textContent = '✓ Publicar agora';
-  pubHistorico = [];
+  document.getElementById('map-portal-tab-bar').classList.add('hidden');
+  document.getElementById('btn-pub-todos-modal').style.display = 'none';
+
+  // Popula portaisResultadosAdmin com um portal sintético para o fluxo republicar
+  const siteRep = allSitesCache.find(s => String(s.id) === String(p.site_id)) || { id: p.site_id, name: p.site_name || 'Portal', ai_prompt: '' };
+  portaisResultadosAdmin = [{
+    siteId:    String(siteRep.id || p.site_id || ''),
+    siteName:  siteRep.name || p.site_name || 'Portal',
+    clientName: siteRep.client_name || '',
+    ai_prompt: siteRep.ai_prompt || '',
+    status: 'pronto',
+    chapeu: p.rewritten_chapeu  || '',
+    titulo: p.rewritten_title   || '',
+    resumo: p.rewritten_summary || '',
+    corpo:  p.rewritten_body    || '',
+    tags:   p.rewritten_tags    || '',
+    categoryIds: [], postUrl: null, error: null
+  }];
+  loadTabAdmin(0);
+  renderTabsAdmin();
+  carregarCatsAdmin(String(siteRep.id || p.site_id || ''));
 
   // Registra o ID desta publicação para salvar campos regenerados pela IA
   pubIdParaAtualizar = p.id || null;
@@ -2037,7 +2205,6 @@ async function republicarDoHistorico(pubJsonStr) {
   document.getElementById('modal-artigo-pub').classList.remove('hidden');
 
   // Publicação antiga sem chapéu/resumo/tags → regenera com IA automaticamente
-  // O corpo salvo é usado como conteúdo base para a IA recriar os campos
   if (camposNovosVazios && p.rewritten_body) {
     setTimeout(() => gerarComIAModal(), 400);
   }
