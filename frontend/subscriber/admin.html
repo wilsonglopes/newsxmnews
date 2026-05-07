@@ -1529,7 +1529,8 @@ document.getElementById('btn-baixar-html-modal').addEventListener('click', () =>
   const resumo  = document.getElementById('map-resumo').value.trim();
   const corpo   = document.getElementById('map-corpo').value.trim();
   const tags    = document.getElementById('map-tags').value.trim();
-  const imagem  = artigoSelecionado?.image_url || '';
+  const imagemRaw = artigoSelecionado?.image_url || '';
+  const imagem  = imagemRaw ? `${BACKEND}/api/proxy-image?url=${encodeURIComponent(imagemRaw)}` : '';
   const fonte   = artigoSelecionado?.source_name || '';
   const urlOrig = artigoSelecionado?.external_url || '#';
   if (!titulo && !corpo) { toast('Gere o conteúdo com IA antes de baixar.', 'aviso'); return; }
@@ -1563,7 +1564,8 @@ document.getElementById('btn-visualizar-html-modal').addEventListener('click', (
   const resumo  = document.getElementById('map-resumo').value.trim();
   const corpo   = document.getElementById('map-corpo').value.trim();
   const tags    = document.getElementById('map-tags').value.trim();
-  const imagem  = artigoSelecionado?.image_url || '';
+  const imagemRaw = artigoSelecionado?.image_url || '';
+  const imagem  = imagemRaw ? `${BACKEND}/api/proxy-image?url=${encodeURIComponent(imagemRaw)}` : '';
   const fonte   = artigoSelecionado?.source_name || '';
   const urlOrig = artigoSelecionado?.external_url || '#';
   if (!titulo && !corpo) { toast('Gere o conteúdo com IA antes de visualizar.', 'aviso'); return; }
