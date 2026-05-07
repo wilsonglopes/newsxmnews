@@ -261,6 +261,9 @@
     .publicar-sel-grupo { display:flex; flex-direction:column; gap:.25rem; }
     .publicar-sel-grupo label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
     .publicar-sel-grupo select { width:100%; padding:.5rem .7rem; border:1.5px solid var(--border); border-radius:8px; font-size:.84rem; font-family:var(--font); color:var(--text); background:var(--white); cursor:pointer; }
+    .publicar-sel-grupo select[multiple] { background:var(--white); -webkit-appearance:none; appearance:none; padding:.3rem .5rem; min-height:110px; height:auto; }
+    .publicar-sel-grupo select[multiple] option { padding:5px 6px; border-radius:4px; cursor:pointer; }
+    .publicar-sel-grupo select[multiple] option:checked { background:var(--red); color:#fff; }
     .publicar-bar-acoes { grid-column:1/-1; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; padding-top:.5rem; border-top:1px solid var(--border); }
     .btn-publicar { flex:1; padding:.6rem 1.1rem; background:linear-gradient(135deg,#b91c1c,#dc2626); color:#fff; border:none; border-radius:8px; font-size:.88rem; font-weight:600; font-family:var(--font); cursor:pointer; transition:opacity .15s; }
     .btn-publicar:hover:not(:disabled) { opacity:.9; }
@@ -634,8 +637,8 @@ Portal<span class="logo-news">News</span>
             <select id="map-site"><option value="">Selecione um site…</option></select>
           </div>
           <div class="publicar-sel-grupo">
-            <label>🗂 Categoria</label>
-            <select id="map-categoria"><option value="">Selecione o site primeiro…</option></select>
+            <label>🗂 Categorias <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.65rem">(Ctrl+Click para múltiplas)</span></label>
+            <select id="map-categoria" multiple size="5"><option value="">Selecione o site primeiro…</option></select>
           </div>
         </div>
         <div class="publicar-bar-acoes">
@@ -1293,7 +1296,7 @@ async function publicarArtigoModal() {
     body:        document.getElementById('map-corpo').value,
     tags:        document.getElementById('map-tags').value.split(',').map(t => t.trim()).filter(Boolean),
     image_url:   document.getElementById('map-imagem').value || artigoSelecionado.image_url || null,
-    category_id: document.getElementById('map-categoria').value ? Number(document.getElementById('map-categoria').value) : null
+    category_ids: Array.from(document.getElementById('map-categoria').selectedOptions).map(o => Number(o.value)).filter(id => id > 0)
   };
 
   const publicarReq = (force = false) => fetch(`${BACKEND}/api/publish`, {
@@ -1967,9 +1970,12 @@ async function carregarPublicacoes() {
   } catch(e) { console.error(e); }
 }
 
-function republicarDoHistorico(pubJsonStr) {
+async function republicarDoHistorico(pubJsonStr) {
   let p;
   try { p = JSON.parse(pubJsonStr); } catch { return toast('Erro ao carregar publicação.', 'erro'); }
+
+  // Garante que os sites estejam carregados (caso o usuário tenha vindo direto da aba Publicações)
+  if (!allSitesCache.length) await carregarSitesModal();
 
   // Reconstrói artigoSelecionado a partir dos dados salvos na publicação
   artigoSelecionado = {
