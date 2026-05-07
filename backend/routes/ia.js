@@ -33,7 +33,7 @@ router.post('/rewrite', async (req, res) => {
   const promptSistema = ai_prompt ||
     `Você é um editor de notícias profissional. Reescreva a matéria abaixo com linguagem jornalística clara e objetiva.
 Retorne SOMENTE um JSON com:
-{ "chapeu": string(máx 2 palavras em maiúsculas, ex: "ECONOMIA" ou "ECONOMIA DO BRASIL"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(máx 160 caracteres sem contar espaços), "corpo": string(HTML com <p>), "tags": string[] }.`;
+{ "chapeu": string(máx 2 palavras em maiúsculas, ex: "ECONOMIA" ou "ECONOMIA DO BRASIL"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(frase completa com sentido, máx ~160 caracteres sem contar espaços — NUNCA termine no meio de uma oração; se necessário, use uma frase mais curta mas sempre encerre com ponto final), "corpo": string(HTML com <p>), "tags": string[] }.`;
 
   try {
     const resp = await axios.post(
@@ -65,7 +65,7 @@ Retorne SOMENTE um JSON com:
       resultado.titulo = truncarSemEspacos(resultado.titulo, 90);
     }
     if (resultado.resumo) {
-      resultado.resumo = truncarSemEspacos(resultado.resumo, 160);
+      resultado.resumo = resultado.resumo.trim();
     }
 
     res.json(resultado);
