@@ -67,7 +67,7 @@ async function publishViaXixoPlugin(site, rewritten, article) {
     image_url:   article.image_url     || '',
     post_format: postFormat,
     tags:        rewritten.tags        || [],
-    category_id: rewritten.category_id || null,
+    category_ids: rewritten.category_ids?.length ? rewritten.category_ids : (rewritten.category_id ? [rewritten.category_id] : []),
   };
 
   const res = await axios.post(`${baseUrl}/wp-json/xixo/v1/publish`, payload, {
@@ -273,7 +273,8 @@ async function publishToWordPress(site, rewritten, article) {
     tags:    tagIds,
     meta: { chapeu: rewritten.chapeu || '', fonte_original: article.external_url || '' },
   };
-  if (rewritten.category_id) postBody.categories     = [rewritten.category_id];
+  const catIds = rewritten.category_ids?.length ? rewritten.category_ids : (rewritten.category_id ? [rewritten.category_id] : []);
+  if (catIds.length) postBody.categories = catIds;
   if (featuredMediaId)        postBody.featured_media = featuredMediaId;
 
   const postRes = await axiosWP.post('/wp-json/wp/v2/posts', postBody);

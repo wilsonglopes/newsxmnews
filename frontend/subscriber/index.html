@@ -194,6 +194,17 @@
       transition: border-color .15s;
     }
     .publicar-sel-grupo select:focus { outline: none; border-color: var(--vermelho); }
+    .publicar-sel-grupo select[multiple] {
+      background: var(--branco);
+      -webkit-appearance: none;
+      appearance: none;
+      padding: 0.3rem 0.5rem;
+      min-height: 110px;
+      height: auto;
+    }
+    .publicar-sel-grupo select[multiple] option { padding: 5px 6px; border-radius: 4px; cursor: pointer; }
+    .publicar-sel-grupo select[multiple] option:checked { background: var(--vermelho); color: #fff; }
+    .publicar-bar-selects { grid-column: 1 / -1; }
     .publicar-bar-acoes {
       grid-column: 1 / -1;
       display: flex;
@@ -501,8 +512,8 @@
       <div class="publicar-bar">
         <div class="publicar-bar-selects">
           <div class="publicar-sel-grupo">
-            <label>🗂 Categoria</label>
-            <select id="sel-categoria">
+            <label>🗂 Categorias <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.65rem">(Ctrl+Click para múltiplas)</span></label>
+            <select id="sel-categoria" multiple size="5">
               <option value="">Selecione o site primeiro…</option>
             </select>
           </div>
@@ -1069,14 +1080,15 @@ document.getElementById('btn-publicar-agora').addEventListener('click', async ()
   btn.disabled    = true;
   btn.textContent = 'Publicando…';
 
-  const catId = document.getElementById('sel-categoria').value;
+  const catIds = Array.from(document.getElementById('sel-categoria').selectedOptions)
+    .map(o => Number(o.value)).filter(id => id > 0);
   const rewritten = {
-    chapeu:      document.getElementById('ia-chapeu').value,
-    title:       document.getElementById('ia-titulo').value,
-    summary:     document.getElementById('ia-resumo').value,
-    body:        document.getElementById('ia-corpo').value,
-    tags:        document.getElementById('ia-tags').value.split(',').map(t => t.trim()).filter(Boolean),
-    category_id: catId ? Number(catId) : null
+    chapeu:       document.getElementById('ia-chapeu').value,
+    title:        document.getElementById('ia-titulo').value,
+    summary:      document.getElementById('ia-resumo').value,
+    body:         document.getElementById('ia-corpo').value,
+    tags:         document.getElementById('ia-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+    category_ids: catIds
   };
 
   const publicarReq = async (force = false) => {
