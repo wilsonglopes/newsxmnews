@@ -58,6 +58,10 @@ router.get('/', async (req, res) => {
   // Limite máximo de 10 MB para evitar abuso de banda
   const MAX_BYTES = 10 * 1024 * 1024;
 
+  // Domínios com hotlink protection que exigem Referer do próprio site
+  const NEEDS_OWN_REFERER = ['sombrio.sc.gov.br'];
+  const needsReferer = NEEDS_OWN_REFERER.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h));
+
   try {
     const resp = await axios.get(url, {
       responseType: 'arraybuffer',
@@ -68,7 +72,7 @@ router.get('/', async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
         'Accept-Language': 'pt-BR,pt;q=0.9',
-        // Sem Referer — mascara a origem
+        ...(needsReferer ? { 'Referer': `${parsed.origin}/` } : {}),
       },
       maxRedirects: 5,
       validateStatus: s => s >= 200 && s < 300,
