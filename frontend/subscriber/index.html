@@ -77,8 +77,9 @@
     .btn-primario:hover { background: var(--vermelho-lt); }
     .btn-secundario { background: var(--papel-alt); color: var(--grafite-md); border: 1px solid var(--borda); }
     .btn-secundario:hover { background: var(--borda); }
-    .btn-ia { background: var(--grafite); color: #fff; }
-    .btn-ia:hover { background: #374151; }
+    .btn-ia { background: #e5e7eb; color: #9ca3af; }
+    .btn-ia:not(:disabled) { background: linear-gradient(135deg,#b91c1c,var(--vermelho)); color: #fff; box-shadow: 0 2px 10px rgba(185,28,28,.3); }
+    .btn-ia:not(:disabled):hover { background: linear-gradient(135deg,#991b1b,#b91c1c); opacity:1; box-shadow: 0 3px 14px rgba(185,28,28,.4); }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
 
     /* ── Tabela ── */
@@ -1113,11 +1114,11 @@ async function gerarComIA() {
   });
   activePortalIndex = 0;
 
-  document.getElementById('ia-resultado').classList.remove('hidden');
+  // Seção de resultado fica OCULTA até o primeiro portal retornar
+  document.getElementById('ia-resultado').classList.add('hidden');
   document.getElementById('link-publicado').classList.remove('visivel');
   document.getElementById('badge-rascunho').style.display = 'none';
   renderTabs();
-  loadTabContent(0); // mostra estado "gerando" na aba
 
   // Gera para todos em paralelo
   await Promise.all(portaisResultados.map(async (portal, idx) => {
@@ -1137,7 +1138,10 @@ async function gerarComIA() {
       portal.status = 'pronto';
     } catch (err) {
       portal.status = 'erro'; portal.error = err.message;
+      toast(`Erro ao gerar "${portal.siteName}": ${err.message}`, 'erro');
     }
+    // Mostra seção assim que o primeiro portal terminar
+    document.getElementById('ia-resultado').classList.remove('hidden');
     renderTabs();
     if (idx === activePortalIndex) loadTabContent(activePortalIndex);
   }));
@@ -1148,6 +1152,9 @@ async function gerarComIA() {
     activePortalIndex = firstReady;
     loadTabContent(activePortalIndex);
     renderTabs();
+  } else {
+    // Todos falharam — esconde resultado
+    document.getElementById('ia-resultado').classList.add('hidden');
   }
 
   // Botão Publicar todos só aparece com 2+ portais

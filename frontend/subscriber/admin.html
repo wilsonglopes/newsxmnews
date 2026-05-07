@@ -166,11 +166,14 @@
     .fonte-bar-count { font-size: .75rem; color: var(--muted); min-width: 32px; text-align: right; }
 
     /* ══ BOTÕES ═══════════════════════════════════════════════════════════════ */
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: .83rem; font-weight: 500; cursor: pointer; border: none; font-family: var(--font); transition: opacity .15s, background .15s; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: .83rem; font-weight: 500; cursor: pointer; border: none; font-family: var(--font); transition: opacity .15s, background .15s, box-shadow .15s; }
     .btn:hover { opacity: .88; }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
     .btn-primary { background: var(--red); color: #fff; }
     .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-ia { background: #e5e7eb; color: #9ca3af; }
+    .btn-ia:not(:disabled) { background: linear-gradient(135deg,#b91c1c,#dc2626); color: #fff; box-shadow: 0 2px 10px rgba(185,28,28,.3); }
+    .btn-ia:not(:disabled):hover { background: linear-gradient(135deg,#991b1b,#b91c1c); opacity:1; box-shadow: 0 3px 14px rgba(185,28,28,.4); }
     .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
     .btn-sm { padding: 4px 10px; font-size: .78rem; }
     .btn-danger { background: #fee2e2; color: #991b1b; }
@@ -1302,11 +1305,11 @@ async function gerarComIAModal() {
   });
   activePortalIndexAdmin = 0;
 
-  document.getElementById('map-ia-resultado').classList.remove('hidden');
+  // Seção de resultado fica OCULTA até o primeiro portal retornar
+  document.getElementById('map-ia-resultado').classList.add('hidden');
   document.getElementById('map-link-publicado').classList.remove('visivel');
   document.getElementById('map-link-publicado').innerHTML = '';
   renderTabsAdmin();
-  loadTabAdmin(0);
 
   await Promise.all(portaisResultadosAdmin.map(async (portal, idx) => {
     try {
@@ -1325,7 +1328,10 @@ async function gerarComIAModal() {
       portal.status = 'pronto';
     } catch (err) {
       portal.status = 'erro'; portal.error = err.message;
+      toast(`Erro ao gerar "${portal.siteName}": ${err.message}`, 'erro');
     }
+    // Mostra seção assim que o primeiro portal terminar (com ou sem erro)
+    document.getElementById('map-ia-resultado').classList.remove('hidden');
     renderTabsAdmin();
     if (idx === activePortalIndexAdmin) loadTabAdmin(activePortalIndexAdmin);
   }));
@@ -1335,6 +1341,9 @@ async function gerarComIAModal() {
     activePortalIndexAdmin = firstReady;
     loadTabAdmin(activePortalIndexAdmin);
     renderTabsAdmin();
+  } else {
+    // Todos falharam — esconde a seção de resultado
+    document.getElementById('map-ia-resultado').classList.add('hidden');
   }
 
   document.getElementById('btn-pub-todos-modal').style.display =
@@ -1361,7 +1370,7 @@ async function gerarComIAModal() {
 
   btn.disabled = false;
   atualizarBotaoGerarAdmin();
-  toast('Conteúdo gerado com IA!', 'sucesso');
+  if (firstReady >= 0) toast('Conteúdo gerado com IA!', 'sucesso');
 }
 
 // Rastreia publicações do artigo atual no modal
