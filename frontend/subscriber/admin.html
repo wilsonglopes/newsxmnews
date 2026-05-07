@@ -264,18 +264,32 @@
     .publicar-sel-grupo select[multiple] { background:var(--white); -webkit-appearance:none; appearance:none; padding:.3rem .5rem; min-height:110px; height:auto; }
     .publicar-sel-grupo select[multiple] option { padding:5px 6px; border-radius:4px; cursor:pointer; }
     .publicar-sel-grupo select[multiple] option:checked { background:var(--red); color:#fff; }
-    .portais-checkboxes { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
-    .portal-cb-label { display:flex; align-items:center; gap:5px; cursor:pointer; font-size:.79rem; font-weight:500; background:var(--bg); border:1.5px solid var(--border); border-radius:6px; padding:4px 10px; transition:border-color .15s,background .15s; user-select:none; }
-    .portal-cb-label:hover { border-color:var(--red-lt); background:#fff; }
-    .portal-cb-label input[type=checkbox] { accent-color:var(--red); width:13px; height:13px; cursor:pointer; }
-    .portal-cb-label.selecionado { border-color:var(--red); background:#fff; color:var(--red); }
-    .portal-tab-bar { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:.75rem; border-bottom:2px solid var(--border); padding-bottom:0; }
-    .portal-tab { padding:6px 14px; border:1.5px solid var(--border); border-bottom:none; border-radius:6px 6px 0 0; font-size:.79rem; font-weight:600; cursor:pointer; background:var(--bg); color:var(--muted); transition:all .15s; margin-bottom:-2px; }
-    .portal-tab.active { background:#fff; border-color:var(--red); color:var(--red); border-bottom-color:#fff; }
-    .portal-tab.gerando { color:#c2410c; border-color:#c2410c; animation:piscarAdmin .8s infinite alternate; }
+    /* ── Multi-portal: cards de seleção ── */
+    .portais-section { width:100%; }
+    .portais-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+    .portais-section-titulo { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+    .portais-checkboxes { display:flex; flex-wrap:wrap; gap:8px; }
+    .portal-cb-label { position:relative; display:flex; flex-direction:column; justify-content:center; min-width:130px; cursor:pointer; background:#fff; border:2px solid var(--border); border-radius:10px; padding:10px 36px 10px 13px; transition:border-color .15s,background .15s,box-shadow .15s,transform .1s; user-select:none; }
+    .portal-cb-label:hover { border-color:#fca5a5; box-shadow:0 4px 12px rgba(0,0,0,.09); transform:translateY(-1px); }
+    .portal-cb-label input[type=checkbox] { position:absolute; opacity:0; width:0; height:0; }
+    .portal-cb-nome { font-size:.84rem; font-weight:600; color:#1f2937; line-height:1.3; }
+    .portal-cb-cliente { font-size:.68rem; color:var(--muted); margin-top:2px; line-height:1.2; }
+    .portal-cb-check { position:absolute; top:50%; right:9px; transform:translateY(-50%); width:20px; height:20px; border:2px solid #d1d5db; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.62rem; background:#f3f4f6; transition:all .15s; flex-shrink:0; color:transparent; }
+    .portal-cb-label.selecionado { border-color:var(--red); background:#fff7f7; box-shadow:0 0 0 3px rgba(220,38,38,.1); }
+    .portal-cb-label.selecionado .portal-cb-nome { color:var(--red); }
+    .portal-cb-label.selecionado .portal-cb-check { border-color:var(--red); background:var(--red); color:#fff; }
+    .portal-footer-acoes { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+    .btn-sel-todos { font-size:.68rem; font-weight:600; background:none; border:1px solid var(--border); border-radius:5px; padding:3px 9px; cursor:pointer; color:var(--muted); transition:all .15s; }
+    .btn-sel-todos:hover { border-color:var(--red); color:var(--red); background:#fff; }
+    /* ── Multi-portal: abas de prévia ── */
+    .portal-tab-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:.85rem; border-bottom:2px solid var(--border); padding-bottom:0; }
+    .portal-tab { padding:8px 16px; border:2px solid var(--border); border-bottom:none; border-radius:8px 8px 0 0; font-size:.8rem; font-weight:600; cursor:pointer; background:var(--bg); color:var(--muted); transition:all .15s; margin-bottom:-2px; white-space:nowrap; }
+    .portal-tab:hover:not(.active) { background:#fff; border-color:#9ca3af; }
+    .portal-tab.active { background:#fff; border-color:var(--red); color:var(--red); border-bottom-color:#fff; box-shadow:0 -2px 6px rgba(220,38,38,.1); }
+    .portal-tab.gerando { color:#d97706; border-color:#f59e0b; animation:piscarAdmin .8s infinite alternate; }
     .portal-tab.publicado { color:var(--green); border-color:var(--green); background:#f0fdf4; }
-    .portal-tab.erro { color:var(--red); border-color:var(--red); }
-    @keyframes piscarAdmin { from{opacity:1} to{opacity:.5} }
+    .portal-tab.erro { color:var(--red); border-color:var(--red); background:#fff5f5; }
+    @keyframes piscarAdmin { from{opacity:1} to{opacity:.45} }
     .publicar-bar-acoes { grid-column:1/-1; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; padding-top:.5rem; border-top:1px solid var(--border); }
     .btn-publicar { flex:1; padding:.6rem 1.1rem; background:linear-gradient(135deg,#b91c1c,#dc2626); color:#fff; border:none; border-radius:8px; font-size:.88rem; font-weight:600; font-family:var(--font); cursor:pointer; transition:opacity .15s; }
     .btn-publicar:hover:not(:disabled) { opacity:.9; }
@@ -628,13 +642,18 @@ Portal<span class="logo-news">News</span>
          referrerpolicy="no-referrer"
          onerror="this.classList.add('hidden')" />
     <div class="modal-corpo" id="map-corpo-leitura"></div>
-    <div class="modal-footer">
-      <div style="flex:1;min-width:200px">
-        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:2px">🌐 Portais de destino</label>
+    <div class="modal-footer" style="flex-direction:column;align-items:stretch;gap:10px;">
+      <div class="portais-section">
+        <div class="portais-section-header">
+          <span class="portais-section-titulo">🌐 Portais de destino</span>
+          <button type="button" class="btn-sel-todos" id="map-btn-sel-todos" onclick="toggleSelecionarTodosAdmin()">Selecionar todos</button>
+        </div>
         <div id="map-portais-checkboxes" class="portais-checkboxes"><span style="font-size:.78rem;color:var(--muted)">Carregando…</span></div>
       </div>
-      <button class="btn btn-ia" id="btn-gerar-ia-modal" disabled>✦ Gerar com IA</button>
-      <a id="map-link-original" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
+      <div class="portal-footer-acoes">
+        <button class="btn btn-ia" id="btn-gerar-ia-modal" disabled style="flex:1;justify-content:center;">✦ Gerar com IA</button>
+        <a id="map-link-original" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
+      </div>
     </div>
 
     <!-- Resultado da IA -->
@@ -1058,13 +1077,29 @@ function renderPortaisCheckboxesAdmin() {
   allSitesCache.forEach(s => {
     const lbl = document.createElement('label');
     lbl.className = 'portal-cb-label';
-    lbl.innerHTML = `<input type="checkbox" value="${s.id}"> ${s.name}${s.subscriber_name ? ` <small style="opacity:.6">(${s.subscriber_name})</small>` : ''}`;
+    lbl.innerHTML = `
+      <input type="checkbox" value="${s.id}">
+      <span class="portal-cb-nome">${s.name}</span>
+      ${s.subscriber_name ? `<span class="portal-cb-cliente">${s.subscriber_name}</span>` : ''}
+      <span class="portal-cb-check">✓</span>`;
     lbl.querySelector('input').addEventListener('change', function() {
       lbl.classList.toggle('selecionado', this.checked);
       atualizarBotaoGerarAdmin();
     });
     container.appendChild(lbl);
   });
+}
+
+function toggleSelecionarTodosAdmin() {
+  const inputs = Array.from(document.querySelectorAll('#map-portais-checkboxes input'));
+  const algumDesmarcado = inputs.some(i => !i.checked);
+  inputs.forEach(i => {
+    i.checked = algumDesmarcado;
+    i.closest('.portal-cb-label').classList.toggle('selecionado', algumDesmarcado);
+  });
+  const btn = document.getElementById('map-btn-sel-todos');
+  if (btn) btn.textContent = algumDesmarcado ? 'Desmarcar todos' : 'Selecionar todos';
+  atualizarBotaoGerarAdmin();
 }
 
 function atualizarBotaoGerarAdmin() {
