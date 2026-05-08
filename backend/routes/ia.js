@@ -20,14 +20,36 @@ function truncarSemEspacos(str, maxChars) {
   return str;
 }
 
-// POST /api/ia/rewrite
-// Body: { title, content, ai_prompt? }
-// Usa GEMINI_KEY do .env (chave do sistema — nunca exposta ao frontend)
-router.post('/rewrite', async (req, res) => {
-  const geminiKey = process.env.GEMINI_KEY || '';
-  if (!geminiKey) return res.status(503).json({ error: 'Chave Gemini não configurada no servidor.' });
+// Extrai JSON da resposta em texto livre da IA
+function extrairJSON(texto) {
+  if (!texto) return null;
+  let resultado = null;
+  try { resultado = JSON.parse(texto.trim()); } catch {}
+  if (!resultado) { try { const m = texto.match(/\{[\s\S]*\}/); if (m) resultado = JSON.parse(m[0]); } catch {} }
+  if (!resultado) { try { const m = texto.match(/```(?:json)?\s*([\s\S]*?)\s*```/); if (m) resultado = JSON.parse(m[1]); } catch {} }
+  return resultado;
+}
 
-  const { title = '', content = '', ai_prompt = '' } = req.body;
+// Aplica limites editoriais ao resultado da IA
+function aplicarLimites(resultado) {
+  if (resultado.chapeu) {
+    resultado.chapeu = resultado.chapeu.trim().split(/\s+/).slice(0, 2).join(' ').toUpperCase();
+  }
+  if (resultado.titulo) {
+    resultado.titulo = truncarSemEspacos(resultado.titulo, 90);
+  }
+  if (resultado.resumo) {
+    resultado.resumo = resultado.resumo.trim();
+  }
+  return resultado;
+}
+
+// POST /api/ia/rewrite
+// Body: { title, content, ai_prompt?, provider? }
+// provider: 'gemini' (padrão) | 'deepseek'
+// Chaves lidas do .env — nunca expostas ao frontend
+router.post('/rewrite', async (req, res) => {
+  const { title = '', content = '', ai_prompt = '', provider = 'gemini' } = req.body;
   if (!content && !title) return res.status(400).json({ error: 'Forneça title ou content.' });
 
   const promptSistema = ai_prompt ||
@@ -36,42 +58,56 @@ Retorne SOMENTE um JSON com:
 { "chapeu": string(máx 2 palavras em maiúsculas, ex: "ECONOMIA" ou "ECONOMIA DO BRASIL"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(frase completa com sentido, máx ~160 caracteres sem contar espaços — NUNCA termine no meio de uma oração; se necessário, use uma frase mais curta mas sempre encerre com ponto final), "corpo": string(HTML com <p>), "tags": string[] }.`;
 
   try {
-    const resp = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-      {
-        system_instruction: { parts: [{ text: promptSistema }] },
-        contents: [{ role: 'user', parts: [{ text: `TÍTULO: ${title}\n\nCONTEÚDO:\n${content}` }] }],
-        generationConfig: { maxOutputTokens: 4096 }
-      },
-      { headers: { 'Content-Type': 'application/json' }, timeout: 60000 }
-    );
+    let textoIA = '';
 
-    const textoIA = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (provider === 'deepseek') {
+      // ── DeepSeek (API compatível com OpenAI) ──────────────────────────────────
+      const deepseekKey = process.env.DEEPSEEK_KEY || '';
+      if (!deepseekKey) return res.status(503).json({ error: 'Chave DeepSeek não configurada no servidor.' });
+
+      const resp = await axios.post(
+        'https://api.deepseek.com/chat/completions',
+        {
+          model: 'deepseek-chat',
+          messages: [
+            { role: 'system', content: promptSistema },
+            { role: 'user',   content: `TÍTULO: ${title}\n\nCONTEÚDO:\n${content}` }
+          ],
+          max_tokens: 4096,
+          response_format: { type: 'json_object' }
+        },
+        {
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` },
+          timeout: 60000
+        }
+      );
+      textoIA = resp.data?.choices?.[0]?.message?.content || '';
+    } else {
+      // ── Gemini ────────────────────────────────────────────────────────────────
+      const geminiKey = process.env.GEMINI_KEY || '';
+      if (!geminiKey) return res.status(503).json({ error: 'Chave Gemini não configurada no servidor.' });
+
+      const resp = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        {
+          system_instruction: { parts: [{ text: promptSistema }] },
+          contents: [{ role: 'user', parts: [{ text: `TÍTULO: ${title}\n\nCONTEÚDO:\n${content}` }] }],
+          generationConfig: { maxOutputTokens: 4096 }
+        },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 60000 }
+      );
+      textoIA = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
+
     if (!textoIA) return res.status(502).json({ error: 'Resposta vazia da IA.' });
 
-    // Extrai JSON da resposta
-    let resultado = null;
-    try { resultado = JSON.parse(textoIA.trim()); } catch {}
-    if (!resultado) { try { const m = textoIA.match(/\{[\s\S]*\}/); if (m) resultado = JSON.parse(m[0]); } catch {} }
-    if (!resultado) { try { const m = textoIA.match(/```(?:json)?\s*([\s\S]*?)\s*```/); if (m) resultado = JSON.parse(m[1]); } catch {} }
-
+    const resultado = extrairJSON(textoIA);
     if (!resultado) return res.status(502).json({ error: 'Não foi possível interpretar a resposta da IA.' });
 
-    // Aplica limites editoriais
-    if (resultado.chapeu) {
-      resultado.chapeu = resultado.chapeu.trim().split(/\s+/).slice(0, 2).join(' ').toUpperCase();
-    }
-    if (resultado.titulo) {
-      resultado.titulo = truncarSemEspacos(resultado.titulo, 90);
-    }
-    if (resultado.resumo) {
-      resultado.resumo = resultado.resumo.trim();
-    }
-
-    res.json(resultado);
+    res.json(aplicarLimites(resultado));
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
-    console.error('[ia/rewrite]', msg);
+    console.error(`[ia/rewrite][${provider}]`, msg);
     res.status(502).json({ error: msg });
   }
 });

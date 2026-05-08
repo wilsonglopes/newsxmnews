@@ -195,16 +195,32 @@
       transition: border-color .15s;
     }
     .publicar-sel-grupo select:focus { outline: none; border-color: var(--vermelho); }
-    .publicar-sel-grupo select[multiple] {
-      background: var(--branco);
-      -webkit-appearance: none;
-      appearance: none;
+    .cat-checkboxes {
+      border: 1.5px solid var(--borda);
+      border-radius: 8px;
       padding: 0.3rem 0.5rem;
       min-height: 110px;
-      height: auto;
+      max-height: 140px;
+      overflow-y: auto;
+      background: var(--branco);
     }
-    .publicar-sel-grupo select[multiple] option { padding: 5px 6px; border-radius: 4px; cursor: pointer; }
-    .publicar-sel-grupo select[multiple] option:checked { background: var(--vermelho); color: #fff; }
+    .cat-checkboxes label {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 3px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--grafite);
+      user-select: none;
+    }
+    .cat-checkboxes label:hover { background: #f1f5f9; }
+    .cat-checkboxes input[type="checkbox"] { cursor: pointer; accent-color: var(--vermelho); flex-shrink: 0; }
+    .cat-placeholder { color: var(--grafite-lt); font-size: 0.8rem; padding: 4px 2px; display: block; }
     .publicar-bar-selects { grid-column: 1 / -1; }
     .publicar-bar-acoes {
       grid-column: 1 / -1;
@@ -509,6 +525,10 @@
         <div id="portais-checkboxes" class="portais-checkboxes"><span style="font-size:.78rem;color:var(--grafite-lt)">Carregando…</span></div>
       </div>
       <div class="portal-footer-acoes">
+        <select id="sel-ia-provider" title="Provedor de IA" style="border:1px solid var(--borda);border-radius:var(--radius);padding:0.4rem 0.55rem;font-size:0.78rem;font-family:var(--font-corpo);color:var(--grafite-md);background:var(--branco);cursor:pointer;flex-shrink:0;">
+          <option value="gemini">Gemini</option>
+          <option value="deepseek">DeepSeek</option>
+        </select>
         <button class="btn btn-ia" id="btn-gerar-ia" disabled style="flex:1;justify-content:center;">✦ Gerar com IA</button>
         <a id="ml-link" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
       </div>
@@ -548,10 +568,8 @@
       <div class="publicar-bar">
         <div class="publicar-bar-selects">
           <div class="publicar-sel-grupo">
-            <label>🗂 Categorias <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.65rem">(Ctrl+Click para múltiplas)</span></label>
-            <select id="sel-categoria" multiple size="5">
-              <option value="">Selecione o site primeiro…</option>
-            </select>
+            <label>🗂 Categorias</label>
+            <div id="sel-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o site primeiro…</span></div>
           </div>
         </div>
         <div class="publicar-bar-acoes">
@@ -1120,13 +1138,17 @@ async function gerarComIA() {
   document.getElementById('badge-rascunho').style.display = 'none';
   renderTabs();
 
-  // Gera para todos em paralelo
-  await Promise.all(portaisResultados.map(async (portal, idx) => {
+  const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
+  localStorage.setItem('ia_provider', provider);
+
+  // Gera sequencialmente (evita rate limiting da API com requisições paralelas)
+  for (let idx = 0; idx < portaisResultados.length; idx++) {
+    const portal = portaisResultados[idx];
     try {
       const resp = await fetch(`${BACKEND}/api/ia/rewrite`, {
         method: 'POST',
         headers: { ...authHeader(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: artigoAtual.title, content: conteudo, ai_prompt: portal.ai_prompt })
+        body: JSON.stringify({ title: artigoAtual.title, content: conteudo, ai_prompt: portal.ai_prompt, provider })
       });
       const r = await resp.json();
       if (!resp.ok) throw new Error(r.error || 'Erro na IA');
@@ -1144,7 +1166,7 @@ async function gerarComIA() {
     document.getElementById('ia-resultado').classList.remove('hidden');
     renderTabs();
     if (idx === activePortalIndex) loadTabContent(activePortalIndex);
-  }));
+  }
 
   // Ativa primeira aba com resultado pronto
   const firstReady = portaisResultados.findIndex(p => p.status === 'pronto');
@@ -1203,8 +1225,8 @@ function saveCurrentTabContent() {
   p.resumo = document.getElementById('ia-resumo').value;
   p.corpo  = document.getElementById('ia-corpo').value;
   p.tags   = document.getElementById('ia-tags').value;
-  p.categoryIds = Array.from(document.getElementById('sel-categoria').selectedOptions)
-    .map(o => Number(o.value)).filter(id => id > 0);
+  p.categoryIds = Array.from(document.querySelectorAll('#sel-categoria input[type="checkbox"]:checked'))
+    .map(i => Number(i.value)).filter(id => id > 0);
 }
 
 function loadTabContent(idx) {
@@ -1405,12 +1427,11 @@ let wpCategorias = []; // cache das categorias do site selecionado
 
 async function carregarCategoriasWP(siteId) {
   const sel = document.getElementById('sel-categoria');
-  sel.innerHTML = '<option value="">Carregando categorias…</option>';
-  sel.disabled  = true;
+  sel.innerHTML = '<span class="cat-placeholder">Carregando categorias…</span>';
   wpCategorias  = [];
 
   if (!siteId) {
-    sel.innerHTML = '<option value="">Selecione o site primeiro…</option>';
+    sel.innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>';
     return;
   }
 
@@ -1419,7 +1440,7 @@ async function carregarCategoriasWP(siteId) {
     const cats = await res.json();
 
     if (!Array.isArray(cats) || !cats.length) {
-      sel.innerHTML = '<option value="">Sem categorias / não é WordPress</option>';
+      sel.innerHTML = '<span class="cat-placeholder">Sem categorias / não é WordPress</span>';
       return;
     }
 
@@ -1428,25 +1449,31 @@ async function carregarCategoriasWP(siteId) {
     // Monta hierarquia: pais primeiro, filhos indentados abaixo de cada pai
     const pais   = cats.filter(c => !c.parent);
     const filhos = cats.filter(c => c.parent);
-    let opts = '<option value="">— Sem categoria —</option>';
+    let html = '';
     for (const pai of pais) {
-      opts += `<option value="${pai.id}">${pai.name}${pai.count ? ` (${pai.count})` : ''}</option>`;
+      html += `<label><input type="checkbox" value="${pai.id}"> ${pai.name}${pai.count ? ` (${pai.count})` : ''}</label>`;
       for (const filho of filhos.filter(f => f.parent === pai.id)) {
-        opts += `<option value="${filho.id}">&nbsp;&nbsp;↳ ${filho.name}${filho.count ? ` (${filho.count})` : ''}</option>`;
+        html += `<label style="padding-left:1.2rem"><input type="checkbox" value="${filho.id}"> ↳ ${filho.name}${filho.count ? ` (${filho.count})` : ''}</label>`;
       }
     }
     // Subcategorias cujo pai não está na lista
     const paiIds = new Set(pais.map(c => c.id));
     for (const orfao of filhos.filter(f => !paiIds.has(f.parent))) {
-      opts += `<option value="${orfao.id}">${orfao.name}${orfao.count ? ` (${orfao.count})` : ''}</option>`;
+      html += `<label><input type="checkbox" value="${orfao.id}"> ${orfao.name}${orfao.count ? ` (${orfao.count})` : ''}</label>`;
     }
-    sel.innerHTML = opts;
-    sel.disabled = false;
+    sel.innerHTML = html;
 
-    // Tenta sugestão automática com base na categoria do artigo atual
-    sugerirCategoria();
+    // Restaura seleção salva; só auto-sugere se não houver seleção prévia
+    const savedIds = portaisResultados[activePortalIndex]?.categoryIds;
+    if (savedIds?.length) {
+      sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
+        i.checked = savedIds.includes(Number(i.value));
+      });
+    } else {
+      sugerirCategoria();
+    }
   } catch (e) {
-    sel.innerHTML = '<option value="">Erro ao buscar categorias</option>';
+    sel.innerHTML = '<span class="cat-placeholder">Erro ao buscar categorias</span>';
     console.warn('[cats]', e.message);
   }
 }
@@ -1469,9 +1496,8 @@ function sugerirCategoria() {
   }
 
   if (melhor) {
-    sel.value = melhor.id;
-    // Indica visualmente que foi sugerida pela IA
-    sel.title = `Categoria sugerida automaticamente: "${melhor.name}"`;
+    const inp = sel.querySelector(`input[value="${melhor.id}"]`);
+    if (inp) inp.checked = true;
   }
 }
 
@@ -1702,6 +1728,12 @@ document.getElementById('btn-atualizar-historico').addEventListener('click', car
 inicializarHeader();
 carregarFontes();
 carregarSites(); // popula o select de sites no modal de publicação
+
+// Restaura provedor de IA salvo anteriormente
+(function() {
+  const sel = document.getElementById('sel-ia-provider');
+  if (sel) sel.value = localStorage.getItem('ia_provider') || 'gemini';
+})();
 // Chrome preenche autocomplete DEPOIS do JS — limpa com delay e recarrega se necessário
 const campoBusca = document.getElementById('filtro-busca');
 campoBusca.value = '';

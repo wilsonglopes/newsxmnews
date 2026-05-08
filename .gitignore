@@ -30,6 +30,8 @@ Thumbs.db
 credenciais*.txt
 senha*.txt
 *.credentials.txt
+*.key
+*.pem
 
 # Arquivos temporários / gerados localmente
 artigo-*.html

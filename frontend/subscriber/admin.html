@@ -264,9 +264,11 @@
     .publicar-sel-grupo { display:flex; flex-direction:column; gap:.25rem; }
     .publicar-sel-grupo label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
     .publicar-sel-grupo select { width:100%; padding:.5rem .7rem; border:1.5px solid var(--border); border-radius:8px; font-size:.84rem; font-family:var(--font); color:var(--text); background:var(--white); cursor:pointer; }
-    .publicar-sel-grupo select[multiple] { background:var(--white); -webkit-appearance:none; appearance:none; padding:.3rem .5rem; min-height:110px; height:auto; }
-    .publicar-sel-grupo select[multiple] option { padding:5px 6px; border-radius:4px; cursor:pointer; }
-    .publicar-sel-grupo select[multiple] option:checked { background:var(--red); color:#fff; }
+    .cat-checkboxes { border:1.5px solid var(--border); border-radius:8px; padding:.3rem .5rem; min-height:110px; max-height:140px; overflow-y:auto; background:var(--white); }
+    .cat-checkboxes label { display:flex; align-items:center; gap:.45rem; padding:3px 4px; border-radius:4px; cursor:pointer; font-size:.82rem; font-weight:400; text-transform:none; letter-spacing:0; color:var(--text); user-select:none; }
+    .cat-checkboxes label:hover { background:#f1f5f9; }
+    .cat-checkboxes input[type="checkbox"] { cursor:pointer; accent-color:var(--red); flex-shrink:0; }
+    .cat-placeholder { color:var(--muted); font-size:.8rem; padding:4px 2px; display:block; }
     /* ── Multi-portal: cards de seleção ── */
     .portais-section { width:100%; }
     .portais-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
@@ -654,6 +656,10 @@ Portal<span class="logo-news">News</span>
         <div id="map-portais-checkboxes" class="portais-checkboxes"><span style="font-size:.78rem;color:var(--muted)">Carregando…</span></div>
       </div>
       <div class="portal-footer-acoes">
+        <select id="sel-ia-provider" title="Provedor de IA" style="border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.55rem;font-size:0.78rem;font-family:inherit;color:var(--text);background:var(--white);cursor:pointer;flex-shrink:0;">
+          <option value="gemini">Gemini</option>
+          <option value="deepseek">DeepSeek</option>
+        </select>
         <button class="btn btn-ia" id="btn-gerar-ia-modal" disabled style="flex:1;justify-content:center;">✦ Gerar com IA</button>
         <a id="map-link-original" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
       </div>
@@ -672,8 +678,8 @@ Portal<span class="logo-news">News</span>
       <div class="publicar-bar">
         <div class="publicar-bar-selects">
           <div class="publicar-sel-grupo">
-            <label>🗂 Categorias <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.65rem">(Ctrl+Click para múltiplas)</span></label>
-            <select id="map-categoria" multiple size="5"><option value="">Selecione o site primeiro…</option></select>
+            <label>🗂 Categorias</label>
+            <div id="map-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o site primeiro…</span></div>
           </div>
         </div>
         <div class="publicar-bar-acoes">
@@ -1049,6 +1055,9 @@ let activePortalIndexAdmin = 0;
 
 async function iniciarPublicar() {
   await Promise.all([carregarArtigosPub(), carregarSitesModal()]);
+  // Restaura provedor de IA salvo anteriormente
+  const sel = document.getElementById('sel-ia-provider');
+  if (sel) sel.value = localStorage.getItem('ia_provider') || 'gemini';
 }
 
 async function carregarSitesModal() {
@@ -1221,7 +1230,7 @@ async function abrirArtigoModal(artigo) {
   document.getElementById('btn-pub-todos-modal').style.display = 'none';
   document.getElementById('btn-pub-modal').disabled = true;
   document.getElementById('btn-pub-modal').textContent = '✓ Publicar este';
-  document.getElementById('map-categoria').innerHTML = '<option value="">Selecione o site primeiro…</option>';
+  document.getElementById('map-categoria').innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>';
   pubHistorico = [];
   pubIdParaAtualizar = null;
 
@@ -1257,16 +1266,24 @@ async function abrirArtigoModal(artigo) {
 
 async function carregarCatsAdmin(siteId) {
   const sel = document.getElementById('map-categoria');
-  sel.innerHTML = '<option value="">Carregando…</option>';
-  sel.disabled = true;
-  if (!siteId) { sel.innerHTML = '<option value="">Selecione o site primeiro…</option>'; return; }
+  sel.innerHTML = '<span class="cat-placeholder">Carregando…</span>';
+  if (!siteId) { sel.innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>'; return; }
   try {
     const cats = await fetch(`${BACKEND}/api/sites/${siteId}/wp-categories`, { headers: authHeader() }).then(r => r.json());
-    if (!Array.isArray(cats) || !cats.length) { sel.innerHTML = '<option value="">— Sem categoria —</option>'; sel.disabled = false; return; }
-    sel.innerHTML = '<option value="">— Sem categoria —</option>' +
-      cats.map(c => `<option value="${c.id}">${c.name}${c.count ? ` (${c.count})` : ''}</option>`).join('');
-    sel.disabled = false;
-  } catch { sel.innerHTML = '<option value="">Erro ao carregar</option>'; sel.disabled = false; }
+    if (!Array.isArray(cats) || !cats.length) { sel.innerHTML = '<span class="cat-placeholder">— Sem categoria —</span>'; return; }
+    let html = '';
+    for (const c of cats) {
+      html += `<label><input type="checkbox" value="${c.id}"> ${c.name}${c.count ? ` (${c.count})` : ''}</label>`;
+    }
+    sel.innerHTML = html;
+    // Restaura seleção salva para este portal
+    const savedIds = portaisResultadosAdmin[activePortalIndexAdmin]?.categoryIds;
+    if (savedIds?.length) {
+      sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
+        i.checked = savedIds.includes(Number(i.value));
+      });
+    }
+  } catch { sel.innerHTML = '<span class="cat-placeholder">Erro ao carregar</span>'; }
 }
 
 function extrairJSONAdmin(texto) {
@@ -1311,12 +1328,17 @@ async function gerarComIAModal() {
   document.getElementById('map-link-publicado').innerHTML = '';
   renderTabsAdmin();
 
-  await Promise.all(portaisResultadosAdmin.map(async (portal, idx) => {
+  const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
+  localStorage.setItem('ia_provider', provider);
+
+  // Gera sequencialmente (evita rate limiting da API com requisições paralelas)
+  for (let idx = 0; idx < portaisResultadosAdmin.length; idx++) {
+    const portal = portaisResultadosAdmin[idx];
     try {
       const resp = await fetch(`${BACKEND}/api/ia/rewrite`, {
         method: 'POST',
         headers: { ...authHeader(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: titulo, content: conteudo, ai_prompt: portal.ai_prompt })
+        body: JSON.stringify({ title: titulo, content: conteudo, ai_prompt: portal.ai_prompt, provider })
       });
       const r = await resp.json();
       if (!resp.ok) throw new Error(r.error || 'Erro na IA');
@@ -1334,7 +1356,7 @@ async function gerarComIAModal() {
     document.getElementById('map-ia-resultado').classList.remove('hidden');
     renderTabsAdmin();
     if (idx === activePortalIndexAdmin) loadTabAdmin(activePortalIndexAdmin);
-  }));
+  }
 
   const firstReady = portaisResultadosAdmin.findIndex(p => p.status === 'pronto');
   if (firstReady >= 0) {
@@ -1410,8 +1432,8 @@ function saveCurrentTabAdmin() {
   p.resumo = document.getElementById('map-resumo').value;
   p.corpo  = document.getElementById('map-corpo').value;
   p.tags   = document.getElementById('map-tags').value;
-  p.categoryIds = Array.from(document.getElementById('map-categoria').selectedOptions)
-    .map(o => Number(o.value)).filter(id => id > 0);
+  p.categoryIds = Array.from(document.querySelectorAll('#map-categoria input[type="checkbox"]:checked'))
+    .map(i => Number(i.value)).filter(id => id > 0);
 }
 
 function loadTabAdmin(idx) {

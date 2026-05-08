@@ -1,83 +1,83 @@
 <?php
 /**
- * Plugin Name: XIXO Publisher
- * Description: Integração com o Sistema XIXO — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     1.5.2
+ * Plugin Name: Portal Publisher
+ * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
+ * Version:     1.6.1
  * Author:      Sistema XIXO
- * Text Domain: xixo-publisher
+ * Text Domain: portal-publisher
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'XIXO_VERSION',    '1.5.2' );
-define( 'XIXO_OPTION_KEY', 'xixo_api_key' );
+define( 'PORTAL_PUB_VERSION',    '1.6.1' );
+define( 'PORTAL_PUB_OPTION_KEY', 'xixo_api_key' );
 
 // ── Ativação: gera chave automática ──────────────────────────────────────────
 register_activation_hook( __FILE__, function () {
-    if ( ! get_option( XIXO_OPTION_KEY ) ) {
-        update_option( XIXO_OPTION_KEY, bin2hex( random_bytes( 24 ) ) );
+    if ( ! get_option( PORTAL_PUB_OPTION_KEY ) ) {
+        update_option( PORTAL_PUB_OPTION_KEY, bin2hex( random_bytes( 24 ) ) );
     }
 } );
 
 // ── Admin: menu de configurações ─────────────────────────────────────────────
 add_action( 'admin_menu', function () {
     add_options_page(
-        'XIXO Publisher',
-        'XIXO Publisher',
+        'Portal Publisher',
+        'Portal Publisher',
         'manage_options',
-        'xixo-publisher',
-        'xixo_settings_page'
+        'portal-publisher',
+        'portal_pub_settings_page'
     );
 } );
 
-function xixo_settings_page() {
+function portal_pub_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) return;
 
     $msg = '';
 
-    if ( isset( $_POST['xixo_action'] ) && check_admin_referer( 'xixo_save' ) ) {
-        if ( $_POST['xixo_action'] === 'save' ) {
-            $k = sanitize_text_field( $_POST['xixo_api_key'] ?? '' );
+    if ( isset( $_POST['portal_pub_action'] ) && check_admin_referer( 'portal_pub_save' ) ) {
+        if ( $_POST['portal_pub_action'] === 'save' ) {
+            $k = sanitize_text_field( $_POST['portal_pub_api_key'] ?? '' );
             if ( $k ) {
-                update_option( XIXO_OPTION_KEY, $k );
+                update_option( PORTAL_PUB_OPTION_KEY, $k );
                 $msg = '<div class="notice notice-success inline"><p>✔ Chave salva com sucesso.</p></div>';
             }
-        } elseif ( $_POST['xixo_action'] === 'regenerate' ) {
-            update_option( XIXO_OPTION_KEY, bin2hex( random_bytes( 24 ) ) );
+        } elseif ( $_POST['portal_pub_action'] === 'regenerate' ) {
+            update_option( PORTAL_PUB_OPTION_KEY, bin2hex( random_bytes( 24 ) ) );
             $msg = '<div class="notice notice-success inline"><p>✔ Nova chave gerada.</p></div>';
         }
     }
 
-    $key      = get_option( XIXO_OPTION_KEY, '' );
+    $key      = get_option( PORTAL_PUB_OPTION_KEY, '' );
     $endpoint = rest_url( 'xixo/v1/publish' );
     ?>
     <div class="wrap">
-        <h1>⚙ XIXO Publisher</h1>
-        <p style="color:#555;">Integração com o Sistema XIXO de agregação e publicação de notícias. <strong>v<?php echo XIXO_VERSION; ?></strong></p>
+        <h1>⚙ Portal Publisher</h1>
+        <p style="color:#555;">Integração com o Sistema de Agregação de Notícias. <strong>v<?php echo PORTAL_PUB_VERSION; ?></strong></p>
         <?php echo $msg; ?>
 
         <table class="form-table" role="presentation">
             <tr>
                 <th scope="row">Versão</th>
-                <td><code><?php echo XIXO_VERSION; ?></code></td>
+                <td><code><?php echo PORTAL_PUB_VERSION; ?></code></td>
             </tr>
             <tr>
                 <th scope="row">Endpoint de publicação</th>
                 <td>
-                    <code id="xixo-endpoint"><?php echo esc_html( $endpoint ); ?></code>
-                    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('xixo-endpoint').innerText)" class="button button-small" style="margin-left:8px;">Copiar</button>
+                    <code id="portal-pub-endpoint"><?php echo esc_html( $endpoint ); ?></code>
+                    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('portal-pub-endpoint').innerText)" class="button button-small" style="margin-left:8px;">Copiar</button>
                 </td>
             </tr>
             <tr>
                 <th scope="row">Chave de API</th>
                 <td>
                     <form method="post">
-                        <?php wp_nonce_field( 'xixo_save' ); ?>
-                        <input type="text" name="xixo_api_key" id="xixo-key" value="<?php echo esc_attr( $key ); ?>"
+                        <?php wp_nonce_field( 'portal_pub_save' ); ?>
+                        <input type="text" name="portal_pub_api_key" id="portal-pub-key" value="<?php echo esc_attr( $key ); ?>"
                                class="regular-text" style="font-family:monospace;" readonly />
-                        <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('xixo-key').value)" class="button button-small" style="margin-left:8px;">Copiar</button>
+                        <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('portal-pub-key').value)" class="button button-small" style="margin-left:8px;">Copiar</button>
                         <br><br>
-                        <button type="submit" name="xixo_action" value="regenerate" class="button button-secondary"
+                        <button type="submit" name="portal_pub_action" value="regenerate" class="button button-secondary"
                                 onclick="return confirm('Gerar nova chave vai invalidar a chave atual. Confirmar?')">
                             🔄 Gerar nova chave
                         </button>
@@ -87,9 +87,9 @@ function xixo_settings_page() {
         </table>
 
         <hr>
-        <h2>Como configurar no Sistema XIXO</h2>
+        <h2>Como configurar</h2>
         <ol>
-            <li>No Sistema XIXO, vá em <strong>Configurações → Meus Sites</strong>.</li>
+            <li>No Sistema de Agregação, vá em <strong>Configurações → Meus Sites</strong>.</li>
             <li>Edite este portal ou cadastre um novo.</li>
             <li>No campo <strong>"Chave XIXO Plugin"</strong>, cole a chave de API acima.</li>
             <li>Salve. A partir daí, as publicações usarão este plugin automaticamente.</li>
@@ -106,7 +106,7 @@ add_action( 'rest_api_init', function () {
         'methods'             => 'GET',
         'callback'            => fn () => new WP_REST_Response( [
             'xixo'    => true,
-            'version' => XIXO_VERSION,
+            'version' => PORTAL_PUB_VERSION,
             'site'    => get_bloginfo( 'name' ),
         ], 200 ),
         'permission_callback' => '__return_true',
@@ -115,22 +115,22 @@ add_action( 'rest_api_init', function () {
     // POST /wp-json/xixo/v1/publish — recebe e publica o artigo
     register_rest_route( 'xixo/v1', '/publish', [
         'methods'             => 'POST',
-        'callback'            => 'xixo_handle_publish',
-        'permission_callback' => 'xixo_auth',
+        'callback'            => 'portal_pub_handle_publish',
+        'permission_callback' => 'portal_pub_auth',
     ] );
 
 } );
 
 // Autenticação por chave no header X-XIXO-Key
-function xixo_auth( WP_REST_Request $req ): bool {
-    $stored = get_option( XIXO_OPTION_KEY, '' );
+function portal_pub_auth( WP_REST_Request $req ): bool {
+    $stored = get_option( PORTAL_PUB_OPTION_KEY, '' );
     if ( ! $stored ) return false;
     $sent = $req->get_header( 'x-xixo-key' ) ?: ( $req->get_param( 'api_key' ) ?? '' );
     return hash_equals( $stored, (string) $sent );
 }
 
 // Handler principal de publicação
-function xixo_handle_publish( WP_REST_Request $req ): WP_REST_Response {
+function portal_pub_handle_publish( WP_REST_Request $req ): WP_REST_Response {
     $d = $req->get_json_params();
 
     $title       = sanitize_text_field( $d['title']       ?? '' );
@@ -140,8 +140,20 @@ function xixo_handle_publish( WP_REST_Request $req ): WP_REST_Response {
     $source_url  = esc_url_raw( $d['source_url']          ?? '' );
     $source_name = sanitize_text_field( $d['source_name'] ?? '' );
     $image_url   = esc_url_raw( $d['image_url']           ?? '' );
+    $post_format = sanitize_text_field( $d['post_format'] ?? 'editorial' );
     $tags        = array_map( 'sanitize_text_field', (array) ( $d['tags'] ?? [] ) );
-    $category_id = intval( $d['category_id'] ?? 0 );
+    // Suporta category_ids (array) e category_id (singular, legado)
+    $cat_raw      = $d['category_ids'] ?? [];
+    if ( empty( $cat_raw ) && isset( $d['category_id'] ) ) $cat_raw = [ $d['category_id'] ];
+    $category_ids = array_values( array_filter( array_map( 'intval', (array) $cat_raw ) ) );
+
+    // Autor: usa author_id enviado ou busca o primeiro administrador do site
+    $author_id = intval( $d['author_id'] ?? 0 );
+    if ( ! $author_id ) {
+        $admins    = get_users( [ 'role' => 'administrator', 'number' => 1, 'fields' => 'ID', 'orderby' => 'ID', 'order' => 'ASC' ] );
+        $author_id = ! empty( $admins ) ? (int) $admins[0] : 1;
+    }
+
     $slug        = sanitize_title( $d['slug'] ?? $title );
 
     if ( ! $title ) {
@@ -187,29 +199,29 @@ function xixo_handle_publish( WP_REST_Request $req ): WP_REST_Response {
 
     // ── 3. Monta o conteúdo ───────────────────────────────────────────────────
     //
-    // IMPORTANTE (v1.5.0):
-    //   • Chapéu NÃO vai mais no post_content — é exibido via the_title filter,
-    //     que o injeta como primeiro elemento visual acima do título no template.
-    //   • Imagem (.xixo-figura) ainda é embutida como fallback para temas sem
-    //     featured_image widget; o the_content filter a remove quando há thumbnail.
+    // Estrutura do post:
+    //   • Chapéu: exibido via the_title filter (acima do título, cinza)
+    //   • Imagem: <figure class="xixo-figura"> no corpo + featured_media para SEO/OG
+    //             CSS injetado via wp_head garante full-width independente do tema
+    //   • Corpo: artigo reescrito pela IA
+    //   • Fonte: crédito ao final
     //
     $alt           = esc_attr( $title );
     $content_parts = '';
 
-    // Resumo antes da imagem — apenas no modo editorial (quando há image_url).
-    // Temas com widget de excerpt nativo (ex: rb24horas/Elementor) não enviam
-    // image_url, então não precisam do resumo no conteúdo.
-    if ( $summary && $embedded_img ) {
-        $content_parts .= '<p class="xixo-resumo" style="font-size:1.05em;color:#444;margin:0 0 1.5rem;line-height:1.6;">'
-            . esc_html( $summary )
-            . '</p>' . "\n";
-    }
-
-    // Imagem de destaque (fallback para temas sem widget de featured_image)
-    if ( $embedded_img ) {
-        $content_parts .= '<figure class="xixo-figura" style="margin:0 0 1.5rem;padding:0;">'
-            . '<img src="' . esc_url( $embedded_img ) . '" alt="' . $alt . '" style="width:100%;max-width:100%;height:auto;display:block;border-radius:4px;" />'
-            . '</figure>' . "\n";
+    // Modo 'editorial': resumo + imagem no corpo (temas que não exibem featured_media)
+    // Modo 'standard': só featured_media, sem nada extra no corpo (tema já exibe)
+    if ( $post_format === 'editorial' ) {
+        if ( $summary ) {
+            $content_parts .= '<p class="xixo-resumo" style="font-size:1.05em;color:#444;margin:0 0 1.5rem;line-height:1.6;font-style:italic;">'
+                . esc_html( $summary )
+                . '</p>' . "\n";
+        }
+        if ( $embedded_img ) {
+            $content_parts .= '<figure class="xixo-figura" style="margin:0 0 1.5rem;padding:0;">'
+                . '<img src="' . esc_url( $embedded_img ) . '" alt="' . $alt . '" style="width:100%;max-width:100%;height:auto;display:block;border-radius:4px;" />'
+                . '</figure>' . "\n";
+        }
     }
 
     // Corpo do artigo
@@ -232,22 +244,23 @@ function xixo_handle_publish( WP_REST_Request $req ): WP_REST_Response {
         'post_content' => $content_parts,
         'post_status'  => 'publish',
         'post_type'    => 'post',
+        'post_author'  => $author_id,
         'tags_input'   => $tag_ids,
     ];
-    if ( $category_id ) $post_data['post_category'] = [ $category_id ];
+    if ( ! empty( $category_ids ) ) $post_data['post_category'] = $category_ids;
 
     $post_id = wp_insert_post( $post_data, true );
     if ( is_wp_error( $post_id ) ) {
         return new WP_REST_Response( [ 'error' => $post_id->get_error_message() ], 500 );
     }
 
-    // ── 5. Salva meta (chapéu, fonte e imagem) ────────────────────────────────
+    // ── 5. Salva meta ─────────────────────────────────────────────────────────
     if ( $chapeu )       update_post_meta( $post_id, '_xixo_chapeu',      $chapeu );
     if ( $source_url )   update_post_meta( $post_id, '_xixo_source_url',  $source_url );
     if ( $source_name )  update_post_meta( $post_id, '_xixo_source_name', $source_name );
     if ( $embedded_img ) update_post_meta( $post_id, '_xixo_image_url',   $embedded_img );
 
-    // ── 6. Define imagem destacada ────────────────────────────────────────────
+    // ── 6. Define imagem destacada (SEO / Open Graph) ─────────────────────────
     if ( $featured_id ) set_post_thumbnail( $post_id, $featured_id );
 
     return new WP_REST_Response( [
@@ -257,74 +270,64 @@ function xixo_handle_publish( WP_REST_Request $req ): WP_REST_Response {
     ], 201 );
 }
 
-// ── the_title filter: chapéu como primeiro elemento visual acima do título ────
-//
-// Injeta o chapéu editorial como <span display:block> ANTES do texto do título.
-// Resultado visual (independente do tema/Elementor):
-//
-//   CHAPÉU EDITORIAL        ← vermelho, maiúsculo, pequeno
-//   Título do Post          ← h1/h2 normal do tema
-//
-// Segurança: só atua no post principal da página (get_queried_object_id),
-// dentro do loop WordPress (in_the_loop), nunca no admin/ajax/cron.
-// Usa strpos para prevenir dupla injeção.
-//
+// ── the_title filter: chapéu acima do título ──────────────────────────────────
 add_filter( 'the_title', function ( $title, $post_id = null ) {
-    // Apenas em página singular de post, no front-end, dentro do loop
-    if ( ! is_singular( 'post' ) )              return $title;
-    if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) return $title;
-    if ( ! in_the_loop() )                      return $title;
+    if ( ! is_singular( 'post' ) )                                 return $title;
+    if ( is_admin() || wp_doing_ajax() || wp_doing_cron() )        return $title;
+    if ( ! in_the_loop() )                                         return $title;
 
-    // Apenas para o post principal da página (ignora listas laterais, relacionados)
     $pid = absint( $post_id ?: get_the_ID() );
-    if ( ! $pid || $pid !== (int) get_queried_object_id() ) return $title;
-
-    // Previne dupla injeção (caso the_title seja chamado mais de uma vez no loop)
-    if ( strpos( $title, 'xixo-chapeu-label' ) !== false ) return $title;
+    if ( ! $pid || $pid !== (int) get_queried_object_id() )        return $title;
+    if ( strpos( $title, 'xixo-chapeu-label' ) !== false )         return $title;
 
     $chapeu = get_post_meta( $pid, '_xixo_chapeu', true );
     if ( ! $chapeu ) return $title;
 
-    return '<span class="xixo-chapeu-label" style="display:block;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#b91c1c;margin:0 0 .4rem;line-height:1.3;font-family:inherit;">'
+    return '<span class="xixo-chapeu-label" style="display:block;font-size:1.5rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#6b7280;margin:0 0 .5rem;line-height:1.3;font-family:inherit;">'
         . esc_html( $chapeu )
         . '</span>'
         . $title;
 }, 10, 2 );
 
-// ── the_content filter: remove elementos redundantes do corpo ─────────────────
-//
-// Remove do post_content:
-//   • <p class="xixo-chapeu"> — agora exibido acima do título (the_title filter)
-//   • <figure class="xixo-figura"> — exibida pelo widget featured_media do tema
-//     (só remove se o post tem imagem destacada; mantém como fallback caso não tenha)
-//
+// ── the_content filter: limpa elementos legados ───────────────────────────────
 add_filter( 'the_content', function ( $content ) {
     if ( ! is_singular( 'post' ) ) return $content;
-
-    // Remove chapéu do corpo (exibido acima do título via the_title filter)
+    // Remove chapéu antigo do corpo (versões < 1.5)
     $content = preg_replace(
         '/<p[^>]+class=["\'][^"\']*xixo-chapeu[^"\']*["\'][^>]*>[\s\S]*?<\/p>\s*/i',
         '',
         $content
     );
-
-    // Remove figura do corpo APENAS se o tema usa widget Elementor de featured image
-    // (detecta pelo data-widget_type do Elementor no HTML — não disponível aqui via PHP,
-    //  então mantemos a figura no conteúdo como fallback universal para todos os temas)
-    // Para temas que exibem a featured_media nativamente (ex: rb24horas/Elementor),
-    // a figura fica oculta via CSS se necessário.
-
     return $content;
 } );
 
-// ── Estilos mínimos para o admin ──────────────────────────────────────────────
-add_action( 'admin_head', function () {
-    $screen = get_current_screen();
-    if ( ! $screen || strpos( $screen->id, 'xixo-publisher' ) === false ) return;
-    echo '<style>
-        #xixo-key { background:#f6f6f6; }
-        .xixo-badge { display:inline-block; background:#b91c1c; color:#fff;
-            padding:2px 8px; border-radius:3px; font-size:.75em; font-weight:700;
-            text-transform:uppercase; letter-spacing:1px; }
-    </style>';
-} );
+// ── wp_head: CSS full-width para a imagem (sobrescreve tema com !important) ───
+add_action( 'wp_head', function () {
+    if ( ! is_singular( 'post' ) ) return;
+    $pid = get_the_ID();
+    if ( ! $pid ) return;
+    if ( ! get_post_meta( $pid, '_xixo_image_url', true ) ) return;
+
+    echo '<style id="portal-pub-img-style">
+        .xixo-figura {
+            display: block !important;
+            clear: both !important;
+            width: 100% !important;
+            margin: 0 0 1.5rem 0 !important;
+            padding: 0 !important;
+            float: none !important;
+        }
+        .xixo-figura img {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            display: block !important;
+            float: none !important;
+            margin: 0 !important;
+            border-radius: 4px;
+        }
+        .xixo-chapeu-label {
+            color: #6b7280 !important;
+        }
+    </style>' . "\n";
+}, 99 );
