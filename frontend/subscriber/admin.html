@@ -1131,7 +1131,7 @@ Portal<span class="logo-news">News</span>
       <!-- WordPress -->
       <div id="msc-wp-fields">
         <div class="form-group" style="margin-bottom:10px">
-          <label>🔑 Chave XIXO Plugin <small style="color:var(--muted);font-weight:400">(recomendado — gerada em WP Admin → XIXO Publisher)</small></label>
+          <label>🔑 Chave XMNews Plugin <small style="color:var(--muted);font-weight:400">(recomendado — gerada em WP Admin → Portal Publisher)</small></label>
           <input type="text" id="msc-xixo-key" placeholder="Cole aqui a chave gerada pelo plugin" style="font-family:monospace;font-size:.85rem" />
         </div>
         <div class="form-row" style="opacity:.7">
@@ -2636,6 +2636,11 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
     fonte_nome:     document.getElementById('acp-fonte-nome').value.trim(),
     image_url:      imageUrl,
     image_media_id: imageMediaId,
+    // Fallback: upload falhou (ex: site sem wp_app_password) mas imagem está em memória.
+    // Backend usará temp file no servidor — nenhuma credencial WP necessária.
+    ...(!imageUrl && _acpImageData
+      ? { image_base64: _acpImageData.base64, image_mime: _acpImageData.mime, image_name: _acpImageData.name }
+      : {}),
   };
 
   try {

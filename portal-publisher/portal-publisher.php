@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Portal Publisher
  * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     1.6.1
- * Author:      Sistema XIXO
+ * Version:     2.0.0
+ * Author:      XMNews Publisher
  * Text Domain: portal-publisher
  */
 
@@ -16,25 +16,25 @@ add_action( 'admin_menu', function () {
         'Portal Publisher',
         'manage_options',
         'portal-publisher',
-        'xixo_settings_page'
+        'xmn_settings_page'
     );
 } );
 
 add_action( 'admin_init', function () {
-    register_setting( 'xixo_settings_group', 'xixo_api_key', [
+    register_setting( 'xmn_settings_group', 'xixo_api_key', [
         'sanitize_callback' => 'sanitize_text_field',
     ] );
 } );
 
-function xixo_settings_page() {
+function xmn_settings_page() {
     ?>
     <div class="wrap">
         <h1>Portal Publisher — Configurações</h1>
         <form method="post" action="options.php">
-            <?php settings_fields( 'xixo_settings_group' ); ?>
+            <?php settings_fields( 'xmn_settings_group' ); ?>
             <table class="form-table">
                 <tr>
-                    <th scope="row"><label for="xixo_api_key">Chave API (X-XIXO-Key)</label></th>
+                    <th scope="row"><label for="xixo_api_key">Chave API (X-XMNews-Key)</label></th>
                     <td>
                         <input type="text" id="xixo_api_key" name="xixo_api_key"
                                value="<?php echo esc_attr( get_option( 'xixo_api_key', '' ) ); ?>"
@@ -51,22 +51,22 @@ function xixo_settings_page() {
 
 // ── Registra os endpoints REST ────────────────────────────────────────────────
 add_action( 'rest_api_init', function () {
-    register_rest_route( 'xixo/v1', '/publish', [
+    register_rest_route( 'xmn/v1', '/publish', [
         'methods'             => 'POST',
-        'callback'            => 'xixo_handle_publish',
+        'callback'            => 'xmn_handle_publish',
         'permission_callback' => '__return_true',
     ] );
-    register_rest_route( 'xixo/v1', '/categories', [
+    register_rest_route( 'xmn/v1', '/categories', [
         'methods'             => 'GET',
-        'callback'            => 'xixo_handle_categories',
+        'callback'            => 'xmn_handle_categories',
         'permission_callback' => '__return_true',
     ] );
 } );
 
-// ── GET /wp-json/xixo/v1/categories — retorna categorias autenticado por chave ─
-function xixo_handle_categories( WP_REST_Request $request ) {
+// ── GET /wp-json/xmn/v1/categories — retorna categorias autenticado por chave ─
+function xmn_handle_categories( WP_REST_Request $request ) {
     $api_key  = get_option( 'xixo_api_key', '' );
-    $sent_key = $request->get_header( 'X-XIXO-Key' );
+    $sent_key = $request->get_header( 'X-XMNews-Key' );
     if ( ! $api_key || ! hash_equals( $api_key, (string) $sent_key ) ) {
         return new WP_REST_Response( [ 'error' => 'Chave API inválida.' ], 401 );
     }
@@ -81,14 +81,14 @@ function xixo_handle_categories( WP_REST_Request $request ) {
 }
 
 // ── Handler principal ─────────────────────────────────────────────────────────
-function xixo_handle_publish( WP_REST_Request $request ) {
+function xmn_handle_publish( WP_REST_Request $request ) {
 
     // Valida API key
     $api_key  = get_option( 'xixo_api_key', '' );
     if ( ! $api_key ) {
         return new WP_REST_Response( [ 'error' => 'Chave API não configurada no servidor.' ], 500 );
     }
-    $sent_key = $request->get_header( 'X-XIXO-Key' );
+    $sent_key = $request->get_header( 'X-XMNews-Key' );
     if ( ! hash_equals( $api_key, (string) $sent_key ) ) {
         return new WP_REST_Response( [ 'error' => 'Chave API inválida.' ], 401 );
     }
@@ -167,12 +167,12 @@ function xixo_handle_publish( WP_REST_Request $request ) {
 
     if ( $post_format === 'editorial' ) {
         if ( $summary ) {
-            $content_parts .= '<p class="xixo-resumo" style="font-size:1.05em;color:#444;margin:0 0 1.5rem;line-height:1.6;font-style:italic;">'
+            $content_parts .= '<p class="xmn-resumo" style="font-size:1.05em;color:#444;margin:0 0 1.5rem;line-height:1.6;font-style:italic;">'
                 . esc_html( $summary )
                 . '</p>' . "\n";
         }
         if ( $embedded_img ) {
-            $content_parts .= '<figure class="xixo-figura" style="margin:0 0 1.5rem;padding:0;">'
+            $content_parts .= '<figure class="xmn-figura" style="margin:0 0 1.5rem;padding:0;">'
                 . '<img src="' . esc_url( $embedded_img ) . '" alt="' . $alt . '" style="width:100%;max-width:100%;height:auto;display:block;border-radius:4px;" />'
                 . '</figure>' . "\n";
         }
@@ -184,7 +184,7 @@ function xixo_handle_publish( WP_REST_Request $request ) {
     // Crédito de fonte no final
     if ( $source_url || $source_name ) {
         $display_name  = $source_name ?: parse_url( $source_url, PHP_URL_HOST );
-        $content_parts .= '<p class="xixo-fonte" style="font-size:.82em;color:#888;margin:1.8rem 0 0;border-top:1px solid #eee;padding-top:.75rem;">'
+        $content_parts .= '<p class="xmn-fonte" style="font-size:.82em;color:#888;margin:1.8rem 0 0;border-top:1px solid #eee;padding-top:.75rem;">'
             . 'Fonte: <a href="' . esc_url( $source_url ) . '" target="_blank" rel="noopener noreferrer" style="color:#888;">'
             . esc_html( $display_name )
             . '</a></p>' . "\n";
@@ -192,7 +192,7 @@ function xixo_handle_publish( WP_REST_Request $request ) {
 
     // ── 4. Criar o post ───────────────────────────────────────────────────────
     // post_author: wp_insert_post sem autor usa get_current_user_id() = 0 quando
-    // a autenticação é por X-XIXO-Key (sem sessão WP). Busca o primeiro admin.
+    // a autenticação é por X-XMNews-Key (sem sessão WP). Busca o primeiro admin.
     $admins    = get_users( [ 'role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC' ] );
     $author_id = ! empty( $admins ) ? $admins[0]->ID : 1;
 
@@ -237,12 +237,12 @@ add_filter( 'the_title', function ( $title, $post_id = null ) {
 
     $pid = absint( $post_id ?: get_the_ID() );
     if ( ! $pid || $pid !== (int) get_queried_object_id() ) return $title;
-    if ( strpos( $title, 'xixo-chapeu-label' ) !== false )  return $title;
+    if ( strpos( $title, 'xmn-chapeu-label' ) !== false )  return $title;
 
     $chapeu = get_post_meta( $pid, '_xixo_chapeu', true );
     if ( ! $chapeu ) return $title;
 
-    return '<span class="xixo-chapeu-label" style="display:block;font-size:1.5rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#6b7280;margin:0 0 .5rem;line-height:1.3;font-family:inherit;">'
+    return '<span class="xmn-chapeu-label" style="display:block;font-size:1.5rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#6b7280;margin:0 0 .5rem;line-height:1.3;font-family:inherit;">'
         . esc_html( $chapeu )
         . '</span>'
         . $title;
@@ -252,7 +252,7 @@ add_filter( 'the_title', function ( $title, $post_id = null ) {
 add_filter( 'the_content', function ( $content ) {
     if ( ! is_singular( 'post' ) ) return $content;
     $content = preg_replace(
-        '/<p[^>]+class=["\'][^"\']*xixo-chapeu[^"\']*["\'][^>]*>[\s\S]*?<\/p>\s*/i',
+        '/<p[^>]+class=["\'][^"\']*(?:xixo|xmn)-chapeu[^"\']*["\'][^>]*>[\s\S]*?<\/p>\s*/i',
         '',
         $content
     );
@@ -268,7 +268,7 @@ add_action( 'wp_head', function () {
 
     echo '<style id="portal-pub-img-style">
         /* Modo editorial: figura injetada no corpo */
-        .xixo-figura {
+        .xmn-figura {
             display: block !important;
             clear: both !important;
             width: 100% !important;
@@ -276,7 +276,7 @@ add_action( 'wp_head', function () {
             padding: 0 !important;
             float: none !important;
         }
-        .xixo-figura img {
+        .xmn-figura img {
             width: 100% !important;
             max-width: 100% !important;
             height: auto !important;
@@ -307,7 +307,7 @@ add_action( 'wp_head', function () {
             width: 100% !important;
             max-width: 100% !important;
         }
-        .xixo-chapeu-label {
+        .xmn-chapeu-label {
             color: #6b7280 !important;
         }
     </style>' . "\n";

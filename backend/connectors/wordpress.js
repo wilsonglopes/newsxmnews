@@ -115,8 +115,8 @@ async function uploadImageToWP(baseUrl, wpHeaders, img) {
   return { id: uploadRes.data?.id || null, url: uploadRes.data?.source_url || null };
 }
 
-// ── Publicação via Plugin XIXO (modo preferencial) ───────────────────────────
-// Usado quando o site tem o plugin XIXO Publisher instalado e a chave configurada.
+// ── Publicação via Plugin XMNews Publisher (modo preferencial) ───────────────
+// Usado quando o site tem o plugin XMNews Publisher instalado e a chave configurada.
 //
 // COMPORTAMENTO POR post_format:
 //   'editorial' — Plugin v1.2.0+: envia image_url, o plugin injeta a imagem no
@@ -128,11 +128,11 @@ async function uploadImageToWP(baseUrl, wpHeaders, img) {
 //                 nativa e define featured_media separadamente.
 //                 (ex: rb24horas — plugin v1.1.0 sem JS de ocultação)
 //
-async function publishViaXixoPlugin(site, rewritten, article) {
+async function publishViaPlugin(site, rewritten, article) {
   const baseUrl = (site.site_url || '').replace(/\/$/, '');
   const apiKey  = site.xixo_api_key;
 
-  if (!baseUrl || !apiKey) throw new Error('URL ou chave do plugin XIXO não configurada.');
+  if (!baseUrl || !apiKey) throw new Error('URL ou chave do plugin XMNews Publisher não configurada.');
 
   const slugify = (str) => (str || '').toLowerCase()
     .replace(/[áàãâä]/g,'a').replace(/[éêë]/g,'e').replace(/[íîï]/g,'i')
@@ -165,26 +165,29 @@ async function publishViaXixoPlugin(site, rewritten, article) {
       if (img) {
         const { id: mediaId, url: mediaUrl } = await uploadImageToWP(baseUrl, wpHeaders, img);
         if (mediaUrl) {
-          console.log(`[xixo] pré-upload OK: ${imageUrlParaPlugin} → ${mediaUrl}`);
+          console.log(`[plugin] pré-upload OK: ${imageUrlParaPlugin} → ${mediaUrl}`);
           imageUrlParaPlugin = mediaUrl;
         }
       }
     } catch (e) {
-      console.warn(`[xixo] pré-upload falhou (${e.message}), tentando URL original`);
+      console.warn(`[plugin] pré-upload falhou (${e.message}), tentando URL original`);
       // Se URL original também não for acessível pelo plugin, limpa
       try {
         await axios.head(imageUrlParaPlugin, { timeout: 4000, httpsAgent: HTTPS_AGENT,
           headers: { 'User-Agent': 'Mozilla/5.0' } });
       } catch {
-        console.warn(`[xixo] URL original inacessível, publicando sem imagem`);
+        console.warn(`[plugin] URL original inacessível, publicando sem imagem`);
         imageUrlParaPlugin = '';
       }
     }
-  } else if (imageUrlParaPlugin) {
-    // Sem credenciais WP: baixa + redimensiona + serve via backend temporariamente.
-    // O plugin baixa do nosso servidor (~300 KB) em vez da CDN original (pode ser 6 MB+).
+  } else if (imageUrlParaPlugin || article.image_base64) {
+    // Sem credenciais WP: resolve imagem (base64 ou URL) e serve via temp file no backend.
+    // O plugin baixa do nosso servidor em vez da CDN original ou de memória do frontend.
     try {
-      const img = await resolveImageBuffer({ image_url: imageUrlParaPlugin });
+      const imgSource = article.image_base64
+        ? { image_base64: article.image_base64, image_mime: article.image_mime, image_name: article.image_name }
+        : { image_url: imageUrlParaPlugin };
+      const img = await resolveImageBuffer(imgSource);
       if (img) {
         const backendUrl = (process.env.BACKEND_URL || '').replace(/\/$/, '');
         if (backendUrl && !backendUrl.includes('localhost')) {
@@ -196,12 +199,12 @@ async function publishViaXixoPlugin(site, rewritten, article) {
           imageUrlParaPlugin = `${backendUrl}/uploads/${tmpName}`;
           // Limpa o arquivo temporário após 15 minutos
           setTimeout(() => { try { fs.unlinkSync(tmpPath); } catch {} }, 15 * 60 * 1000);
-          console.log(`[xixo] temp img: ${img.buffer.length} bytes → ${imageUrlParaPlugin}`);
+          console.log(`[plugin] temp img: ${img.buffer.length} bytes → ${imageUrlParaPlugin}`);
         }
         // Em localhost (dev): usa URL original — plugin não consegue acessar localhost de fora
       }
     } catch (e) {
-      console.warn(`[xixo] temp img falhou (${e.message}), tentando URL original`);
+      console.warn(`[plugin] temp img falhou (${e.message}), tentando URL original`);
     }
     // Verifica se URL final ainda é acessível; se não, publica sem imagem
     if (imageUrlParaPlugin) {
@@ -209,13 +212,13 @@ async function publishViaXixoPlugin(site, rewritten, article) {
         await axios.head(imageUrlParaPlugin, { timeout: 5000, httpsAgent: HTTPS_AGENT,
           headers: { 'User-Agent': 'Mozilla/5.0' } });
       } catch {
-        console.warn(`[xixo] URL final inacessível, publicando sem imagem`);
+        console.warn(`[plugin] URL final inacessível, publicando sem imagem`);
         imageUrlParaPlugin = '';
       }
     }
   }
 
-  console.log(`[xixo] publicando post_format=${postFormat} image_url=${imageUrlParaPlugin || '(sem imagem)'} site=${site.name}`);
+  console.log(`[plugin] publicando post_format=${postFormat} image_url=${imageUrlParaPlugin || '(sem imagem)'} site=${site.name}`);
 
   const payload = {
     title:       rewritten.title       || '',
@@ -231,18 +234,18 @@ async function publishViaXixoPlugin(site, rewritten, article) {
     category_ids: rewritten.category_ids?.length ? rewritten.category_ids : (rewritten.category_id ? [rewritten.category_id] : []),
   };
 
-  const res = await axios.post(`${baseUrl}/wp-json/xixo/v1/publish`, payload, {
+  const res = await axios.post(`${baseUrl}/wp-json/xmn/v1/publish`, payload, {
     timeout:    60000,
     httpsAgent: HTTPS_AGENT,
     headers: {
       'Content-Type': 'application/json',
-      'X-XIXO-Key':   apiKey,
+      'X-XMNews-Key': apiKey,
     },
   });
 
   const data = res.data;
   if (!data?.success || !data?.post_id) {
-    throw new Error(data?.error || 'Resposta inesperada do plugin XIXO.');
+    throw new Error(data?.error || 'Resposta inesperada do plugin XMNews Publisher.');
   }
 
   const postId  = String(data.post_id);
@@ -258,19 +261,19 @@ async function publishViaXixoPlugin(site, rewritten, article) {
   if (postFormat === 'standard' && site.wp_app_password && site.wp_username) {
     try {
       const password  = decryptToken(site.wp_app_password);
-      if (!password) { console.warn(`[xixo] wp_app_password vazio após decrypt — imagem não será enviada`); }
+      if (!password) { console.warn(`[plugin] wp_app_password vazio após decrypt — imagem não será enviada`); }
       const wpAuth    = Buffer.from(`${site.wp_username}:${password}`).toString('base64');
       const wpHeaders = { Authorization: `Basic ${wpAuth}` };
 
       let mediaId = article.image_media_id || null;
 
       if (!mediaId && article.image_url) {
-        console.log(`[xixo] fazendo upload da imagem: ${article.image_url}`);
+        console.log(`[plugin] fazendo upload da imagem: ${article.image_url}`);
         const img = await resolveImageBuffer(article);
-        if (img) mediaId = (await uploadImageToWP(baseUrl, wpHeaders, img).catch((e) => { console.warn('[xixo] upload falhou:', e.message); return {}; }))?.id || null;
-        console.log(`[xixo] upload resultado: mediaId=${mediaId || 'null'}`);
+        if (img) mediaId = (await uploadImageToWP(baseUrl, wpHeaders, img).catch((e) => { console.warn('[plugin] upload falhou:', e.message); return {}; }))?.id || null;
+        console.log(`[plugin] upload resultado: mediaId=${mediaId || 'null'}`);
       } else if (!article.image_url) {
-        console.log(`[xixo] sem image_url — post sem imagem destacada`);
+        console.log(`[plugin] sem image_url — post sem imagem destacada`);
       }
 
       if (mediaId) {
@@ -278,10 +281,10 @@ async function publishViaXixoPlugin(site, rewritten, article) {
           timeout: 10000, httpsAgent: HTTPS_AGENT,
           headers: { ...wpHeaders, 'Content-Type': 'application/json' },
         });
-        console.log(`[xixo] featured_media ${mediaId} definida no post ${postId} (${site.name})`);
+        console.log(`[plugin] featured_media ${mediaId} definida no post ${postId} (${site.name})`);
       }
     } catch (imgErr) {
-      console.warn('[xixo] Falha ao definir featured_media:', imgErr.message);
+      console.warn('[plugin] Falha ao definir featured_media:', imgErr.message);
     }
   }
 
@@ -297,9 +300,9 @@ async function publishToWordPress(site, rewritten, article) {
   const baseUrl = (site.site_url || '').replace(/\/$/, '');
   if (!baseUrl) throw new Error('URL do site não configurada.');
 
-  // Plugin XIXO tem prioridade — não precisa de wp_app_password
+  // Plugin XMNews Publisher tem prioridade — não precisa de wp_app_password
   if (site.xixo_api_key) {
-    return publishViaXixoPlugin(site, rewritten, article);
+    return publishViaPlugin(site, rewritten, article);
   }
 
   const password = decryptToken(site.wp_app_password);

@@ -117,6 +117,7 @@ router.post('/', async (req, res) => {
 router.post('/manual', async (req, res) => {
   const { site_id, chapeu, titulo, resumo, corpo, tags, category_ids,
           image_url, image_media_id,
+          image_base64, image_mime, image_name,
           fonte_url, fonte_nome } = req.body || {};
 
   if (!site_id || !titulo || !corpo) {
@@ -149,6 +150,9 @@ router.post('/manual', async (req, res) => {
       external_url:   fonte_url      || null,
       image_url:      image_url      || null,
       image_media_id: image_media_id || null,
+      image_base64:   image_base64   || null,
+      image_mime:     image_mime     || null,
+      image_name:     image_name     || null,
       source_name:    fonte_nome || (fonte_url ? '' : 'Postagem Manual'),
       title:          titulo,
     };

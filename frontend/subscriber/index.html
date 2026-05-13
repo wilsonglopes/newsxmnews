@@ -2162,6 +2162,11 @@ document.getElementById('btn-criar-publicar').addEventListener('click', async ()
     fonte_nome:     document.getElementById('criar-fonte-nome').value.trim(),
     image_url:      imageUrl,
     image_media_id: imageMediaId,
+    // Fallback: upload falhou (ex: site sem wp_app_password) mas imagem está em memória.
+    // Backend usará temp file no servidor — nenhuma credencial WP necessária.
+    ...(!imageUrl && _pmImageData
+      ? { image_base64: _pmImageData.base64, image_mime: _pmImageData.mime, image_name: _pmImageData.name }
+      : {}),
   };
 
   try {
