@@ -135,6 +135,8 @@ async function buscarRSS(source) {
     // Remover BOM (UTF-8: EF BB BF) e whitespace antes da tag XML
     let xml = respAxios.data;
     xml = xml.replace(/^\uFEFF/, '').replace(/^[\s\S]*?(<\?xml|<rss|<feed|<channel)/i, '$1');
+    // Corrige & solto (entidade XML inv\u00E1lida) \u2014 substitui por &amp; quando n\u00E3o \u00E9 &name;/&#n;/&#xn;
+    xml = xml.replace(/&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/g, '&amp;');
     feed = await rss.parseString(xml);
   }
 
@@ -270,6 +272,30 @@ async function criarIndicesBanco() {
     // Colunas de perfil do assinante — precisam existir antes do GET /auth/me
     await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS phone   VARCHAR(30)`);
     await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS address TEXT`);
+
+    // Catálogo central de sites (criado via migrate.js, garantido aqui p/ ambientes novos)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sites_catalog (
+        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name            TEXT NOT NULL,
+        platform        VARCHAR(30) NOT NULL DEFAULT 'wordpress',
+        site_url        TEXT,
+        xixo_api_key    TEXT,
+        wp_username     TEXT,
+        wp_app_password TEXT,
+        blogger_blog_id TEXT,
+        blogger_access_token  TEXT,
+        blogger_refresh_token TEXT,
+        webhook_url     TEXT,
+        webhook_secret  TEXT,
+        post_format     VARCHAR(20) DEFAULT 'editorial',
+        active          BOOLEAN DEFAULT true,
+        created_at      TIMESTAMPTZ DEFAULT now()
+      )
+    `);
+    await pool.query(`
+      ALTER TABLE subscriber_sites ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES sites_catalog(id)
+    `);
   } catch (err) {
     console.error('[DB] Erro ao criar índices:', err.message);
   }
