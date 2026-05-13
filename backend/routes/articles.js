@@ -143,7 +143,7 @@ router.get('/:id/full-content', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT a.id, a.external_url, a.body, a.image_url,
-              so.content_selector,
+              so.content_selector, so.featured_image_selector,
               so.slug AS source_slug, so.category,
               so.extract_body_image
        FROM articles a
@@ -155,27 +155,30 @@ router.get('/:id/full-content', async (req, res) => {
     if (!article) return res.status(404).json({ error: 'Artigo não encontrado.' });
 
     const bodyText = (article.body || '').replace(/<[^>]*>/g, '').trim();
+    const forceRefresh = req.query.force === '1' || req.query.force === 'true';
 
-    // Se já tem conteúdo suficiente E imagem de boa qualidade, retorna direto
-    // Considera boa qualidade: URL sem indicação de dimensão pequena no path
-    // Regex com delimitador para não confundir width=128 com width=1280
-    // Limiar de 800 chars: snippet de RSS (~300-600 chars) sempre gera re-scraping para buscar
-    // o artigo completo. Apenas artigos com corpo substancial (texto de artigo real) são cacheados.
-    const imagemPequena = (() => {
-      if (!article.image_url) return false;
-      const m = article.image_url.match(/[,/?&]width=(\d+)/i);
-      return m ? parseInt(m[1]) < 280 : false;
-    })();
-    if (bodyText.length >= 800 && article.image_url && !imagemPequena) {
-      return res.json({ id: article.id, body: article.body, image_url: article.image_url, cached: true });
+    // Retorna cache se conteúdo já é substancial — exceto quando force=1 (botão Recarregar)
+    if (!forceRefresh) {
+      const imagemPequena = (() => {
+        if (!article.image_url) return false;
+        const mParam = article.image_url.match(/[,/?&]width=(\d+)/i);
+        if (mParam && parseInt(mParam[1]) < 280) return true;
+        const mFile = article.image_url.match(/-(\d+)x\d+\.(?:jpe?g|jfif|png|gif|webp|avif)/i);
+        if (mFile && parseInt(mFile[1]) < 400) return true;
+        return false;
+      })();
+      if (bodyText.length >= 800 && article.image_url && !imagemPequena) {
+        return res.json({ id: article.id, body: article.body, image_url: article.image_url, cached: true });
+      }
     }
 
     // Busca conteúdo completo e imagem via scraping da página do artigo
     const source = {
-      content_selector:   article.content_selector || null,
-      url:                article.external_url,
-      category:           article.category,
-      extract_body_image: article.extract_body_image || false,
+      content_selector:        article.content_selector        || null,
+      featured_image_selector: article.featured_image_selector || null,
+      url:                     article.external_url,
+      category:                article.category,
+      extract_body_image:      article.extract_body_image      || false,
     };
     const { body, image_url } = await fetchFullContent(article.external_url, source);
 

@@ -10,6 +10,7 @@ const cron      = require('node-cron');
 const axios     = require('axios');
 const crypto    = require('crypto');
 const path      = require('path');
+const fs        = require('fs');
 const https     = require('https');
 
 // ─── Banco de dados (opcional — só conecta se DATABASE_URL estiver configurado) ─
@@ -43,11 +44,11 @@ const PORT    = process.env.PORT || 3000;
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 
 // ─── Frontend estático ────────────────────────────────────────────────────────
-// Serve os arquivos do painel do assinante em http://localhost:PORT/
 app.use(express.static(path.join(__dirname, '../frontend/subscriber')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Fontes ────────────────────────────────────────────────────────────────────
 const sources = require('./sources.json');
@@ -425,6 +426,10 @@ limparArtigosAntigos();
 cron.schedule('*/15 * * * *', atualizarTodasFontes);
 cron.schedule('0 * * * *', limparArtigosAntigos); // limpeza a cada hora
 
+// Autopub — verifica a cada minuto se chegou a hora de rodar (intervalo configurável)
+const { verificarERotar } = require('./autopub');
+cron.schedule('* * * * *', () => verificarERotar().catch(e => console.error('[AUTOPUB]', e.message)));
+
 // ─── ROTAS ────────────────────────────────────────────────────────────────────
 
 // Auth (login / logout / me)
@@ -439,6 +444,14 @@ app.use('/api/subscriber/sources', require('./routes/subscriber-sources'));
 
 // IA — reescrita de artigos (usa GEMINI_KEY do servidor)
 app.use('/api/ia', require('./routes/ia'));
+
+// Configurações públicas (provedor de IA global, sem autenticação)
+app.get('/api/settings', (req, res) => {
+  try {
+    const s = JSON.parse(fs.readFileSync(path.join(__dirname, 'settings.json'), 'utf8'));
+    res.json(s);
+  } catch { res.json({ ia_provider: 'gemini' }); }
+});
 
 // Proxy de imagens (evita bloqueio de hotlink nos portais)
 app.use('/api/proxy-image', require('./routes/image-proxy'));

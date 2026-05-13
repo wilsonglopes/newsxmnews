@@ -3,10 +3,13 @@
     "name": "Metrópoles",
     "slug": "metropoles",
     "type": "rss",
-    "url": "https://metropoles.com/feed/",
+    "url": "https://www.metropoles.com/feed",
     "active": true,
     "category": "nacional",
-    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "extract_body_image": false,
+    "content_selector": "article",
+    "featured_image_selector": null
   },
   {
     "name": "Jovem Pan",
@@ -28,9 +31,12 @@
     "name": "Agência Brasil",
     "slug": "agenciabrasil",
     "type": "rss",
-    "url": "http://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml",
+    "url": "https://agenciabrasil.ebc.com.br/rss.xml",
     "active": true,
-    "category": "nacional"
+    "category": "nacional",
+    "extract_body_image": false,
+    "content_selector": null,
+    "featured_image_selector": null
   },
   {
     "name": "Lance",
@@ -283,5 +289,343 @@
     "url": "https://jacintomachado.atende.net/cidadao/rss/noticias",
     "active": true,
     "category": "prefeitura"
+  },
+  {
+    "name": "Pref. de Rio Branco",
+    "slug": "riobranco",
+    "type": "rss",
+    "url": "https://www.riobranco.ac.gov.br/feed/",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": false,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Cruzeiro do Sul",
+    "slug": "cruzeirodosul",
+    "type": "rss",
+    "url": "https://www.cruzeirodosul.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Sena Madureira",
+    "slug": "senamadureira",
+    "type": "rss",
+    "url": "https://www.senamadureira.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Bujari",
+    "slug": "bujari",
+    "type": "rss",
+    "url": "https://www.bujari.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Senador Guiomard",
+    "slug": "senadorguiomard",
+    "type": "rss",
+    "url": "https://www.senadorguiomard.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Acrelândia",
+    "slug": "acrelandia",
+    "type": "rss",
+    "url": "https://www.acrelandia.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Capixaba",
+    "slug": "capixaba",
+    "type": "rss",
+    "url": "https://www.capixaba.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Xapuri",
+    "slug": "xapuri",
+    "type": "rss",
+    "url": "https://www.xapuri.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Assis Brasil",
+    "slug": "assisbrasil",
+    "type": "rss",
+    "url": "https://www.assisbrasil.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Epitaciolândia",
+    "slug": "epitaciolandia",
+    "type": "rss",
+    "url": "https://www.epitaciolandia.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Brasiléia",
+    "slug": "brasileia",
+    "type": "rss",
+    "url": "https://www.brasileia.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Feijó",
+    "slug": "feijo",
+    "type": "rss",
+    "url": "https://www.feijo.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "PM Plácido de Castro",
+    "slug": "placidodecastro",
+    "type": "rss",
+    "url": "https://www.placidodecastro.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": false,
+    "content_selector": null,
+    "featured_image_selector": "gallery-item-content item-content-regular image-item gallery-item-visible gallery-item gallery-item-preloaded grid-fit"
+  },
+  {
+    "name": "Pref. Rodrigues Alves",
+    "slug": "rodriguesalves",
+    "type": "rss",
+    "url": "https://www.rodriguesalves.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Mâncio Lima",
+    "slug": "manciolima",
+    "type": "rss",
+    "url": "https://www.manciolima.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Prefeitura Tarauacá",
+    "slug": "tarauaca",
+    "type": "rss",
+    "url": "https://www.tarauaca.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. Porto Acre",
+    "slug": "portoacre",
+    "type": "rss",
+    "url": "https://www.portoacre.ac.gov.br/blog-feed.xml",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref. de Criciúma",
+    "slug": "criciuma",
+    "type": "scraping",
+    "url": "https://criciuma.sc.gov.br/noticiaTodos.php",
+    "active": true,
+    "category": "prefeitura",
+    "scraping": {
+      "itemSelector": "a[href*='/noticia/']",
+      "titleSelector": "h2",
+      "linkSelector": "a",
+      "imageSelector": "img.imgnott",
+      "dateSelector": "sub",
+      "linkFilter": "/noticia/\\d+"
+    },
+    "extract_body_image": false,
+    "content_selector": "#texto",
+    "featured_image_selector": "#img-principal"
+  },
+  {
+    "name": "Pref. de Içara",
+    "slug": "icara",
+    "type": "scraping",
+    "url": "https://www.icara.sc.gov.br/noticias/noticias",
+    "active": true,
+    "category": "prefeitura",
+    "scraping": {
+      "itemSelector": ".noticias_menu_content",
+      "titleSelector": "p.margem-abaixo a",
+      "imageSelector": "img.noticias_img",
+      "dateSelector": "span.noticias_detail",
+      "linkFilter": "noticia\\?post="
+    },
+    "extract_body_image": false,
+    "content_selector": ".noticia_conteudo",
+    "featured_image_selector": ".noticia_imagem_principal img"
+  },
+  {
+    "name": "Pref. de Santa Rosa do Sul",
+    "slug": "santarosadosul",
+    "type": "scraping",
+    "url": "https://santarosadosul.atende.net/cidadao/noticia",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Pref São João do Sul",
+    "slug": "saojoaodosul",
+    "type": "scraping",
+    "url": "https://saojoaodosul.atende.net/cidadao/noticia",
+    "active": true,
+    "category": "prefeitura",
+    "extract_body_image": true
+  },
+  {
+    "name": "Pref. de Praia Grande",
+    "slug": "www2",
+    "type": "scraping",
+    "url": "https://www2.praiagrande.sp.gov.br/noticias",
+    "active": true,
+    "category": "prefeitura",
+    "scraping": {
+      "itemSelector": "a.card.type8",
+      "titleSelector": "h5.card-title",
+      "imageSelector": "figure.foto-noticia img",
+      "dateSelector": ".card-footer p",
+      "linkFilter": "/noticia/"
+    },
+    "extract_body_image": false,
+    "content_selector": "#texto",
+    "featured_image_selector": null
+  },
+  {
+    "name": "Senado Federal",
+    "slug": "www12",
+    "type": "rss",
+    "url": "https://www12.senado.leg.br/noticias/RSS",
+    "active": true,
+    "category": "nacional",
+    "extract_body_image": false,
+    "content_selector": "article",
+    "featured_image_selector": null
+  },
+  {
+    "name": "Portal da Câmara dos Deputados",
+    "slug": "camara",
+    "type": "scraping",
+    "url": "https://www.camara.leg.br/noticias",
+    "active": true,
+    "category": "nacional",
+    "scraping": {
+      "itemSelector": "article[id^='eh-']",
+      "titleSelector": "h3.g-chamada__titulo",
+      "imageSelector": "img.g-chamada__imagem",
+      "linkFilter": "/noticias/\\d+"
+    },
+    "extract_body_image": false,
+    "content_selector": ".g-artigo__texto-principal",
+    "featured_image_selector": null
+  },
+  {
+    "name": "G1",
+    "slug": "g1",
+    "type": "scraping",
+    "url": "https://g1.globo.com/",
+    "active": true,
+    "category": "nacional",
+    "scraping": {
+      "itemSelector": "div.bstn-fd-relatedtext",
+      "titleSelector": "a",
+      "linkSelector": "a"
+    },
+    "extract_body_image": false,
+    "content_selector": "[itemprop=\"articleBody\"]",
+    "featured_image_selector": null
+  },
+  {
+    "name": "O GLOBO",
+    "slug": "oglobo",
+    "type": "rss",
+    "url": "https://oglobo.globo.com/rss/oglobo",
+    "active": true,
+    "category": "nacional",
+    "extract_body_image": false,
+    "content_selector": null,
+    "featured_image_selector": null
+  },
+  {
+    "name": "Notícias – Polícia Civil do Estado do Acre – PCAC",
+    "slug": "pc",
+    "type": "rss",
+    "url": "https://pc.ac.gov.br/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": true,
+    "content_selector": null
+  },
+  {
+    "name": "Noticias do Acre",
+    "slug": "agencia",
+    "type": "rss",
+    "url": "https://agencia.ac.gov.br/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": true,
+    "content_selector": "elementor-widget-container"
+  },
+  {
+    "name": "Assembleia Legislativa do Acre",
+    "slug": "al",
+    "type": "rss",
+    "url": "https://www.al.ac.leg.br/?feed=rss2",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": false,
+    "content_selector": null
+  },
+  {
+    "name": "Câmara de Rio Branco",
+    "slug": "camara-riobranco",
+    "type": "scraping",
+    "url": "https://riobranco.mt.leg.br/imprensa",
+    "active": true,
+    "category": "regional"
   }
 ]

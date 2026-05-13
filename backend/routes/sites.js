@@ -1,11 +1,12 @@
 'use strict';
 
-const express = require('express');
-const axios   = require('axios');
-const https   = require('https');
-const pool    = require('../db/connection');
-const auth    = require('../middleware/auth');
-const { encryptToken } = require('../connectors/encrypt');
+const express  = require('express');
+const axios    = require('axios');
+const https    = require('https');
+const FormData = require('form-data');
+const pool     = require('../db/connection');
+const auth     = require('../middleware/auth');
+const { encryptToken, decryptToken } = require('../connectors/encrypt');
 
 const router = express.Router();
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
@@ -192,6 +193,68 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     console.error('[sites/update]', err.message);
     res.status(500).json({ error: 'Erro ao atualizar site.' });
+  }
+});
+
+// ── POST /api/sites/:id/upload-image — sobe imagem para a biblioteca de mídia do WP ──
+// Recebe image_base64 + image_mime + image_name, faz upload via WP REST API e devolve
+// image_url + media_id para uso imediato no /api/publish/manual.
+router.post('/:id/upload-image', async (req, res) => {
+  const { image_base64, image_mime, image_name } = req.body || {};
+  if (!image_base64 || !image_mime) {
+    return res.status(400).json({ error: 'image_base64 e image_mime são obrigatórios.' });
+  }
+
+  try {
+    const isAdmin  = req.subscriber.is_admin;
+    const query    = isAdmin
+      ? 'SELECT site_url, wp_username, wp_app_password FROM subscriber_sites WHERE id = $1 AND active = true'
+      : 'SELECT site_url, wp_username, wp_app_password FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2 AND active = true';
+    const params   = isAdmin ? [req.params.id] : [req.params.id, req.subscriber.id];
+    const { rows } = await pool.query(query, params);
+    const site     = rows[0];
+
+    if (!site) return res.status(404).json({ error: 'Site não encontrado ou sem permissão.' });
+    if (!site.wp_app_password || !site.wp_username) {
+      return res.status(400).json({ error: 'Site sem senha de aplicação WordPress configurada.' });
+    }
+
+    const password  = decryptToken(site.wp_app_password);
+    const baseUrl   = (site.site_url || '').replace(/\/$/, '');
+    const wpAuth    = Buffer.from(`${site.wp_username}:${password}`).toString('base64');
+    const buffer    = Buffer.from(image_base64, 'base64');
+    const mime      = image_mime || 'image/jpeg';
+    const rawName   = image_name || 'imagem.jpg';
+    const fileName  = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    const form = new FormData();
+    form.append('file', buffer, { filename: fileName, contentType: mime });
+
+    const uploadRes = await axios.post(`${baseUrl}/wp-json/wp/v2/media`, form, {
+      timeout: 30000,
+      httpsAgent: HTTPS_AGENT,
+      maxContentLength: Infinity,
+      maxBodyLength:    Infinity,
+      headers: {
+        'Authorization': `Basic ${wpAuth}`,
+        'Accept':        'application/json',
+        ...form.getHeaders(),
+      },
+    });
+
+    const mediaId  = uploadRes.data?.id;
+    const imageUrl = uploadRes.data?.source_url || uploadRes.data?.guid?.rendered;
+    if (!mediaId || !imageUrl) {
+      return res.status(500).json({ error: 'Upload retornou resposta inválida.' });
+    }
+
+    res.json({ image_url: imageUrl, media_id: mediaId });
+  } catch (err) {
+    const status = err.response?.status;
+    const wpMsg  = err.response?.data?.message || err.response?.data?.error || JSON.stringify(err.response?.data);
+    const msg    = wpMsg || err.message;
+    console.error(`[sites/upload-image] status=${status}`, msg);
+    res.status(500).json({ error: `Falha no upload da imagem (${status || 'rede'}): ${msg}` });
   }
 });
 

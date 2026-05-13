@@ -47,8 +47,12 @@ function isJsRenderedSite(html) {
   if (html.includes('static.wixstatic.com'))       return true;
   if (html.includes('"wixConfig"'))                 return true;
   if (html.includes('window.__WIX'))                return true;
-  // React/Next.js com hydration e pouco conteúdo SSR
-  if (html.includes('data-reactroot') && html.replace(/<[^>]*>/g, '').trim().length < 300) return true;
+  // React/Next.js — hydration markers
+  if (html.includes('data-reactroot'))              return true;
+  if (html.includes('__NEXT_DATA__'))               return true;
+  // Sites que dependem de JS para carregar conteúdo (Angular, Vue, etc.)
+  if (html.includes('ng-version='))                 return true;
+  if (html.includes('data-server-rendered="true"')) return true;
   return false;
 }
 

@@ -22,12 +22,21 @@ const ALLOWED_HOSTS = [
   'sommaior.com.br',
   'brasilparalelo.com.br',
   'lance.com.br', 'lncimg.lance.com.br',
+  // Globo / G1 / O Globo
+  'glbimg.com', 'oglobo.globo.com', 'g1.globo.com',
+  'oglobo.com', 's3.glbimg.com', 'i.s3.glbimg.com',
+  // Poder Legislativo Federal
+  'senado.leg.br',
+  'camara.leg.br',
   // Assembleias legislativas
   'alesc.sc.gov.br',
   'al.rs.gov.br',
-  // Prefeituras (.rs.gov.br, .sc.gov.br, atende.net)
+  // Prefeituras (.rs.gov.br, .sc.gov.br, .ac.gov.br, .sp.gov.br, atende.net)
   'rs.gov.br',
   'sc.gov.br',
+  'ac.gov.br',   // Rio Branco, Cruzeiro do Sul, e todas as demais prefeituras do Acre
+  'al.ac.leg.br', // Assembleia Legislativa do Acre
+  'sp.gov.br',   // Prefeituras SP e governo do estado (Praia Grande, etc.)
   'atende.net',
   // WordPress CDNs
   'static.wixstatic.com',
@@ -49,7 +58,7 @@ router.get('/', async (req, res) => {
   if (!allowed) return res.status(403).send('host não permitido');
 
   // Só imagens
-  if (!/\.(jpe?g|png|gif|webp|avif|svg)(\?.*)?$/i.test(parsed.pathname) &&
+  if (!/\.(jpe?g|jfif|png|gif|webp|avif|svg)(\?.*)?$/i.test(parsed.pathname) &&
       !url.includes('wp-content/uploads') &&
       !url.includes('image') && !url.includes('foto') && !url.includes('imag')) {
     // Permissivo: deixa passar — o content-type vai validar

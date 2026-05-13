@@ -62,20 +62,28 @@ const CONTENT_SELECTORS = [
 function normalizarUrlImagem(src, baseUrl) {
   if (!src || typeof src !== 'string') return null;
   src = src.trim();
-  if (src.startsWith('http://') || src.startsWith('https://')) return src;
-  if (src.startsWith('//')) return 'https:' + src;
-  if (src.startsWith('/') && baseUrl) {
+  let resolved = null;
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    resolved = src;
+  } else if (src.startsWith('//')) {
+    resolved = 'https:' + src;
+  } else if (src.startsWith('/') && baseUrl) {
     try {
       const u = new URL(baseUrl);
-      return u.origin + src;
+      resolved = u.origin + src;
     } catch { return null; }
-  }
-  if (src.startsWith('./') || (!src.startsWith('data:') && !src.startsWith('#'))) {
+  } else if (src.startsWith('./') || (!src.startsWith('data:') && !src.startsWith('#'))) {
     try {
-      return new URL(src, baseUrl).href;
+      resolved = new URL(src, baseUrl).href;
     } catch { return null; }
   }
-  return null;
+  if (!resolved) return null;
+  // Wix CDN: remove parâmetros de transformação para obter imagem em resolução original.
+  // Placeholder borrado: .../media/abc~mv2.jpg/v1/fill/w_25,h_25,blur_30,.../abc~mv2.jpg
+  // Após fix:            .../media/abc~mv2.jpg
+  const wixMatch = resolved.match(/^(https:\/\/static\.wixstatic\.com\/media\/[^/]+\.[a-z0-9]+)\/.+/i);
+  if (wixMatch) return wixMatch[1];
+  return resolved;
 }
 
 /**
@@ -321,16 +329,39 @@ async function fetchFullContent(url, source) {
     let body = rawHtml ? (normalizeBody(rawHtml, url) || null) : null;
 
     // Extrai imagem destacada
-    // Se extract_body_image=true: pega da 1ª img do corpo (remove ela do corpo)
-    // Caso contrário: usa og:image / twitter:image / JSON-LD como antes
+    // Prioridade: featured_image_selector > extract_body_image > og:image automático
     let image_url;
-    if (source?.extract_body_image && body) {
-      const extracted = extrairImagemDoCorpo(body, url);
-      image_url = extracted.image_url;
-      body      = extracted.body;
-      console.log(`[full-content] extract_body_image: ${image_url || 'nenhuma imagem encontrada'}`);
-    } else {
-      image_url = extrairImagemDestacada($, body, url);
+
+    if (source?.featured_image_selector) {
+      // Seletor CSS explícito configurado para esta fonte — prioridade máxima.
+      // Suporta dois casos:
+      //   1. Seletor aponta direto para <img> → usa src do próprio elemento
+      //   2. Seletor aponta para container (div, figure, etc.) → procura <img> dentro
+      const imgEl = $(source.featured_image_selector);
+      imgEl.each((_, el) => {
+        const $el = $(el);
+        let srcRaw = $el.attr('src') || $el.attr('data-src') || $el.attr('data-lazy-src') || '';
+        if (!srcRaw) {
+          // Container: busca primeiro <img> dentro do elemento
+          const inner = $el.find('img').first();
+          srcRaw = inner.attr('src') || inner.attr('data-src') || inner.attr('data-lazy-src') || '';
+        }
+        const src = normalizarUrlImagem(srcRaw, url);
+        if (src && !src.match(/\.svg(\?|$)/i)) { image_url = src; return false; }
+      });
+      console.log(`[full-content] featured_image_selector (${source.featured_image_selector}): ${image_url || 'não encontrada'}`);
+    }
+
+    if (!image_url) {
+      if (source?.extract_body_image && body) {
+        const extracted = extrairImagemDoCorpo(body, url);
+        image_url = extracted.image_url;
+        body      = extracted.body;
+        console.log(`[full-content] extract_body_image: ${image_url || 'nenhuma imagem encontrada'}`);
+      } else {
+        image_url = extrairImagemDestacada($, body, url);
+        console.log(`[full-content] image_url=${image_url || 'null'}`);
+      }
     }
 
     // ── Fallback headless: aciona Puppeteer quando o scraping estático falhou ──

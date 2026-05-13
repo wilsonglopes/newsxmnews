@@ -1,10 +1,53 @@
 'use strict';
 
-const axios   = require('axios');
-const https   = require('https');
+const axios    = require('axios');
+const https    = require('https');
+const fs       = require('fs');
+const path     = require('path');
+const FormData = require('form-data');
+const sharp    = require('sharp');
 const { decryptToken } = require('./encrypt');
 
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
+
+const MAX_IMAGE_WIDTH = 1000;
+const MAX_IMAGE_BYTES = 1.5 * 1024 * 1024; // 1.5 MB
+
+/**
+ * Redimensiona a imagem para no máximo MAX_IMAGE_WIDTH de largura.
+ * Converte AVIF/WebP/JFIF para JPEG. PNG permanece PNG (suporta transparência).
+ * Retorna { buffer, contentType, fileName } ou o original em caso de falha.
+ */
+async function resizeImageIfNeeded(buffer, contentType, fileName) {
+  try {
+    const meta = await sharp(buffer).metadata();
+    const needsResize = (meta.width || 0) > MAX_IMAGE_WIDTH || buffer.length > MAX_IMAGE_BYTES;
+    if (!needsResize) return { buffer, contentType, fileName };
+
+    const isPng = contentType === 'image/png';
+    let pipeline = sharp(buffer).resize(MAX_IMAGE_WIDTH, null, { withoutEnlargement: true });
+    let newContentType, newFileName;
+
+    if (isPng) {
+      pipeline    = pipeline.png({ compressionLevel: 8 });
+      newContentType = 'image/png';
+      newFileName    = fileName.replace(/\.[^.]+$/, '.png') || 'imagem.png';
+    } else {
+      pipeline    = pipeline.jpeg({ quality: 85, progressive: true });
+      newContentType = 'image/jpeg';
+      newFileName    = fileName.replace(/\.[^.]+$/, '.jpg') || 'imagem.jpg';
+    }
+
+    const resized = await pipeline.toBuffer();
+    console.log(`[img-resize] ${buffer.length} → ${resized.length} bytes (${meta.width}px → ≤${MAX_IMAGE_WIDTH}px)`);
+    return { buffer: resized, contentType: newContentType, fileName: newFileName };
+  } catch (e) {
+    console.warn('[img-resize] falhou, usando original:', e.message);
+    return { buffer, contentType, fileName };
+  }
+}
 
 /**
  * Garante que todas as <img> do body HTML tenham width:100% responsivo.
@@ -19,6 +62,57 @@ function ensureImgFullWidth(html) {
     const cleaned = attrs.replace(/\s*style\s*=\s*["'][^"']*["']/gi, '');
     return `<img${cleaned} style="max-width:100%;width:100%;height:auto;display:block;margin:1rem auto;">`;
   });
+}
+
+/**
+ * Resolve o buffer de imagem a partir de article.image_base64 (postagem manual)
+ * ou baixando article.image_url (artigo de scraping). Retorna null se não houver imagem.
+ */
+async function resolveImageBuffer(article) {
+  if (article.image_base64) {
+    const buffer      = Buffer.from(article.image_base64, 'base64');
+    const contentType = article.image_mime || 'image/jpeg';
+    const rawName     = article.image_name || 'imagem.jpg';
+    const fileName    = rawName.replace(/\.(jpe?g|jfif|jpg|png|webp|gif|avif|svg).*$/i, (m) => m.split('?')[0]) || 'imagem.jpg';
+    return resizeImageIfNeeded(buffer, contentType, fileName);
+  }
+  if (article.image_url) {
+    const imgRes = await axios.get(article.image_url, {
+      responseType: 'arraybuffer', timeout: 15000, httpsAgent: HTTPS_AGENT,
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        'Referer': (() => { try { return new URL(article.image_url).origin + '/'; } catch { return article.image_url; } })(),
+      },
+    });
+    const buffer      = Buffer.from(imgRes.data);
+    const contentType = imgRes.headers['content-type']?.split(';')[0].trim() || 'image/jpeg';
+    const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+                     'image/gif': 'gif', 'image/avif': 'avif', 'image/svg+xml': 'svg' };
+    const extFromCt = extMap[contentType] || 'jpg';
+    const rawName   = article.image_url.split('/').pop().split('?')[0] || '';
+    const fileName  = rawName.replace(/\.(jpe?g|jfif|jpg|png|webp|gif|avif|svg).*$/i, (m) => m)
+                      || `imagem.${extFromCt}`;
+    return resizeImageIfNeeded(buffer, contentType, fileName);
+  }
+  return null;
+}
+
+/**
+ * Faz upload de imagem para a biblioteca de mídia do WordPress via multipart/form-data.
+ * Retorna o media_id ou null em caso de falha.
+ */
+async function uploadImageToWP(baseUrl, wpHeaders, img) {
+  const form = new FormData();
+  form.append('file', img.buffer, { filename: img.fileName, contentType: img.contentType });
+  const uploadRes = await axios.post(`${baseUrl}/wp-json/wp/v2/media`, form, {
+    timeout: 20000,
+    httpsAgent: HTTPS_AGENT,
+    maxContentLength: Infinity,
+    maxBodyLength:    Infinity,
+    headers: { ...wpHeaders, 'Accept': 'application/json', ...form.getHeaders() },
+  });
+  return { id: uploadRes.data?.id || null, url: uploadRes.data?.source_url || null };
 }
 
 // ── Publicação via Plugin XIXO (modo preferencial) ───────────────────────────
@@ -56,6 +150,73 @@ async function publishViaXixoPlugin(site, rewritten, article) {
   //   'standard'  → imagem apenas como featured_media (para temas que já a exibem, ex: Hello Elementor)
   const postFormat = site.post_format || 'editorial';
 
+  // Pré-upload da imagem: o backend baixa a imagem da fonte (VPS tem acesso) e sobe
+  // para a biblioteca de mídia do WP antes de chamar o plugin. O plugin recebe a URL
+  // já hospedada no próprio WP → download instantâneo, sem timeout por CDNs bloqueadas.
+  // Fallback: se não houver wp_app_password, tenta a URL original; se inacessível, publica sem imagem.
+  let imageUrlParaPlugin = article.image_url || '';
+
+  if (imageUrlParaPlugin && site.wp_app_password && site.wp_username) {
+    try {
+      const password  = decryptToken(site.wp_app_password);
+      const wpAuth    = Buffer.from(`${site.wp_username}:${password}`).toString('base64');
+      const wpHeaders = { Authorization: `Basic ${wpAuth}` };
+      const img = await resolveImageBuffer({ image_url: imageUrlParaPlugin });
+      if (img) {
+        const { id: mediaId, url: mediaUrl } = await uploadImageToWP(baseUrl, wpHeaders, img);
+        if (mediaUrl) {
+          console.log(`[xixo] pré-upload OK: ${imageUrlParaPlugin} → ${mediaUrl}`);
+          imageUrlParaPlugin = mediaUrl;
+        }
+      }
+    } catch (e) {
+      console.warn(`[xixo] pré-upload falhou (${e.message}), tentando URL original`);
+      // Se URL original também não for acessível pelo plugin, limpa
+      try {
+        await axios.head(imageUrlParaPlugin, { timeout: 4000, httpsAgent: HTTPS_AGENT,
+          headers: { 'User-Agent': 'Mozilla/5.0' } });
+      } catch {
+        console.warn(`[xixo] URL original inacessível, publicando sem imagem`);
+        imageUrlParaPlugin = '';
+      }
+    }
+  } else if (imageUrlParaPlugin) {
+    // Sem credenciais WP: baixa + redimensiona + serve via backend temporariamente.
+    // O plugin baixa do nosso servidor (~300 KB) em vez da CDN original (pode ser 6 MB+).
+    try {
+      const img = await resolveImageBuffer({ image_url: imageUrlParaPlugin });
+      if (img) {
+        const backendUrl = (process.env.BACKEND_URL || '').replace(/\/$/, '');
+        if (backendUrl && !backendUrl.includes('localhost')) {
+          if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+          const ext      = img.fileName.split('.').pop() || 'jpg';
+          const tmpName  = `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+          const tmpPath  = path.join(UPLOADS_DIR, tmpName);
+          fs.writeFileSync(tmpPath, img.buffer);
+          imageUrlParaPlugin = `${backendUrl}/uploads/${tmpName}`;
+          // Limpa o arquivo temporário após 15 minutos
+          setTimeout(() => { try { fs.unlinkSync(tmpPath); } catch {} }, 15 * 60 * 1000);
+          console.log(`[xixo] temp img: ${img.buffer.length} bytes → ${imageUrlParaPlugin}`);
+        }
+        // Em localhost (dev): usa URL original — plugin não consegue acessar localhost de fora
+      }
+    } catch (e) {
+      console.warn(`[xixo] temp img falhou (${e.message}), tentando URL original`);
+    }
+    // Verifica se URL final ainda é acessível; se não, publica sem imagem
+    if (imageUrlParaPlugin) {
+      try {
+        await axios.head(imageUrlParaPlugin, { timeout: 5000, httpsAgent: HTTPS_AGENT,
+          headers: { 'User-Agent': 'Mozilla/5.0' } });
+      } catch {
+        console.warn(`[xixo] URL final inacessível, publicando sem imagem`);
+        imageUrlParaPlugin = '';
+      }
+    }
+  }
+
+  console.log(`[xixo] publicando post_format=${postFormat} image_url=${imageUrlParaPlugin || '(sem imagem)'} site=${site.name}`);
+
   const payload = {
     title:       rewritten.title       || '',
     chapeu:      rewritten.chapeu      || '',
@@ -64,14 +225,14 @@ async function publishViaXixoPlugin(site, rewritten, article) {
     slug:        slugify(rewritten.title),
     source_url:  article.external_url  || '',
     source_name: nomefonte,
-    image_url:   article.image_url     || '',
+    image_url:   imageUrlParaPlugin,
     post_format: postFormat,
     tags:        rewritten.tags        || [],
     category_ids: rewritten.category_ids?.length ? rewritten.category_ids : (rewritten.category_id ? [rewritten.category_id] : []),
   };
 
   const res = await axios.post(`${baseUrl}/wp-json/xixo/v1/publish`, payload, {
-    timeout:    30000,
+    timeout:    60000,
     httpsAgent: HTTPS_AGENT,
     headers: {
       'Content-Type': 'application/json',
@@ -87,40 +248,32 @@ async function publishViaXixoPlugin(site, rewritten, article) {
   const postId  = String(data.post_id);
   const postUrl = data.post_url;
 
-  // ── Modo standard: sobe imagem via WP REST API e define featured_media ────────
-  // O plugin não inseriu a imagem no corpo. Aqui fazemos o upload e vinculamos
-  // ao post como imagem destacada (aparece 1x via tema, sem duplicata).
-  if (postFormat !== 'editorial' && article.image_url && site.wp_app_password && site.wp_username) {
+  // ── Modo standard: define featured_media no post ──────────────────────────
+  // Para editorial, o plugin já injeta a imagem no corpo via image_url.
+  // Para standard, o tema exibe a featured_media — precisamos vincular ao post.
+  // Modo 'standard': o plugin NÃO injeta imagem no corpo — o backend deve fazer upload
+  // e definir featured_media via WP REST API.
+  // Modos 'editorial', 'simple' e outros: o plugin já faz download e define featured_media
+  // por conta própria (via download_url no PHP). Backend não deve tentar upload.
+  if (postFormat === 'standard' && site.wp_app_password && site.wp_username) {
     try {
-      const password   = decryptToken(site.wp_app_password);
-      const wpAuth     = Buffer.from(`${site.wp_username}:${password}`).toString('base64');
-      const wpHeaders  = { Authorization: `Basic ${wpAuth}` };
+      const password  = decryptToken(site.wp_app_password);
+      if (!password) { console.warn(`[xixo] wp_app_password vazio após decrypt — imagem não será enviada`); }
+      const wpAuth    = Buffer.from(`${site.wp_username}:${password}`).toString('base64');
+      const wpHeaders = { Authorization: `Basic ${wpAuth}` };
 
-      // Baixa a imagem
-      const imgRes = await axios.get(article.image_url, {
-        responseType: 'arraybuffer', timeout: 15000, httpsAgent: HTTPS_AGENT,
-        headers: { 'User-Agent': 'Mozilla/5.0',
-          'Referer': (() => { try { return new URL(article.image_url).origin + '/'; } catch { return article.image_url; } })() },
-      });
+      let mediaId = article.image_media_id || null;
 
-      const imgBuffer   = Buffer.from(imgRes.data);
-      const contentType = imgRes.headers['content-type'] || 'image/jpeg';
-      const rawName     = article.image_url.split('/').pop().split('?')[0] || 'imagem.jpg';
-      const imgName     = rawName.replace(/\.(jpeg|jpg|png|webp|gif).*$/i, '.$1') || 'imagem.jpg';
+      if (!mediaId && article.image_url) {
+        console.log(`[xixo] fazendo upload da imagem: ${article.image_url}`);
+        const img = await resolveImageBuffer(article);
+        if (img) mediaId = (await uploadImageToWP(baseUrl, wpHeaders, img).catch((e) => { console.warn('[xixo] upload falhou:', e.message); return {}; }))?.id || null;
+        console.log(`[xixo] upload resultado: mediaId=${mediaId || 'null'}`);
+      } else if (!article.image_url) {
+        console.log(`[xixo] sem image_url — post sem imagem destacada`);
+      }
 
-      // Upload para a biblioteca de mídia
-      const uploadRes = await axios.post(`${baseUrl}/wp-json/wp/v2/media`, imgBuffer, {
-        timeout: 20000, httpsAgent: HTTPS_AGENT,
-        headers: {
-          ...wpHeaders,
-          'Content-Disposition': `attachment; filename="${imgName}"`,
-          'Content-Type': contentType,
-        },
-      });
-
-      const mediaId = uploadRes.data?.id;
       if (mediaId) {
-        // Define como featured_media no post
         await axios.post(`${baseUrl}/wp-json/wp/v2/posts/${postId}`, { featured_media: mediaId }, {
           timeout: 10000, httpsAgent: HTTPS_AGENT,
           headers: { ...wpHeaders, 'Content-Type': 'application/json' },
@@ -128,7 +281,6 @@ async function publishViaXixoPlugin(site, rewritten, article) {
         console.log(`[xixo] featured_media ${mediaId} definida no post ${postId} (${site.name})`);
       }
     } catch (imgErr) {
-      // Falha no upload da imagem não impede a publicação
       console.warn('[xixo] Falha ao definir featured_media:', imgErr.message);
     }
   }
@@ -191,33 +343,20 @@ async function publishToWordPress(site, rewritten, article) {
   }
 
   // ── 2. Upload da imagem ────────────────────────────────────────────────────
-  let featuredMediaId  = null;
+  let featuredMediaId  = article.image_media_id || null; // pré-carregado pelo frontend
   let featuredMediaUrl = article.image_url || null;
 
-  if (article.image_url) {
+  // Se a imagem não foi pré-carregada, faz download da URL e sobe ao WP media
+  if (!featuredMediaId && article.image_url) {
     try {
-      const imgRes = await axios.get(article.image_url, {
-        responseType: 'arraybuffer', timeout: 15000, httpsAgent: HTTPS_AGENT,
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Referer': (() => { try { return new URL(article.image_url).origin + '/'; } catch { return article.image_url; } })(),
-        },
-      });
-      const imgBuffer   = Buffer.from(imgRes.data);
-      const contentType = imgRes.headers['content-type'] || 'image/jpeg';
-      const rawName     = article.image_url.split('/').pop().split('?')[0] || 'imagem.jpg';
-      const imgName     = rawName.replace(/\.(jpeg|jpg|png|webp|gif).*$/i, '.$1') || 'imagem.jpg';
-
-      const uploadRes = await axiosWP.post('/wp-json/wp/v2/media', imgBuffer, {
-        headers: {
-          'Authorization':       authHeader['Authorization'],
-          'Content-Disposition': `attachment; filename="${imgName}"`,
-          'Content-Type':        contentType,
-        },
-      });
-      if (uploadRes.data?.id) {
-        featuredMediaId  = uploadRes.data.id;
-        featuredMediaUrl = uploadRes.data.source_url || uploadRes.data.guid?.rendered || featuredMediaUrl;
+      const img = await resolveImageBuffer(article);
+      if (img) {
+        const wpHeaders = { Authorization: authHeader['Authorization'] };
+        const { id: mediaId } = await uploadImageToWP(baseUrl, wpHeaders, img);
+        if (mediaId) {
+          featuredMediaId  = mediaId;
+          featuredMediaUrl = article.image_url;
+        }
       }
     } catch (e) { console.warn('[wordpress] Upload de imagem falhou:', e.message); }
   }

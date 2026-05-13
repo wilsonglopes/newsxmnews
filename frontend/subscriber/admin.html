@@ -265,10 +265,16 @@
     .publicar-sel-grupo label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
     .publicar-sel-grupo select { width:100%; padding:.5rem .7rem; border:1.5px solid var(--border); border-radius:8px; font-size:.84rem; font-family:var(--font); color:var(--text); background:var(--white); cursor:pointer; }
     .cat-checkboxes { border:1.5px solid var(--border); border-radius:8px; padding:.3rem .5rem; min-height:110px; max-height:140px; overflow-y:auto; background:var(--white); }
-    .cat-checkboxes label { display:flex; align-items:center; gap:.45rem; padding:3px 4px; border-radius:4px; cursor:pointer; font-size:.82rem; font-weight:400; text-transform:none; letter-spacing:0; color:var(--text); user-select:none; }
+    .cat-checkboxes label { display:grid; grid-template-columns:16px 1fr; align-items:start; gap:.45rem; padding:3px 4px; border-radius:4px; cursor:pointer; font-size:.82rem; font-weight:400; text-transform:none; letter-spacing:0; color:var(--text); user-select:none; }
     .cat-checkboxes label:hover { background:#f1f5f9; }
     .cat-checkboxes input[type="checkbox"] { cursor:pointer; accent-color:var(--red); flex-shrink:0; }
     .cat-placeholder { color:var(--muted); font-size:.8rem; padding:4px 2px; display:block; }
+    .publicar-sel-esquerda { display:flex; flex-direction:column; gap:.5rem; }
+    .cat-chips { display:flex; flex-wrap:wrap; gap:.3rem; align-content:flex-start; padding:.35rem .5rem; min-height:110px; max-height:140px; overflow-y:auto; border:1.5px solid var(--border); border-radius:8px; background:var(--white); }
+    .cat-chips-empty { color:var(--muted); font-size:.78rem; padding:4px 2px; }
+    .cat-chip { display:inline-flex; align-items:center; gap:.2rem; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:20px; padding:.18rem .5rem; font-size:.74rem; font-weight:600; cursor:pointer; line-height:1.4; transition:background .15s; }
+    .cat-chip:hover { background:#fca5a5; border-color:#f87171; }
+    .cat-chip .chip-x { font-size:.85rem; opacity:.65; margin-left:.1rem; }
     /* ── Multi-portal: cards de seleção ── */
     .portais-section { width:100%; }
     .portais-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
@@ -386,6 +392,15 @@ Portal<span class="logo-news">News</span>
   </a>
   <a class="nav-item" data-page="publicacoes" onclick="irPara('publicacoes')">
     <span class="icon">📋</span> Publicações
+  </a>
+  <a class="nav-item" data-page="autopub" onclick="irPara('autopub')">
+    <span class="icon">🤖</span> Autopublicação
+  </a>
+  <a class="nav-item" data-page="criar-post" onclick="irPara('criar-post')">
+    <span class="icon">✍️</span> Criar Post
+  </a>
+  <a class="nav-item" data-page="configuracoes" onclick="irPara('configuracoes')">
+    <span class="icon">⚙️</span> Configurações
   </a>
 
   <div class="sidebar-footer">
@@ -520,7 +535,13 @@ Portal<span class="logo-news">News</span>
     <div class="page" id="page-clientes">
       <div class="section-hdr">
         <h2>Clientes</h2>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Novo cliente</button>
+        <div style="display:flex;align-items:center;gap:12px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted);cursor:pointer">
+            <input type="checkbox" id="chk-mostrar-inativos" onchange="carregarClientes()" style="cursor:pointer">
+            Mostrar inativos
+          </label>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Novo cliente</button>
+        </div>
       </div>
 
       <div class="panel">
@@ -628,6 +649,286 @@ Portal<span class="logo-news">News</span>
       </div>
     </div><!-- /publicacoes -->
 
+    <!-- ══ AUTOPUBLICAÇÃO ════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-autopub">
+      <div class="section-hdr">
+        <h2>Autopublicação</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="ap-status-badge" style="font-size:.8rem;padding:4px 10px;border-radius:20px;font-weight:600"></span>
+          <span id="ap-refresh-countdown" style="font-size:.78rem;color:var(--muted)"></span>
+          <button class="btn btn-ghost btn-sm" onclick="atualizarAutopub()">↻ Atualizar</button>
+        </div>
+      </div>
+
+      <!-- Cards de estatísticas -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Hoje — publicados</div>
+          <div id="ap-stat-hoje-ok" style="font-size:1.8rem;font-weight:700;color:var(--text)">—</div>
+        </div>
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Hoje — erros</div>
+          <div id="ap-stat-hoje-erro" style="font-size:1.8rem;font-weight:700;color:#dc2626">—</div>
+        </div>
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Total geral</div>
+          <div id="ap-stat-total" style="font-size:1.8rem;font-weight:700;color:var(--text)">—</div>
+        </div>
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Última rodada</div>
+          <div id="ap-stat-ultima" style="font-size:1rem;font-weight:600;color:var(--text);margin-top:4px">—</div>
+        </div>
+      </div>
+
+      <!-- Tabela de log -->
+      <div class="panel">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+          <span style="font-weight:700;font-size:.9rem">Histórico de publicações automáticas</span>
+          <span id="ap-log-count" style="font-size:.78rem;color:var(--muted);margin-left:4px"></span>
+        </div>
+        <div style="padding:0">
+          <table class="data-table" id="tbl-ap-log">
+            <thead>
+              <tr>
+                <th style="width:110px">Hora</th>
+                <th>Artigo publicado</th>
+                <th style="width:150px">Site</th>
+                <th style="width:120px">Cliente</th>
+                <th style="width:80px;text-align:center">Status</th>
+              </tr>
+            </thead>
+            <tbody><tr><td colspan="5" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /autopub -->
+
+    <div class="page" id="page-configuracoes">
+      <div class="section-hdr"><h2>Configurações</h2></div>
+
+      <!-- Painel único: todas as opções em linha -->
+      <div class="panel" style="margin-bottom:20px">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div>
+            <div style="font-weight:700;font-size:.95rem;color:var(--text)">Parâmetros do sistema</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Configurações globais de IA e publicação automática</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:.84rem;color:var(--muted)">Autopublicação</span>
+            <input type="checkbox" id="cfg-autopub-enabled" onchange="salvarConfiguracoes()" style="width:18px;height:18px;cursor:pointer" />
+            <div id="cfg-status" style="font-size:.82rem;margin-left:8px"></div>
+          </div>
+        </div>
+
+        <div style="padding:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;align-items:start">
+
+          <!-- IA -->
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <span style="font-size:1.1rem">🤖</span>
+              <span style="font-weight:700;font-size:.88rem;color:var(--text)">Provedor de IA</span>
+            </div>
+            <select id="cfg-ia-provider" onchange="salvarConfiguracoes()" style="width:100%;padding:.6rem .75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.88rem;font-family:inherit;color:var(--text);background:var(--white)">
+              <option value="gemini">Gemini (Google)</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+            <p style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.5">IA usada por todos os assinantes na reescrita de artigos.</p>
+          </div>
+
+          <!-- Frequência -->
+          <div style="border-left:1px solid var(--border);padding-left:32px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <span style="font-size:1.1rem">⏱️</span>
+              <span style="font-weight:700;font-size:.88rem;color:var(--text)">Frequência</span>
+            </div>
+            <select id="cfg-autopub-interval" onchange="salvarConfiguracoes()" style="width:100%;padding:.6rem .75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.88rem;font-family:inherit;color:var(--text);background:var(--white)">
+              <option value="5">A cada 5 minutos</option>
+              <option value="10">A cada 10 minutos</option>
+              <option value="15">A cada 15 minutos</option>
+              <option value="20">A cada 20 minutos</option>
+              <option value="30">A cada 30 minutos</option>
+              <option value="60">A cada 1 hora</option>
+              <option value="120">A cada 2 horas</option>
+            </select>
+            <p style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.5">Com que frequência busca e publica artigos novos. Entra em vigor sem reiniciar.</p>
+          </div>
+
+          <!-- Limite por rodada -->
+          <div style="border-left:1px solid var(--border);padding-left:32px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <span style="font-size:1.1rem">📦</span>
+              <span style="font-weight:700;font-size:.88rem;color:var(--text)">Artigos por rodada</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="number" id="cfg-autopub-max" min="1" max="20" onchange="salvarConfiguracoes()" style="width:72px;padding:.6rem .75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.88rem;text-align:center" />
+              <span style="font-size:.82rem;color:var(--muted)">por site</span>
+            </div>
+            <p style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.5">Máximo de artigos publicados por site em cada rodada. Os demais entram na próxima.</p>
+          </div>
+
+          <!-- Idade máxima dos artigos -->
+          <div style="border-left:1px solid var(--border);padding-left:32px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <span style="font-size:1.1rem">🕐</span>
+              <span style="font-weight:700;font-size:.88rem;color:var(--text)">Idade máxima do artigo</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="number" id="cfg-autopub-horas" min="1" max="168" onchange="salvarConfiguracoes()" style="width:72px;padding:.6rem .75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.88rem;text-align:center" />
+              <span style="font-size:.82rem;color:var(--muted)">horas</span>
+            </div>
+            <p style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.5">Artigos coletados há mais tempo que esse limite <strong>não serão publicados</strong>. Evita publicar notícias antigas quando o sistema é ligado pela primeira vez.</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Log de autopublicação -->
+      <div class="panel">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.1rem">📋</span>
+          <div>
+            <div style="font-weight:700;font-size:.95rem;color:var(--text)">Log de Autopublicação</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Últimas 50 publicações automáticas processadas</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="carregarAutopubLog()" style="margin-left:auto">↻ Atualizar</button>
+        </div>
+        <div style="padding:0">
+          <table class="data-table" id="tbl-autopub-log">
+            <thead>
+              <tr><th>Hora</th><th>Artigo</th><th>Categoria</th><th>Site de destino</th><th>Cliente</th><th>Status</th></tr>
+            </thead>
+            <tbody><tr><td colspan="6" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /configuracoes -->
+
+    <!-- ══ CRIAR POST ════════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-criar-post">
+
+      <!-- FASE 1: Briefing -->
+      <div id="acp-fase1">
+        <div style="max-width:700px;margin:0 auto">
+          <p style="font-size:.84rem;color:var(--muted);margin-bottom:1.5rem">Descreva o tema e a IA escreve o artigo — chapéu, título, resumo e corpo. O post pode ser publicado em qualquer site cadastrado.</p>
+
+          <div class="form-group">
+            <label>Sobre o que é o artigo? <span style="color:var(--red)">*</span></label>
+            <textarea id="acp-tema" rows="5"
+              placeholder="Ex: Falar sobre a chegada do inverno no Sul do Brasil e o impacto na agricultura regional. Mencionar as regiões mais afetadas e as culturas em risco."
+              style="resize:vertical;font-size:.88rem;line-height:1.6"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Imagem de capa <small style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(opcional)</small></label>
+            <div id="acp-drop-area"
+              onclick="document.getElementById('acp-img-input').click()"
+              ondragover="event.preventDefault();this.style.borderColor='var(--red)'"
+              ondragleave="this.style.borderColor=''"
+              ondrop="acpHandleDrop(event)"
+              style="border:2px dashed var(--border);border-radius:var(--radius);padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--white)">
+              <div id="acp-drop-placeholder">
+                <div style="font-size:1.6rem;margin-bottom:.4rem">📷</div>
+                <div style="font-size:.85rem;color:var(--muted)">Clique ou arraste a imagem aqui</div>
+                <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">JPG, PNG, WEBP — máx. 5 MB</div>
+              </div>
+              <img id="acp-img-preview" src="" alt="" style="display:none;max-height:180px;max-width:100%;border-radius:4px;object-fit:cover">
+            </div>
+            <input type="file" id="acp-img-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+            <button id="acp-img-remover" style="display:none;margin-top:.4rem;background:none;border:none;color:#dc2626;font-size:.8rem;cursor:pointer">✕ Remover imagem</button>
+          </div>
+
+          <div class="form-group" style="margin-top:.75rem">
+            <label>Fonte <small style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(opcional)</small></label>
+            <input type="url" id="acp-fonte-url" placeholder="https://exemplo.com/materia-original"
+              style="width:100%;margin-bottom:.45rem">
+            <input type="text" id="acp-fonte-nome" placeholder="Nome da fonte (ex: G1, Prefeitura Municipal…)"
+              style="width:100%;font-size:.84rem">
+          </div>
+
+          <div style="display:flex;gap:.75rem;align-items:center;margin-top:.5rem">
+            <button class="btn btn-primary" id="acp-btn-gerar" style="padding:.65rem 1.5rem;font-size:.9rem">✦ Gerar artigo com IA</button>
+            <span id="acp-status" style="font-size:.82rem;color:var(--muted)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 2: Resultado + Publicar -->
+      <div id="acp-fase2" style="display:none">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+          <button onclick="acpVoltarBriefing()" style="background:none;border:none;color:var(--muted);font-size:.85rem;cursor:pointer;padding:0">← Editar briefing</button>
+          <h2 style="font-size:1.1rem;margin:0;font-weight:700">Artigo gerado — revise antes de publicar</h2>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start">
+
+          <!-- Coluna esquerda: campos editoriais -->
+          <div>
+            <div id="acp-img-result-wrap" style="margin-bottom:1rem;display:none">
+              <img id="acp-img-result" src="" alt=""
+                style="width:100%;max-height:260px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border)">
+            </div>
+
+            <div class="campo-grupo">
+              <label>Chapéu</label>
+              <input type="text" id="acp-chapeu" maxlength="80"
+                style="font-size:.83rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--red)">
+            </div>
+            <div class="campo-grupo">
+              <label>Título</label>
+              <input type="text" id="acp-titulo" style="font-size:1rem;font-weight:600">
+            </div>
+            <div class="campo-grupo">
+              <label>Resumo / Subtítulo</label>
+              <input type="text" id="acp-resumo" style="font-size:.88rem">
+            </div>
+            <div class="campo-grupo">
+              <label>Corpo do artigo</label>
+              <textarea id="acp-corpo" rows="14" style="font-size:.84rem;line-height:1.65;resize:vertical"></textarea>
+            </div>
+            <div class="campo-grupo">
+              <label>Tags <small style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(separadas por vírgula)</small></label>
+              <input type="text" id="acp-tags" style="font-size:.84rem">
+            </div>
+          </div>
+
+          <!-- Coluna direita: destino + publicar -->
+          <div style="position:sticky;top:70px">
+            <div class="panel" style="padding:1.25rem">
+              <div style="font-weight:700;font-size:.88rem;margin-bottom:1rem">🌐 Publicar em</div>
+
+              <div class="campo-grupo" style="margin-bottom:.75rem">
+                <label style="font-size:.78rem">Site de destino</label>
+                <select id="acp-site-dest" onchange="acpCarregarCategorias(this.value)"
+                  style="width:100%;padding:.5rem .65rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.84rem;font-family:var(--font)">
+                  <option value="">Selecione o site…</option>
+                </select>
+              </div>
+
+              <div class="campo-grupo" style="margin-bottom:1.25rem">
+                <label style="font-size:.78rem">Categorias</label>
+                <div id="acp-categorias" class="cat-checkboxes" style="max-height:200px;overflow-y:auto">
+                  <span class="cat-placeholder">Selecione o site primeiro…</span>
+                </div>
+              </div>
+
+              <button id="acp-btn-publicar" class="btn btn-primary"
+                style="width:100%;padding:.7rem;font-size:.9rem;justify-content:center" disabled>
+                ✓ Publicar
+              </button>
+              <div id="acp-link-publicado" style="margin-top:.75rem;font-size:.8rem;text-align:center"></div>
+
+              <button onclick="acpRegerar()"
+                style="width:100%;margin-top:.6rem;background:none;border:1px solid var(--border);border-radius:var(--radius);padding:.55rem;font-size:.82rem;cursor:pointer;color:var(--muted)">
+                ↻ Regerar com IA
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div><!-- /criar-post -->
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -648,19 +949,20 @@ Portal<span class="logo-news">News</span>
          onerror="this.classList.add('hidden')" />
     <div class="modal-corpo" id="map-corpo-leitura"></div>
     <div class="modal-footer" style="flex-direction:column;align-items:stretch;gap:10px;">
-      <div class="portais-section">
+      <div class="portais-section" id="map-secao-portais">
         <div class="portais-section-header">
           <span class="portais-section-titulo">🌐 Portais de destino</span>
           <button type="button" class="btn-sel-todos" id="map-btn-sel-todos" onclick="toggleSelecionarTodosAdmin()">Selecionar todos</button>
         </div>
         <div id="map-portais-checkboxes" class="portais-checkboxes"><span style="font-size:.78rem;color:var(--muted)">Carregando…</span></div>
       </div>
-      <div class="portal-footer-acoes">
-        <select id="sel-ia-provider" title="Provedor de IA" style="border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.55rem;font-size:0.78rem;font-family:inherit;color:var(--text);background:var(--white);cursor:pointer;flex-shrink:0;">
+      <div class="portal-footer-acoes" id="map-secao-gerar">
+        <select id="sel-ia-provider" title="Provedor de IA" onchange="salvarProviderIA(this.value)" style="border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.55rem;font-size:0.78rem;font-family:inherit;color:var(--text);background:var(--white);cursor:pointer;flex-shrink:0;">
           <option value="gemini">Gemini</option>
           <option value="deepseek">DeepSeek</option>
         </select>
         <button class="btn btn-ia" id="btn-gerar-ia-modal" disabled style="flex:1;justify-content:center;">✦ Gerar com IA</button>
+        <button class="btn btn-ghost" id="btn-recarregar-artigo" title="Busca novamente o conteúdo completo ignorando o cache" style="flex-shrink:0;">↺ Recarregar</button>
         <a id="map-link-original" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
       </div>
     </div>
@@ -677,9 +979,21 @@ Portal<span class="logo-news">News</span>
       <div class="campo-grupo"><label>Imagem destacada</label><input type="url" id="map-imagem" placeholder="URL da imagem…" /></div>
       <div class="publicar-bar">
         <div class="publicar-bar-selects">
+          <div class="publicar-sel-esquerda">
+            <div class="publicar-sel-grupo" id="map-grupo-site-dest" style="display:none">
+              <label>🌐 Canal de destino</label>
+              <select id="map-site-dest">
+                <option value="">Selecione o canal…</option>
+              </select>
+            </div>
+            <div class="publicar-sel-grupo" id="map-grupo-cats-sel" style="display:none">
+              <label>✓ Selecionadas</label>
+              <div id="map-cats-sel" class="cat-chips"><span class="cat-chips-empty">Nenhuma selecionada</span></div>
+            </div>
+          </div>
           <div class="publicar-sel-grupo">
             <label>🗂 Categorias</label>
-            <div id="map-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o site primeiro…</span></div>
+            <div id="map-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o canal primeiro…</span></div>
           </div>
         </div>
         <div class="publicar-bar-acoes">
@@ -709,7 +1023,6 @@ Portal<span class="logo-news">News</span>
         <button class="tab-btn active" onclick="mcTab('dados')">👤 Dados</button>
         <button class="tab-btn" onclick="mcTab('plano')">📋 Plano</button>
         <button class="tab-btn" onclick="mcTab('sites')">🌐 Sites</button>
-        <button class="tab-btn" onclick="mcTab('ia')">🤖 IA</button>
         <button class="tab-btn" onclick="mcTab('fontes')">📡 Fontes</button>
       </div>
 
@@ -767,18 +1080,6 @@ Portal<span class="logo-news">News</span>
         </div>
       </div>
 
-      <!-- Aba IA -->
-      <div class="tab-pane" id="mc-tab-ia">
-        <div class="form-group">
-          <label>Chave Gemini API</label>
-          <input type="text" id="mc-gemini-key" placeholder="AIza…" />
-        </div>
-        <div class="form-group">
-          <label>Prompt de IA padrão</label>
-          <textarea id="mc-ai-prompt" rows="6" placeholder="Instruções de estilo e formato para reescrita das notícias…"></textarea>
-        </div>
-      </div>
-
       <!-- Aba Fontes -->
       <div class="tab-pane" id="mc-tab-fontes">
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
@@ -818,7 +1119,14 @@ Portal<span class="logo-news">News</span>
           </select>
         </div>
       </div>
-      <div class="form-group"><label>URL do site *</label><input type="url" id="msc-url" placeholder="https://meusite.com.br" /></div>
+      <div class="form-group">
+        <label>URL do site *</label>
+        <input type="url" id="msc-url" placeholder="https://meusite.com.br" />
+        <div id="msc-url-hint" style="display:none;margin-top:6px;padding:8px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:.85rem;color:#166534;display:flex;align-items:center;gap:8px">
+          <span>✅ Site já cadastrado para outro cliente.</span>
+          <button type="button" onclick="preencherCredenciaisExistentes()" style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:.82rem;cursor:pointer;flex-shrink:0">Preencher credenciais</button>
+        </div>
+      </div>
 
       <!-- WordPress -->
       <div id="msc-wp-fields">
@@ -859,6 +1167,25 @@ Portal<span class="logo-news">News</span>
         <label>Identidade Editorial <small style="color:var(--muted);font-weight:400">(instrução enviada à IA ao reescrever para este portal)</small></label>
         <textarea id="msc-ai-prompt" rows="4" placeholder="Ex: Escreva em tom informal e direto, priorizando o leitor local. Use frases curtas. Destaque sempre o impacto para a região. Evite jargão político."></textarea>
       </div>
+      <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden">
+        <div style="padding:12px 14px;background:#f0fdf4;display:flex;align-items:center;gap:12px">
+          <input type="checkbox" id="msc-auto-publish" onchange="toggleAutopubFontes()" style="width:18px;height:18px;cursor:pointer;flex-shrink:0" />
+          <div>
+            <label for="msc-auto-publish" style="font-weight:600;cursor:pointer;color:#166534;display:block;margin:0">Publicação automática</label>
+            <span style="font-size:.78rem;color:#4b7c5f">Selecione as fontes cujos artigos serão reescritos e publicados automaticamente neste site.</span>
+          </div>
+        </div>
+        <div id="msc-autopub-fontes" style="display:none;padding:12px 14px;background:#fff;border-top:1px solid #86efac">
+          <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">
+            <input type="text" id="msc-fontes-filtro" placeholder="Filtrar fontes…" oninput="filtrarFontesAutopub()" style="flex:1;padding:5px 9px;border:1px solid var(--border);border-radius:5px;font-size:.83rem" />
+            <button type="button" onclick="selecionarTodasFontesAutopub(true)" style="font-size:.75rem;padding:4px 8px;border:1px solid #86efac;border-radius:5px;background:#f0fdf4;color:#166534;cursor:pointer">Todas</button>
+            <button type="button" onclick="selecionarTodasFontesAutopub(false)" style="font-size:.75rem;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:#f8fafc;cursor:pointer">Nenhuma</button>
+          </div>
+          <div id="msc-fontes-lista" style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:2px">
+            <span style="font-size:.82rem;color:var(--muted)">Carregando fontes…</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModal('modal-site-cli')">Cancelar</button>
@@ -875,6 +1202,17 @@ Portal<span class="logo-news">News</span>
       <button class="modal-close" onclick="fecharModal('modal-fonte')">✕</button>
     </div>
     <div class="modal-body">
+      <div id="mf-analyze-section" style="background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="font-size:.8rem;font-weight:600;color:#1d4ed8;margin-bottom:4px">✨ DETECTAR CONFIGURAÇÕES AUTOMATICAMENTE</div>
+        <div style="font-size:.78rem;color:#374151;margin-bottom:10px">Cole qualquer URL do portal (página inicial, seção ou artigo) — o sistema detecta RSS, seletores e imagem sozinho.</div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <div class="form-group" style="flex:1;margin:0">
+            <input type="url" id="mf-analyze-url" placeholder="https://portal.com.br/ultimas" />
+          </div>
+          <button class="btn btn-sm" id="btn-analisar" onclick="analisarFonte()" style="white-space:nowrap;background:#2563eb;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.82rem">✨ Analisar</button>
+        </div>
+        <div id="mf-analyze-result" style="display:none;margin-top:10px;font-size:.78rem;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:10px;line-height:1.8"></div>
+      </div>
       <input type="hidden" id="mf-slug-original" />
       <div class="form-row">
         <div class="form-group"><label>Nome *</label><input type="text" id="mf-name" required /></div>
@@ -913,11 +1251,33 @@ Portal<span class="logo-news">News</span>
         </div>
       </div>
     </div>
-    <div style="padding:0 20px 12px">
+    <div style="padding:0 20px 12px;display:flex;flex-direction:column;gap:12px">
+      <div class="form-group">
+        <label>Seletor de Conteúdo <small style="font-weight:400;color:var(--muted)">(CSS — ex: .entry-content, [itemprop="articleBody"])</small></label>
+        <input type="text" id="mf-content-selector" placeholder="Deixe vazio para usar Readability automático" />
+      </div>
+      <div class="form-group">
+        <label>Seletor de Imagem Destacada <small style="font-weight:400;color:var(--muted)">(CSS — ex: .featured-image img, .noticia-imagem img — prioridade máxima)</small></label>
+        <input type="text" id="mf-featured-image-selector" placeholder="Deixe vazio para usar og:image automático" />
+      </div>
       <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer">
         <input type="checkbox" id="mf-extract-body-image" style="width:16px;height:16px" />
-        <span>📷 Extrair imagem destacada do corpo do artigo <small style="color:var(--muted)">(para portais sem og:image — ex: prefeituras)</small></span>
+        <span>📷 Extrair imagem do corpo do artigo <small style="color:var(--muted)">(ignora og:image — use quando og:image é frame de vídeo ou não existe)</small></span>
       </label>
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;background:#f8fafc">
+        <div style="font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:8px">🧪 TESTAR EXTRAÇÃO</div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <div class="form-group" style="flex:1;margin:0">
+            <input type="url" id="mf-test-url" placeholder="Cole a URL de um artigo deste portal para testar…" />
+          </div>
+          <button class="btn btn-ghost btn-sm" id="btn-test-scraping" onclick="testarScraping()" style="white-space:nowrap">Testar</button>
+        </div>
+        <div id="test-scraping-result" style="display:none;margin-top:10px;font-size:.8rem">
+          <div id="tsr-stats" style="display:flex;gap:12px;margin-bottom:6px"></div>
+          <div id="tsr-image" style="margin-bottom:6px"></div>
+          <div id="tsr-preview" style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:8px;max-height:120px;overflow-y:auto;color:#374151;line-height:1.5"></div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModal('modal-fonte')">Cancelar</button>
@@ -966,7 +1326,10 @@ const PAGE_TITLES = {
   clientes:    ['Clientes', 'Gerencie os assinantes da plataforma'],
   financeiro:  ['Financeiro', 'Controle financeiro dos clientes'],
   fontes:      ['Fontes', 'Portais e feeds de notícias'],
-  publicacoes: ['Publicações', 'Histórico de artigos publicados'],
+  publicacoes:   ['Publicações', 'Histórico de artigos publicados'],
+  autopub:       ['Autopublicação', 'Monitor do sistema de postagem automática'],
+  'criar-post':  ['Criar Post', 'Crie um artigo com IA e publique diretamente'],
+  configuracoes: ['Configurações', 'Parâmetros globais do sistema'],
 };
 
 function irPara(page) {
@@ -981,8 +1344,125 @@ function irPara(page) {
   if (page === 'clientes')    carregarClientes();
   if (page === 'fontes')      carregarFontes();
   if (page === 'publicacoes') carregarPublicacoes();
-  if (page === 'publicar')    iniciarPublicar();
-  if (page === 'financeiro')  carregarFinanceiro();
+  if (page === 'publicar')       iniciarPublicar();
+  if (page === 'financeiro')     carregarFinanceiro();
+  if (page === 'configuracoes')  carregarConfiguracoes();
+  if (page === 'autopub')        iniciarMonitorAutopub();
+  else                           pararMonitorAutopub();
+  if (page === 'criar-post')     acpPopularSites();
+}
+
+// ══ AUTOPUBLICAÇÃO — Monitor ══════════════════════════════════════════════════
+
+let _apTimer = null;
+let _apCountdown = 30;
+
+function pararMonitorAutopub() {
+  if (_apTimer) { clearInterval(_apTimer); _apTimer = null; }
+}
+
+function iniciarMonitorAutopub() {
+  pararMonitorAutopub();
+  atualizarAutopub();
+  _apCountdown = 30;
+  _apTimer = setInterval(() => {
+    _apCountdown--;
+    const el = document.getElementById('ap-refresh-countdown');
+    if (el) el.textContent = `Atualiza em ${_apCountdown}s`;
+    if (_apCountdown <= 0) {
+      _apCountdown = 30;
+      atualizarAutopub();
+    }
+  }, 1000);
+}
+
+async function atualizarAutopub() {
+  _apCountdown = 30;
+  const el = document.getElementById('ap-refresh-countdown');
+  if (el) el.textContent = 'Atualizando…';
+
+  try {
+    const [stats, cfg, log] = await Promise.all([
+      fetch(`${BACKEND}/api/admin/autopub-stats`, { headers: authHeader() }).then(r => r.json()),
+      fetch(`${BACKEND}/api/admin/settings`,      { headers: authHeader() }).then(r => r.json()),
+      fetch(`${BACKEND}/api/admin/autopub-log?limit=100`, { headers: authHeader() }).then(r => r.json()),
+    ]);
+
+    // Badge de status
+    const badge = document.getElementById('ap-status-badge');
+    if (badge) {
+      const ativo = cfg.autopub_enabled !== false;
+      badge.textContent = ativo ? '🟢 Ativa' : '🔴 Pausada';
+      badge.style.background = ativo ? '#dcfce7' : '#fee2e2';
+      badge.style.color       = ativo ? '#16a34a' : '#dc2626';
+    }
+
+    // Stats
+    const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    setEl('ap-stat-hoje-ok',   stats.hoje_ok   ?? '0');
+    setEl('ap-stat-hoje-erro', stats.hoje_erro ?? '0');
+    setEl('ap-stat-total',     stats.total_geral ?? '0');
+
+    if (stats.ultima_rodada) {
+      const d = new Date(stats.ultima_rodada);
+      const diffMin = Math.round((Date.now() - d.getTime()) / 60000);
+      const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      setEl('ap-stat-ultima', diffMin < 1 ? 'Agora mesmo' : diffMin < 60 ? `há ${diffMin} min (${hora})` : hora);
+    } else {
+      setEl('ap-stat-ultima', 'Nunca rodou');
+    }
+
+    // Tabela de log
+    const tbody = document.querySelector('#tbl-ap-log tbody');
+    const logCount = document.getElementById('ap-log-count');
+    if (!Array.isArray(log) || !log.length) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma publicação automática ainda.</td></tr>';
+      if (logCount) logCount.textContent = '';
+      if (el) el.textContent = `Atualiza em 30s`;
+      return;
+    }
+    if (logCount) logCount.textContent = `(${log.length} registro${log.length !== 1 ? 's' : ''})`;
+
+    tbody.innerHTML = log.map(r => {
+      const hora = new Date(r.processed_at).toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+      });
+      const ok = r.status === 'ok';
+      const badge = ok
+        ? '<span class="badge badge-green" style="font-size:.75rem">✓ OK</span>'
+        : `<span class="badge badge-red" title="${(r.error_msg||'').replace(/"/g,'&quot;')}" style="font-size:.75rem;cursor:help">✗ Erro</span>`;
+
+      const titulo = r.rewritten_title || r.article_title || '—';
+      const tituloLink = r.external_post_url && ok
+        ? `<a href="${r.external_post_url}" target="_blank" rel="noopener"
+              style="color:var(--primary);text-decoration:none;font-weight:500"
+              title="Ver post publicado">${titulo.slice(0,65)}${titulo.length > 65 ? '…' : ''}</a>`
+        : `<span style="color:var(--text)">${titulo.slice(0,65)}${titulo.length > 65 ? '…' : ''}</span>`;
+
+      const fonteLink = r.external_url
+        ? `<a href="${r.external_url}" target="_blank" rel="noopener"
+              style="font-size:.72rem;color:var(--muted);display:block;margin-top:2px"
+              title="Ver artigo original">↗ original</a>`
+        : '';
+
+      const siteLink = r.site_url
+        ? `<a href="${r.site_url}" target="_blank" rel="noopener" style="color:var(--muted)">${r.site_name||'—'}</a>`
+        : (r.site_name || '—');
+
+      return `<tr>
+        <td style="font-size:.78rem;white-space:nowrap;color:var(--muted)">${hora}</td>
+        <td style="font-size:.83rem;line-height:1.3">${tituloLink}${fonteLink}</td>
+        <td style="font-size:.82rem">${siteLink}</td>
+        <td style="font-size:.82rem;color:var(--muted)">${r.subscriber_name||'—'}</td>
+        <td style="text-align:center">${badge}</td>
+      </tr>`;
+    }).join('');
+
+    if (el) el.textContent = `Atualiza em 30s`;
+  } catch (e) {
+    console.error('[autopub monitor]', e);
+    if (el) el.textContent = 'Erro ao carregar';
+  }
 }
 
 // ══ PAINEL (dashboard) ════════════════════════════════════════════════════════
@@ -1055,9 +1535,151 @@ let activePortalIndexAdmin = 0;
 
 async function iniciarPublicar() {
   await Promise.all([carregarArtigosPub(), carregarSitesModal()]);
-  // Restaura provedor de IA salvo anteriormente
   const sel = document.getElementById('sel-ia-provider');
-  if (sel) sel.value = localStorage.getItem('ia_provider') || 'gemini';
+  if (sel) {
+    try {
+      const r = await fetch(`${BACKEND}/api/admin/settings`, { headers: authHeader() });
+      const s = await r.json();
+      sel.value = s.ia_provider || 'gemini';
+    } catch { sel.value = 'gemini'; }
+  }
+}
+
+async function salvarProviderIA(valor) {
+  try {
+    await fetch(`${BACKEND}/api/admin/settings`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: JSON.stringify({ ia_provider: valor })
+    });
+  } catch (e) { console.warn('[salvarProviderIA]', e.message); }
+}
+
+// ── Autopub: seleção de fontes por site ───────────────────────────────────────
+
+let _fontesDoCliente = []; // fontes habilitadas para o cliente atual
+
+async function carregarFontesDoCliente() {
+  const subId = document.getElementById('mc-id').value;
+  if (!subId) return;
+  try {
+    const todas = await fetch(`${BACKEND}/api/admin/subscribers/${subId}/sources`, { headers: authHeader() }).then(r => r.json());
+    // Apenas as que o cliente tem habilitadas
+    _fontesDoCliente = todas.filter(f => f.selected);
+  } catch { _fontesDoCliente = []; }
+}
+
+function toggleAutopubFontes() {
+  const checked = document.getElementById('msc-auto-publish').checked;
+  document.getElementById('msc-autopub-fontes').style.display = checked ? '' : 'none';
+  if (checked) {
+    document.getElementById('msc-fontes-lista').innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Carregando…</span>';
+    carregarFontesDoCliente().then(() => renderFontesAutopub([]));
+  }
+}
+
+function renderFontesAutopub(selecionados) {
+  const filtro = (document.getElementById('msc-fontes-filtro')?.value || '').toLowerCase();
+  const lista  = document.getElementById('msc-fontes-lista');
+  const fontes = _fontesDoCliente.filter(f =>
+    !filtro || f.name.toLowerCase().includes(filtro) || (f.category || '').toLowerCase().includes(filtro)
+  );
+
+  if (!fontes.length) {
+    lista.innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Nenhuma fonte habilitada para este cliente.</span>';
+    return;
+  }
+
+  // Agrupa por categoria
+  const grupos = {};
+  for (const f of fontes) {
+    const cat = f.category || 'Geral';
+    if (!grupos[cat]) grupos[cat] = [];
+    grupos[cat].push(f);
+  }
+
+  lista.innerHTML = Object.entries(grupos).map(([cat, itens]) => `
+    <div style="margin-bottom:8px">
+      <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px">${cat}</div>
+      ${itens.map(f => `
+        <label style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:.84rem;user-select:none" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+          <input type="checkbox" class="autopub-fonte-cb" value="${f.id}" ${selecionados.includes(String(f.id)) ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer;flex-shrink:0" />
+          ${f.name}
+        </label>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function filtrarFontesAutopub() {
+  renderFontesAutopub(getAutopubSourceIds());
+}
+
+function selecionarTodasFontesAutopub(marcar) {
+  document.querySelectorAll('.autopub-fonte-cb').forEach(cb => { cb.checked = marcar; });
+}
+
+function getAutopubSourceIds() {
+  return [...document.querySelectorAll('.autopub-fonte-cb:checked')].map(cb => cb.value);
+}
+
+async function carregarConfiguracoes() {
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/settings`, { headers: authHeader() });
+    const s = await r.json();
+    if (s.ia_provider) document.getElementById('cfg-ia-provider').value = s.ia_provider;
+    document.getElementById('cfg-autopub-enabled').checked = s.autopub_enabled !== false;
+    document.getElementById('cfg-autopub-max').value       = s.autopub_max_por_rodada || 3;
+    document.getElementById('cfg-autopub-interval').value  = String(s.autopub_interval_minutos || 15);
+    document.getElementById('cfg-autopub-horas').value     = s.autopub_max_horas ?? 2;
+    document.getElementById('cfg-status').textContent = '';
+  } catch (e) { console.warn('[carregarConfiguracoes]', e.message); }
+  carregarAutopubLog();
+}
+
+async function salvarConfiguracoes() {
+  const status = document.getElementById('cfg-status');
+  const body = {
+    ia_provider:              document.getElementById('cfg-ia-provider').value,
+    autopub_enabled:          document.getElementById('cfg-autopub-enabled').checked,
+    autopub_interval_minutos: parseInt(document.getElementById('cfg-autopub-interval').value) || 15,
+    autopub_max_por_rodada:   parseInt(document.getElementById('cfg-autopub-max').value) || 3,
+    autopub_max_horas:        parseInt(document.getElementById('cfg-autopub-horas').value) || 24,
+  };
+  try {
+    await fetch(`${BACKEND}/api/admin/settings`, { method: 'PUT', headers: authHeader(), body: JSON.stringify(body) });
+    const selPub = document.getElementById('sel-ia-provider');
+    if (selPub) selPub.value = body.ia_provider;
+    status.style.color = 'var(--green, #16a34a)';
+    status.textContent = '✓ Salvo';
+    setTimeout(() => { status.textContent = ''; }, 2500);
+  } catch (e) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'Erro: ' + e.message;
+  }
+}
+
+async function carregarAutopubLog() {
+  const tbody = document.querySelector('#tbl-autopub-log tbody');
+  try {
+    const rows = await fetch(`${BACKEND}/api/admin/autopub-log?limit=50`, { headers: authHeader() }).then(r => r.json());
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum registro ainda.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => {
+      const hora = new Date(r.processed_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const ok   = r.status === 'ok';
+      const badge = ok ? '<span class="badge badge-green">✓ OK</span>' : `<span class="badge badge-red" title="${r.error_msg || ''}">✗ Erro</span>`;
+      const titulo = r.article_title ? `<a href="${r.external_url || '#'}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none">${r.article_title.slice(0,60)}</a>` : '—';
+      const cats   = r.rewritten_categories || '—';
+      return `<tr>
+        <td style="font-size:.8rem;white-space:nowrap">${hora}</td>
+        <td style="font-size:.82rem">${titulo}</td>
+        <td style="font-size:.82rem;color:var(--primary)">${cats}</td>
+        <td style="font-size:.82rem">${r.site_name || '—'}</td>
+        <td style="font-size:.82rem">${r.subscriber_name || '—'}</td>
+        <td>${badge}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Erro: ${e.message}</td></tr>`; }
 }
 
 async function carregarSitesModal() {
@@ -1065,6 +1687,7 @@ async function carregarSitesModal() {
     const sites = await fetch(`${BACKEND}/api/admin/all-sites`, { headers: authHeader() }).then(r => r.json());
     allSitesCache = sites;
     renderPortaisCheckboxesAdmin();
+    popularSitesDestAdmin();
 
     const fSel = document.getElementById('pub-filtro-fonte');
     if (fSel && fSel.options.length <= 1) {
@@ -1077,6 +1700,23 @@ async function carregarSitesModal() {
     }
   } catch(e) { console.error(e); }
 }
+
+function popularSitesDestAdmin() {
+  const sel = document.getElementById('map-site-dest');
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Selecione o canal…</option>';
+  (allSitesCache || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id; opt.textContent = s.name + (s.client_name ? ` (${s.client_name})` : '');
+    sel.appendChild(opt);
+  });
+  if (val) sel.value = val;
+}
+
+document.getElementById('map-site-dest').addEventListener('change', function () {
+  carregarCatsAdmin(this.value || null);
+});
 
 function renderPortaisCheckboxesAdmin() {
   const container = document.getElementById('map-portais-checkboxes');
@@ -1125,6 +1765,44 @@ function atualizarBotaoGerarAdmin() {
 }
 
 document.getElementById('btn-gerar-ia-modal').addEventListener('click', gerarComIAModal);
+
+document.getElementById('btn-recarregar-artigo').addEventListener('click', async () => {
+  if (!artigoSelecionado) return;
+  const btn   = document.getElementById('btn-recarregar-artigo');
+  const imgEl = document.getElementById('map-img-el');
+  const corpo = document.getElementById('map-corpo-leitura');
+  btn.disabled = true; btn.textContent = '↺ Carregando…';
+  corpo.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Buscando conteúdo atualizado…</div>';
+  try {
+    const res  = await fetch(`${BACKEND}/api/articles/${artigoSelecionado.id}/full-content?force=1`, { headers: authHeader() });
+    const data = await res.json();
+    const textoRetornado = (data.body || '').replace(/<[^>]*>/g, '').trim();
+    artigoSelecionado.bodyFetched = textoRetornado.length >= 300;
+    if (data.body) {
+      artigoSelecionado.body = data.body;
+      corpo.innerHTML = limparBodyPreview(data.body);
+    } else {
+      corpo.innerHTML = artigoSelecionado.summary ? `<p>${artigoSelecionado.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>';
+    }
+    if (data.image_url) {
+      artigoSelecionado.image_url = data.image_url;
+      imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(data.image_url)}`;
+      imgEl.classList.remove('hidden');
+    }
+    const textoCorpo = corpo.innerText || '';
+    if (textoCorpo.trim().length < 300) {
+      corpo.insertAdjacentHTML('afterbegin',
+        '<div style="background:#fef9c3;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:#92400e;line-height:1.5">' +
+        '⚠️ <strong>Conteúdo resumido</strong> — este portal só disponibiliza um resumo via RSS. ' +
+        'Clique em <strong>+ Gerar com IA</strong> para reescrever o artigo completo.' +
+        '</div>');
+    }
+    toast('Conteúdo recarregado!', 'sucesso');
+  } catch {
+    corpo.innerHTML = '<p><em>Erro ao recarregar. Tente novamente.</em></p>';
+  }
+  btn.disabled = false; btn.textContent = '↺ Recarregar';
+});
 
 function pubBadgeCategoria(cat) {
   const mapa = { nacional:'badge-nacional', regional:'badge-regional', governo:'badge-governo', esporte:'badge-esporte', agro:'badge-agro', prefeitura:'badge-prefeitura' };
@@ -1203,6 +1881,16 @@ document.getElementById('pub-filtro-busca').addEventListener('input', () => { cl
 document.getElementById('pub-filtro-fonte').addEventListener('change', () => carregarArtigosPub(1));
 document.getElementById('pub-filtro-periodo').addEventListener('change', () => carregarArtigosPub(1));
 
+// Remove <img> e <figure> do corpo antes de exibir no modal de leitura.
+// A imagem principal já aparece no topo via image_url; imagens embutidas
+// no corpo costumam ser borradas (hotlink protection) ou duplicadas.
+function limparBodyPreview(html) {
+  if (!html) return '';
+  return html
+    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, '')
+    .replace(/<img\b[^>]*\/?>/gi, '');
+}
+
 async function abrirArtigoModal(artigo) {
   artigoSelecionado = artigo;
 
@@ -1230,7 +1918,13 @@ async function abrirArtigoModal(artigo) {
   document.getElementById('btn-pub-todos-modal').style.display = 'none';
   document.getElementById('btn-pub-modal').disabled = true;
   document.getElementById('btn-pub-modal').textContent = '✓ Publicar este';
-  document.getElementById('map-categoria').innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>';
+  document.getElementById('map-site-dest').value = '';
+  document.getElementById('map-grupo-site-dest').style.display = 'none';
+  document.getElementById('map-categoria').innerHTML = '<span class="cat-placeholder">Aguardando geração…</span>';
+  document.getElementById('map-grupo-cats-sel').style.display = 'none';
+  document.getElementById('map-cats-sel').innerHTML = '<span class="cat-chips-empty">Nenhuma selecionada</span>';
+  document.getElementById('map-secao-portais').style.display = '';
+  document.getElementById('map-secao-gerar').style.display = '';
   pubHistorico = [];
   pubIdParaAtualizar = null;
 
@@ -1242,10 +1936,13 @@ async function abrirArtigoModal(artigo) {
     try {
       const res  = await fetch(`${BACKEND}/api/articles/${artigo.id}/full-content`, { headers: authHeader() });
       const data = await res.json();
-      artigo.bodyFetched = true;
+      // Só marca como "já buscado" se o conteúdo for substancial.
+      // Corpo curto → re-fetch na próxima abertura, capturando config de fonte atualizada.
+      const textoRetornado = (data.body || '').replace(/<[^>]*>/g, '').trim();
+      artigo.bodyFetched = textoRetornado.length >= 300;
       if (data.body) {
         artigo.body = data.body;
-        corpo.innerHTML = data.body;
+        corpo.innerHTML = limparBodyPreview(data.body);
       } else {
         corpo.innerHTML = artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>';
       }
@@ -1254,36 +1951,127 @@ async function abrirArtigoModal(artigo) {
         imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(data.image_url)}`;
         imgEl.classList.remove('hidden');
       }
+      // Aviso quando conteúdo é curto (portal RSS-only ou JS-heavy)
+      const textoCorpo = corpo.innerText || '';
+      if (textoCorpo.trim().length < 300) {
+        corpo.insertAdjacentHTML('afterbegin',
+          '<div style="background:#fef9c3;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:#92400e;line-height:1.5">' +
+          '⚠️ <strong>Conteúdo resumido</strong> — este portal só disponibiliza um resumo via RSS. ' +
+          'Clique em <strong>+ Gerar com IA</strong> para reescrever o artigo completo.' +
+          '</div>');
+      }
     } catch {
       artigo.bodyFetched = true;
       corpo.innerHTML = artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Não foi possível carregar o conteúdo.</em></p>';
     }
   } else {
-    corpo.innerHTML = artigo.body || (artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>');
+    corpo.innerHTML = limparBodyPreview(artigo.body) || (artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>');
+    // Aviso quando conteúdo cacheado também é curto
+    const textoCorpoCached = corpo.innerText || '';
+    if (textoCorpoCached.trim().length < 300) {
+      corpo.insertAdjacentHTML('afterbegin',
+        '<div style="background:#fef9c3;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:#92400e;line-height:1.5">' +
+        '⚠️ <strong>Conteúdo resumido</strong> — este portal só disponibiliza um resumo via RSS. ' +
+        'Clique em <strong>+ Gerar com IA</strong> para reescrever o artigo completo.' +
+        '</div>');
+    }
     document.getElementById('modal-artigo-pub').classList.remove('hidden');
   }
+}
+
+function atualizarChipsCats() {
+  const lista    = document.getElementById('map-categoria');
+  const chipsDiv = document.getElementById('map-cats-sel');
+  const grupo    = document.getElementById('map-grupo-cats-sel');
+  if (!chipsDiv || !lista) return;
+
+  const selecionadas = Array.from(lista.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(i => {
+      const label = i.closest('label');
+      // Remove ↳, contagem (n) e espaços extras para exibição limpa no chip
+      const nome = (label?.textContent || i.value).replace(/↳\s*/g,'').replace(/\(\d+\)/g,'').trim();
+      return { id: Number(i.value), nome };
+    });
+
+  grupo.style.display = selecionadas.length ? '' : 'none';
+  chipsDiv.innerHTML = selecionadas.length
+    ? selecionadas.map(c =>
+        `<span class="cat-chip" data-id="${c.id}" title="Clique para desmarcar">${c.nome} <span class="chip-x">×</span></span>`
+      ).join('')
+    : '<span class="cat-chips-empty">Nenhuma selecionada</span>';
+
+  chipsDiv.querySelectorAll('.cat-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const cb = lista.querySelector(`input[value="${chip.dataset.id}"]`);
+      if (cb) { cb.checked = false; atualizarChipsCats(); }
+    });
+  });
 }
 
 async function carregarCatsAdmin(siteId) {
   const sel = document.getElementById('map-categoria');
   sel.innerHTML = '<span class="cat-placeholder">Carregando…</span>';
-  if (!siteId) { sel.innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>'; return; }
+  if (!siteId) { sel.innerHTML = '<span class="cat-placeholder">Selecione o canal primeiro…</span>'; return; }
   try {
     const cats = await fetch(`${BACKEND}/api/sites/${siteId}/wp-categories`, { headers: authHeader() }).then(r => r.json());
     if (!Array.isArray(cats) || !cats.length) { sel.innerHTML = '<span class="cat-placeholder">— Sem categoria —</span>'; return; }
+
+    // Monta hierarquia: pais primeiro, filhos indentados
+    const pais   = cats.filter(c => !c.parent);
+    const filhos = cats.filter(c => c.parent);
+    const paiIds = new Set(pais.map(c => c.id));
     let html = '';
-    for (const c of cats) {
-      html += `<label><input type="checkbox" value="${c.id}"> ${c.name}${c.count ? ` (${c.count})` : ''}</label>`;
+    for (const pai of pais) {
+      html += `<label><input type="checkbox" value="${pai.id}"> ${pai.name}${pai.count ? ` (${pai.count})` : ''}</label>`;
+      for (const filho of filhos.filter(f => f.parent === pai.id)) {
+        html += `<label style="padding-left:1.2rem"><input type="checkbox" value="${filho.id}"> ↳ ${filho.name}${filho.count ? ` (${filho.count})` : ''}</label>`;
+      }
+    }
+    for (const orfao of filhos.filter(f => !paiIds.has(f.parent))) {
+      html += `<label><input type="checkbox" value="${orfao.id}"> ${orfao.name}${orfao.count ? ` (${orfao.count})` : ''}</label>`;
     }
     sel.innerHTML = html;
-    // Restaura seleção salva para este portal
+    sel.addEventListener('change', atualizarChipsCats);
+
+    // Restaura seleção salva; se vazia e há conteúdo reescrito, auto-categoriza com IA
     const savedIds = portaisResultadosAdmin[activePortalIndexAdmin]?.categoryIds;
     if (savedIds?.length) {
       sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
         i.checked = savedIds.includes(Number(i.value));
       });
+      atualizarChipsCats();
+    } else {
+      autoCategorizar(cats);
     }
   } catch { sel.innerHTML = '<span class="cat-placeholder">Erro ao carregar</span>'; }
+}
+
+async function autoCategorizar(cats) {
+  const portal = portaisResultadosAdmin[activePortalIndexAdmin];
+  if (!portal || portal.status !== 'pronto' || !cats?.length) return;
+
+  const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
+  try {
+    const resp = await fetch(`${BACKEND}/api/ia/categorize`, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title:  portal.titulo,
+        chapeu: portal.chapeu,
+        tags:   portal.tags,
+        corpo:  portal.corpo,
+        categories: cats,
+        provider
+      })
+    });
+    const r = await resp.json();
+    if (!Array.isArray(r.category_ids) || !r.category_ids.length) return;
+    const sel = document.getElementById('map-categoria');
+    sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
+      i.checked = r.category_ids.includes(Number(i.value));
+    });
+    atualizarChipsCats();
+  } catch (e) { console.warn('[auto-cat]', e.message); }
 }
 
 function extrairJSONAdmin(texto) {
@@ -1329,7 +2117,6 @@ async function gerarComIAModal() {
   renderTabsAdmin();
 
   const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
-  localStorage.setItem('ia_provider', provider);
 
   // Gera sequencialmente (evita rate limiting da API com requisições paralelas)
   for (let idx = 0; idx < portaisResultadosAdmin.length; idx++) {
@@ -1446,9 +2233,10 @@ function loadTabAdmin(idx) {
   document.getElementById('map-tags').value   = p.tags   || '';
   document.getElementById('map-imagem').value = artigoSelecionado?.image_url || '';
   const btnPub = document.getElementById('btn-pub-modal');
-  btnPub.disabled    = p.status !== 'pronto' && p.status !== 'publicado';
-  btnPub.textContent = p.status === 'gerando' ? '⟳ Gerando…'
+  btnPub.disabled    = p.status !== 'pronto' && p.status !== 'publicado' && p.status !== 'erro';
+  btnPub.textContent = p.status === 'gerando'   ? '⟳ Gerando…'
     : p.status === 'publicado' ? '✔ Publicado'
+    : p.status === 'erro'      ? '↺ Tentar novamente'
     : '✓ Publicar este';
   const linkEl = document.getElementById('map-link-publicado');
   if (p.postUrl) {
@@ -1464,6 +2252,8 @@ async function publicarPortalAdmin(idx) {
   const portal = portaisResultadosAdmin[idx];
   if (!portal || !artigoSelecionado) return;
   saveCurrentTabAdmin();
+  // Canal de destino: dropdown tem prioridade sobre o portal original
+  const destSiteId = document.getElementById('map-site-dest').value || portal.siteId;
   const rewritten = {
     chapeu:       portal.chapeu,
     title:        portal.titulo,
@@ -1475,11 +2265,20 @@ async function publicarPortalAdmin(idx) {
   };
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
-    body: JSON.stringify({ article_id: artigoSelecionado.id, site_id: portal.siteId, rewritten, force })
+    body: JSON.stringify({ article_id: artigoSelecionado.id, site_id: destSiteId, rewritten, force })
   });
   try {
     let res = await req(false); let data = await res.json();
-    if (res.status === 409 && data.already_published) { res = await req(true); data = await res.json(); }
+    if (res.status === 409 && data.already_published) {
+      // Post já existe no WordPress — marca como publicado sem forçar duplicata
+      portal.status  = 'publicado';
+      portal.postUrl = data.post_url || '';
+      pubHistorico.push({ site: portal.siteName, url: data.post_url });
+      toast(`Já publicado em ${portal.siteName}`, 'aviso');
+      if (idx === activePortalIndexAdmin) loadTabAdmin(idx);
+      renderTabsAdmin();
+      return;
+    }
     if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
     portal.status  = 'publicado';
     portal.postUrl = data.post_url;
@@ -1619,15 +2418,266 @@ ${imagem ? `<img src="${imagem}" alt="${titulo}"/>` : ''}
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 });
 
+// ══ CRIAR POST (admin) ════════════════════════════════════════════════════════
+
+let _acpImageData = null; // { base64, mime, name }
+
+function acpPopularSites() {
+  const sel = document.getElementById('acp-site-dest');
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Selecione o site…</option>';
+  (allSitesCache || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name + (s.client_name ? ` (${s.client_name})` : '');
+    sel.appendChild(opt);
+  });
+  if (val) sel.value = val;
+}
+
+function acpSetImagem(file) {
+  if (!file || !file.type.startsWith('image/')) { toast('Arquivo inválido. Use JPG, PNG ou WEBP.'); return; }
+  if (file.size > 5 * 1024 * 1024) { toast('Imagem muito grande. Máximo 5 MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    _acpImageData = { base64: dataUrl.split(',')[1], mime: file.type, name: file.name };
+    const prev = document.getElementById('acp-img-preview');
+    prev.src = dataUrl; prev.style.display = 'block';
+    document.getElementById('acp-drop-placeholder').style.display = 'none';
+    document.getElementById('acp-img-remover').style.display = 'block';
+    document.getElementById('acp-img-result').src = dataUrl;
+    document.getElementById('acp-img-result-wrap').style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('acp-img-input').addEventListener('change', function() {
+  if (this.files[0]) acpSetImagem(this.files[0]);
+});
+
+document.getElementById('acp-img-remover').addEventListener('click', () => {
+  _acpImageData = null;
+  document.getElementById('acp-img-input').value = '';
+  document.getElementById('acp-img-preview').style.display = 'none';
+  document.getElementById('acp-drop-placeholder').style.display = '';
+  document.getElementById('acp-img-remover').style.display = 'none';
+  document.getElementById('acp-img-result-wrap').style.display = 'none';
+});
+
+function acpHandleDrop(event) {
+  event.preventDefault();
+  document.getElementById('acp-drop-area').style.borderColor = '';
+  const file = event.dataTransfer?.files?.[0];
+  if (file) acpSetImagem(file);
+}
+
+document.getElementById('acp-btn-gerar').addEventListener('click', async () => {
+  const tema = document.getElementById('acp-tema').value.trim();
+  if (!tema) { toast('Descreva o tema do artigo.'); return; }
+
+  const btn    = document.getElementById('acp-btn-gerar');
+  const status = document.getElementById('acp-status');
+  btn.disabled = true; btn.textContent = '⟳ Gerando…';
+  status.textContent = 'Aguarde, a IA está escrevendo o artigo…';
+
+  const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
+
+  try {
+    const resp = await fetch(`${BACKEND}/api/ia/gerar`, {
+      method:  'POST',
+      headers: authHeader(),
+      body:    JSON.stringify({ tema, provider })
+    });
+    const r = await resp.json();
+    if (!resp.ok) throw new Error(r.error || 'Erro na IA');
+
+    document.getElementById('acp-chapeu').value = r.chapeu || '';
+    document.getElementById('acp-titulo').value = r.titulo || r.title   || '';
+    document.getElementById('acp-resumo').value = r.resumo || r.summary || '';
+    document.getElementById('acp-corpo').value  = r.corpo  || r.body    || '';
+    document.getElementById('acp-tags').value   = Array.isArray(r.tags) ? r.tags.join(', ') : (r.tags || '');
+
+    const wrap = document.getElementById('acp-img-result-wrap');
+    if (_acpImageData) {
+      document.getElementById('acp-img-result').src = `data:${_acpImageData.mime};base64,${_acpImageData.base64}`;
+      wrap.style.display = '';
+    } else {
+      wrap.style.display = 'none';
+    }
+
+    document.getElementById('acp-link-publicado').textContent = '';
+    document.getElementById('acp-btn-publicar').disabled = true;
+    document.getElementById('acp-categorias').innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>';
+
+    document.getElementById('acp-fase1').style.display = 'none';
+    document.getElementById('acp-fase2').style.display = '';
+    status.textContent = '';
+  } catch (err) {
+    status.textContent = 'Erro: ' + err.message;
+    toast('Erro na IA: ' + err.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = '✦ Gerar artigo com IA';
+  }
+});
+
+async function acpCarregarCategorias(siteId) {
+  const cont   = document.getElementById('acp-categorias');
+  const btnPub = document.getElementById('acp-btn-publicar');
+
+  if (!siteId) {
+    cont.innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>';
+    btnPub.disabled = true;
+    return;
+  }
+
+  cont.innerHTML = '<span class="cat-placeholder">Carregando categorias…</span>';
+  btnPub.disabled = true;
+
+  try {
+    const res  = await fetch(`${BACKEND}/api/sites/${siteId}/wp-categories`, { headers: authHeader() });
+    const cats = await res.json();
+
+    if (!Array.isArray(cats) || !cats.length) {
+      cont.innerHTML = '<span class="cat-placeholder">Sem categorias / não é WordPress</span>';
+      btnPub.disabled = false;
+      return;
+    }
+
+    const pais   = cats.filter(c => !c.parent);
+    const filhos = cats.filter(c => c.parent);
+    const paiIds = new Set(pais.map(c => c.id));
+    let html = '';
+    for (const pai of pais) {
+      html += `<label><input type="checkbox" value="${pai.id}"> ${pai.name}${pai.count ? ` (${pai.count})` : ''}</label>`;
+      for (const filho of filhos.filter(f => f.parent === pai.id)) {
+        html += `<label style="padding-left:1.2rem"><input type="checkbox" value="${filho.id}"> ↳ ${filho.name}${filho.count ? ` (${filho.count})` : ''}</label>`;
+      }
+    }
+    for (const orfao of filhos.filter(f => !paiIds.has(f.parent))) {
+      html += `<label><input type="checkbox" value="${orfao.id}"> ${orfao.name}${orfao.count ? ` (${orfao.count})` : ''}</label>`;
+    }
+    cont.innerHTML = html;
+
+    // Auto-categoriza com IA
+    const titulo = document.getElementById('acp-titulo').value;
+    const chapeu = document.getElementById('acp-chapeu').value;
+    const tags   = document.getElementById('acp-tags').value;
+    const corpo  = document.getElementById('acp-corpo').value;
+    const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
+    if (titulo || chapeu) {
+      try {
+        const cr = await fetch(`${BACKEND}/api/ia/categorize`, {
+          method:  'POST',
+          headers: authHeader(),
+          body:    JSON.stringify({ title: titulo, chapeu, tags, corpo, categories: cats, provider })
+        });
+        const cr2 = await cr.json();
+        if (Array.isArray(cr2.category_ids) && cr2.category_ids.length) {
+          cont.querySelectorAll('input[type="checkbox"]').forEach(i => {
+            i.checked = cr2.category_ids.includes(Number(i.value));
+          });
+        }
+      } catch {}
+    }
+
+    btnPub.disabled = false;
+  } catch {
+    cont.innerHTML = '<span class="cat-placeholder">Erro ao buscar categorias</span>';
+    btnPub.disabled = false;
+  }
+}
+
+document.getElementById('acp-btn-publicar').addEventListener('click', async () => {
+  const siteId = document.getElementById('acp-site-dest').value;
+  if (!siteId) { toast('Selecione o site de destino.'); return; }
+
+  const titulo = document.getElementById('acp-titulo').value.trim();
+  const corpo  = document.getElementById('acp-corpo').value.trim();
+  if (!titulo || !corpo) { toast('Título e corpo são obrigatórios.'); return; }
+
+  const btn    = document.getElementById('acp-btn-publicar');
+  const linkEl = document.getElementById('acp-link-publicado');
+  btn.disabled = true; btn.textContent = 'Publicando…';
+  linkEl.textContent = '';
+
+  // Sobe a imagem para a biblioteca de mídia do WP antes de publicar
+  let imageUrl     = null;
+  let imageMediaId = null;
+  if (_acpImageData) {
+    btn.textContent = 'Enviando imagem…';
+    try {
+      const imgRes = await fetch(`${BACKEND}/api/sites/${siteId}/upload-image`, {
+        method:  'POST',
+        headers: authHeader(),
+        body:    JSON.stringify({ image_base64: _acpImageData.base64, image_mime: _acpImageData.mime, image_name: _acpImageData.name }),
+      });
+      const imgData = await imgRes.json();
+      if (imgRes.ok) { imageUrl = imgData.image_url; imageMediaId = imgData.media_id; }
+      else console.warn('[acp] Upload de imagem falhou:', imgData.error);
+    } catch (e) { console.warn('[acp] Upload de imagem falhou:', e.message); }
+    btn.textContent = 'Publicando…';
+  }
+
+  const categoryIds = Array.from(
+    document.querySelectorAll('#acp-categorias input[type="checkbox"]:checked')
+  ).map(i => Number(i.value)).filter(id => id > 0);
+
+  const payload = {
+    site_id:        siteId,
+    chapeu:         document.getElementById('acp-chapeu').value.trim(),
+    titulo,
+    resumo:         document.getElementById('acp-resumo').value.trim(),
+    corpo,
+    tags:           document.getElementById('acp-tags').value.trim(),
+    category_ids:   categoryIds,
+    fonte_url:      document.getElementById('acp-fonte-url').value.trim(),
+    fonte_nome:     document.getElementById('acp-fonte-nome').value.trim(),
+    image_url:      imageUrl,
+    image_media_id: imageMediaId,
+  };
+
+  try {
+    const res  = await fetch(`${BACKEND}/api/publish/manual`, {
+      method:  'POST',
+      headers: authHeader(),
+      body:    JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
+    linkEl.innerHTML = `✔ Publicado! <a href="${data.post_url}" target="_blank" rel="noopener" style="color:var(--green)">${data.post_url}</a>`;
+    toast('Artigo publicado com sucesso!', 'sucesso');
+  } catch (err) {
+    linkEl.textContent = 'Erro: ' + err.message;
+    toast('Erro ao publicar: ' + err.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ Publicar';
+  }
+});
+
+function acpVoltarBriefing() {
+  document.getElementById('acp-fase2').style.display = 'none';
+  document.getElementById('acp-fase1').style.display = '';
+  document.getElementById('acp-status').textContent  = '';
+}
+
+function acpRegerar() {
+  acpVoltarBriefing();
+  document.getElementById('acp-btn-gerar').click();
+}
+
 // ══ CLIENTES ═════════════════════════════════════════════════════════════════
 
 let planos = [];
 
 async function carregarClientes() {
   try {
+    const mostrarInativos = document.getElementById('chk-mostrar-inativos')?.checked;
+    const urlSubs = `${BACKEND}/api/admin/subscribers${mostrarInativos ? '?includeInactive=true' : ''}`;
     const [cli, pl] = await Promise.all([
-      fetch(`${BACKEND}/api/admin/subscribers`, { headers: authHeader() }).then(r => r.json()),
-      fetch(`${BACKEND}/api/admin/plans`,       { headers: authHeader() }).then(r => r.json()),
+      fetch(urlSubs, { headers: authHeader() }).then(r => r.json()),
+      fetch(`${BACKEND}/api/admin/plans`, { headers: authHeader() }).then(r => r.json()),
     ]);
     planos = pl;
 
@@ -1652,6 +2702,7 @@ async function carregarClientes() {
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick='abrirModalCliente(${JSON.stringify(c)})'>Editar</button>
           ${c.active && !c.is_admin ? `<button class="btn btn-danger btn-sm" onclick="desativarCliente('${c.id}','${c.name.replace(/'/g,"\\'")}')">Desativar</button>` : ''}
+          ${!c.is_admin ? `<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5" onclick="removerCliente('${c.id}','${c.name.replace(/'/g,"\\'")}')">Remover</button>` : ''}
         </td>
       </tr>`;
     }).join('');
@@ -1699,8 +2750,6 @@ async function abrirModalCliente(c) {
   document.getElementById('mc-admin').checked    = c?.is_admin || false;
   document.getElementById('mc-expires').value    = c?.plan_expires_at?.slice(0,10) || '';
   document.getElementById('mc-plan-value').value = c?.plan_value || '';
-  document.getElementById('mc-gemini-key').value = c?.gemini_key || '';
-  document.getElementById('mc-ai-prompt').value  = c?.ai_prompt || '';
   document.getElementById('mc-hint').style.display = c ? 'inline' : 'none';
 
   // Planos
@@ -1730,8 +2779,6 @@ async function salvarCliente() {
     plan_id:    document.getElementById('mc-plan').value || null,
     active:     document.getElementById('mc-active').checked,
     is_admin:   document.getElementById('mc-admin').checked,
-    gemini_key: document.getElementById('mc-gemini-key').value.trim() || null,
-    ai_prompt:  document.getElementById('mc-ai-prompt').value.trim() || null,
   };
   const planValue = parseFloat(document.getElementById('mc-plan-value').value);
   if (!isNaN(planValue)) body.plan_value = planValue;
@@ -1768,6 +2815,16 @@ async function desativarCliente(id, nome) {
   } catch { toast('Erro', 'erro'); }
 }
 
+async function removerCliente(id, nome) {
+  if (!confirm(`Remover permanentemente o cliente "${nome}"?\n\nIsso apagará o cadastro, todos os sites e o histórico de publicações.\nEsta ação não pode ser desfeita.`)) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/subscribers/${id}/permanente`, { method: 'DELETE', headers: authHeader() });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erro ao remover'); }
+    await carregarClientes();
+    toast(`"${nome}" removido permanentemente.`, 'sucesso');
+  } catch(e) { toast(e.message, 'erro'); }
+}
+
 // ══ SITES DO CLIENTE (tab Sites) ══════════════════════════════════════════════
 
 let mcSiteEditId = null;
@@ -1792,10 +2849,43 @@ async function carregarSitesCli() {
   } catch { el.innerHTML = '<div class="empty" style="padding:16px">Erro ao carregar sites.</div>'; }
 }
 
+let _mscLookupData = null;
+
+document.getElementById('msc-url').addEventListener('blur', async function () {
+  const hint = document.getElementById('msc-url-hint');
+  hint.style.display = 'none';
+  _mscLookupData = null;
+  if (document.getElementById('msc-id').value) return; // só em modo "Novo Site"
+  const url = this.value.trim();
+  if (!url) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/sites/lookup-by-url?url=${encodeURIComponent(url)}`, { headers: authHeader() });
+    const data = await r.json();
+    if (data && (data.xixo_api_key || data.wp_username)) {
+      _mscLookupData = data;
+      hint.style.display = 'flex';
+    }
+  } catch {}
+});
+
+function preencherCredenciaisExistentes() {
+  if (!_mscLookupData) return;
+  const d = _mscLookupData;
+  if (d.xixo_api_key) document.getElementById('msc-xixo-key').value = d.xixo_api_key;
+  if (d.wp_username)  document.getElementById('msc-wp-user').value  = d.wp_username;
+  if (d.platform)     { document.getElementById('msc-platform').value = d.platform; toggleSitePlatformFields(); }
+  if (d.post_format)  document.getElementById('msc-post-format').value = d.post_format;
+  if (d.ai_prompt)    document.getElementById('msc-ai-prompt').value   = d.ai_prompt;
+  document.getElementById('msc-url-hint').style.display = 'none';
+  toast('Credenciais preenchidas automaticamente.', 'sucesso');
+}
+
 function abrirModalSite(siteId) {
   const subId = document.getElementById('mc-id').value;
   if (!subId) { toast('Salve o cliente primeiro antes de adicionar sites.', 'aviso'); return; }
   mcSiteEditId = siteId || null;
+  _mscLookupData = null;
+  document.getElementById('msc-url-hint').style.display = 'none';
   document.getElementById('msc-title').textContent = siteId ? 'Editar Site' : 'Novo Site';
   document.getElementById('msc-id').value     = siteId || '';
   document.getElementById('msc-name').value   = '';
@@ -1810,6 +2900,11 @@ function abrirModalSite(siteId) {
   document.getElementById('msc-cat-id').value  = '';
   document.getElementById('msc-ai-prompt').value = '';
   document.getElementById('msc-platform').value  = 'wordpress';
+  document.getElementById('msc-auto-publish').checked = false;
+  document.getElementById('msc-autopub-fontes').style.display = 'none';
+  document.getElementById('msc-fontes-lista').innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Carregando fontes…</span>';
+  if (document.getElementById('msc-fontes-filtro')) document.getElementById('msc-fontes-filtro').value = '';
+  _fontesDoCliente = []; // limpa cache ao trocar de cliente
   toggleSitePlatformFields();
 
   if (siteId) {
@@ -1831,7 +2926,13 @@ function abrirModalSite(siteId) {
         document.getElementById('msc-cat-id').value        = s.default_category_id || '';
         document.getElementById('msc-ai-prompt').value     = s.ai_prompt || '';
         document.getElementById('msc-platform').value      = s.platform || 'wordpress';
+        document.getElementById('msc-auto-publish').checked = s.auto_publish || false;
         toggleSitePlatformFields();
+        if (s.auto_publish) {
+          document.getElementById('msc-autopub-fontes').style.display = '';
+          const sel = Array.isArray(s.autopub_source_ids) ? s.autopub_source_ids.map(String) : [];
+          carregarFontesDoCliente().then(() => renderFontesAutopub(sel));
+        }
       }).catch(() => {});
   }
 
@@ -1863,6 +2964,8 @@ async function salvarSiteCli() {
     post_format:    document.getElementById('msc-post-format').value || 'editorial',
     default_category_id: document.getElementById('msc-cat-id').value.trim() || null,
     ai_prompt:      document.getElementById('msc-ai-prompt').value.trim() || null,
+    auto_publish:   document.getElementById('msc-auto-publish').checked,
+    autopub_source_ids: getAutopubSourceIds(),
   };
 
   if (!body.name) return toast('Nome é obrigatório.', 'erro');
@@ -2095,6 +3198,103 @@ async function deletarFonte(slug, nome) {
   } catch { toast('Erro ao remover','erro'); }
 }
 
+async function analisarFonte() {
+  const url = document.getElementById('mf-analyze-url').value.trim();
+  if (!url) { toast('Cole uma URL para analisar', 'erro'); return; }
+
+  const btn       = document.getElementById('btn-analisar');
+  const resultDiv = document.getElementById('mf-analyze-result');
+  btn.disabled    = true;
+  btn.textContent = '⏳…';
+  resultDiv.style.display = 'none';
+
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/sources/analyze`, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro na análise');
+
+    if (d.name)  document.getElementById('mf-name').value = d.name;
+    if (d.slug && !document.getElementById('mf-slug-original').value)
+                 document.getElementById('mf-slug').value = d.slug;
+    if (d.type)  document.getElementById('mf-type').value = d.type;
+    if (d.url)   document.getElementById('mf-url').value  = d.url;
+    document.getElementById('mf-content-selector').value          = d.content_selector          || '';
+    document.getElementById('mf-featured-image-selector').value   = d.featured_image_selector   || '';
+    document.getElementById('mf-extract-body-image').checked      = !!d.extract_body_image;
+    if (d.sample_article_url) document.getElementById('mf-test-url').value = d.sample_article_url;
+    // Preenche campos de scraping se detectados
+    if (d.scraping) {
+      document.getElementById('mf-itemSelector').value  = d.scraping.itemSelector  || '';
+      document.getElementById('mf-titleSelector').value = d.scraping.titleSelector || '';
+      document.getElementById('mf-linkSelector').value  = d.scraping.linkSelector  || '';
+      document.getElementById('mf-imageSelector').value = d.scraping.imageSelector || '';
+    }
+    toggleScrapingFields();
+
+    resultDiv.innerHTML = [
+      `<div style="color:#166534;font-weight:600;margin-bottom:4px">✅ Análise concluída — revise os campos antes de salvar</div>`,
+      `<div>📰 Nome: <b>${d.name || '—'}</b></div>`,
+      d.rss_url
+        ? `<div>✅ RSS encontrado: <code style="font-size:.75rem;background:#f1f5f9;padding:1px 4px;border-radius:3px">${d.rss_url}</code></div>`
+        : `<div>⚠️ RSS não encontrado — tipo: <b>scraping</b>${d.scraping ? ' — item selector: <b>' + d.scraping.itemSelector + '</b>' : ' — seletores não detectados, preencha manualmente'}</div>`,
+      `<div>🎯 Seletor: <b>${d.content_selector || 'nenhum — Readability automático'}</b></div>`,
+      `<div>🖼️ Imagem: ${d.extract_body_image ? '⚠️ og:image suspeita — configurado para extrair do corpo' : '✅ og:image parece confiável'}</div>`,
+      d.sample_article_url ? `<div>🧪 URL de teste preenchida — clique em <b>Testar</b> para verificar a extração</div>` : '',
+    ].filter(Boolean).join('');
+    resultDiv.style.display = 'block';
+  } catch (err) {
+    resultDiv.innerHTML = `<div style="color:#dc2626">❌ ${err.message}</div>`;
+    resultDiv.style.display = 'block';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '✨ Analisar';
+  }
+}
+
+async function testarScraping() {
+  const slug    = document.getElementById('mf-slug-original').value || document.getElementById('mf-slug').value;
+  const testUrl = document.getElementById('mf-test-url').value.trim();
+  if (!testUrl) { toast('Cole uma URL para testar', 'erro'); return; }
+
+  const btn = document.getElementById('btn-test-scraping');
+  btn.disabled = true; btn.textContent = '…';
+
+  const resultDiv = document.getElementById('test-scraping-result');
+  resultDiv.style.display = 'none';
+
+  const endpoint = slug
+    ? `${BACKEND}/api/admin/sources/${slug}/test-scraping`
+    : `${BACKEND}/api/admin/sources/test-scraping`;
+
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        test_url:                testUrl,
+        content_selector:        document.getElementById('mf-content-selector').value.trim()        || null,
+        featured_image_selector: document.getElementById('mf-featured-image-selector').value.trim() || null,
+        extract_body_image:      document.getElementById('mf-extract-body-image').checked,
+      }),
+    });
+    const d = await r.json();
+    if (d.error) { toast('Erro: ' + d.error, 'erro'); return; }
+
+    document.getElementById('tsr-stats').innerHTML =
+      `<span style="color:${d.ok?'#16a34a':'#dc2626'};font-weight:600">${d.ok?'✓':'✗'} ${d.body_length} caracteres extraídos</span>`;
+    document.getElementById('tsr-image').innerHTML = d.image_url
+      ? `<div style="display:flex;align-items:center;gap:8px"><img src="${d.image_url}" style="height:48px;border-radius:4px;object-fit:cover" /><span style="color:#6b7280">${d.image_url.split('/').pop().slice(0,60)}</span></div>`
+      : `<span style="color:#9ca3af">Sem imagem encontrada</span>`;
+    document.getElementById('tsr-preview').textContent = d.body_preview || '(sem conteúdo)';
+    resultDiv.style.display = 'block';
+  } catch (e) { toast('Erro: ' + e.message, 'erro'); }
+  finally { btn.disabled = false; btn.textContent = 'Testar'; }
+}
+
 function toggleScrapingFields() {
   document.getElementById('scraping-fields').style.display = document.getElementById('mf-type').value === 'scraping' ? 'block' : 'none';
 }
@@ -2116,7 +3316,13 @@ function abrirModalFonte(slug) {
   document.getElementById('mf-imageSelector').value  = s.imageSelector || '';
   document.getElementById('mf-dateSelector').value   = s.dateSelector  || '';
   document.getElementById('mf-linkFilter').value     = s.linkFilter    || '';
-  document.getElementById('mf-extract-body-image').checked = !!(f?.extract_body_image);
+  document.getElementById('mf-extract-body-image').checked      = !!(f?.extract_body_image);
+  document.getElementById('mf-content-selector').value          = f?.content_selector          || '';
+  document.getElementById('mf-featured-image-selector').value   = f?.featured_image_selector   || '';
+  document.getElementById('mf-test-url').value                  = '';
+  document.getElementById('test-scraping-result').style.display = 'none';
+  document.getElementById('mf-analyze-url').value               = '';
+  document.getElementById('mf-analyze-result').style.display    = 'none';
   toggleScrapingFields();
   document.getElementById('modal-fonte').classList.remove('hidden');
 }
@@ -2130,7 +3336,9 @@ async function salvarFonte() {
     type:               tipo,
     url:                document.getElementById('mf-url').value.trim(),
     category:           document.getElementById('mf-category').value,
-    extract_body_image: document.getElementById('mf-extract-body-image').checked,
+    extract_body_image:      document.getElementById('mf-extract-body-image').checked,
+    content_selector:        document.getElementById('mf-content-selector').value.trim()        || null,
+    featured_image_selector: document.getElementById('mf-featured-image-selector').value.trim() || null,
   };
   if (tipo === 'scraping') {
     const scr = {};
@@ -2264,6 +3472,9 @@ async function republicarDoHistorico(pubJsonStr) {
     tags:   p.rewritten_tags    || '',
     categoryIds: [], postUrl: null, error: null
   }];
+  document.getElementById('map-secao-portais').style.display = 'none';
+  document.getElementById('map-secao-gerar').style.display = 'none';
+  document.getElementById('map-grupo-site-dest').style.display = '';
   loadTabAdmin(0);
   renderTabsAdmin();
   carregarCatsAdmin(String(siteRep.id || p.site_id || ''));
@@ -2285,16 +3496,24 @@ async function republicarDoHistorico(pubJsonStr) {
 function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 // modal-artigo-pub: fecha só por X ou ESC — não por clique fora
+const MODAIS_SEM_CLICK_FORA = new Set(['modal-artigo-pub', 'modal-fonte']);
 document.querySelectorAll('.overlay').forEach(o => {
-  if (o.id === 'modal-artigo-pub') return;
+  if (MODAIS_SEM_CLICK_FORA.has(o.id)) return;
   o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') document.querySelectorAll('.overlay:not(.hidden)').forEach(o => o.classList.add('hidden'));
+  if (e.key === 'Escape') document.querySelectorAll('.overlay:not(.hidden)').forEach(o => {
+    if (!MODAIS_SEM_CLICK_FORA.has(o.id)) o.classList.add('hidden');
+  });
 });
 
 // ══ INIT ═════════════════════════════════════════════════════════════════════
 carregarDashboard();
+// Pré-carrega sites para que "Criar Post" funcione mesmo sem passar pela aba Publicar
+fetch(`${BACKEND}/api/admin/all-sites`, { headers: authHeader() })
+  .then(r => r.json())
+  .then(sites => { allSitesCache = sites; })
+  .catch(() => {});
 </script>
 </body>
 </html>

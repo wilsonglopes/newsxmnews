@@ -205,8 +205,9 @@
       background: var(--branco);
     }
     .cat-checkboxes label {
-      display: flex;
-      align-items: center;
+      display: grid;
+      grid-template-columns: 16px 1fr;
+      align-items: start;
       gap: 0.45rem;
       padding: 3px 4px;
       border-radius: 4px;
@@ -405,6 +406,7 @@
 <div class="tabs">
   <div class="tab ativa" data-tab="artigos">Artigos</div>
   <div class="tab" data-tab="historico">📋 Histórico</div>
+  <div class="tab" data-tab="criar">✍️ Criar Post</div>
   <div class="tab" data-tab="fontes">📡 Minhas Fontes</div>
   <div class="tab" data-tab="config">Configurações</div>
 </div>
@@ -434,6 +436,133 @@
     <button id="pg-anterior">← Anterior</button>
     <span id="pg-info"></span>
     <button id="pg-proximo">Próximo →</button>
+  </div>
+</div>
+
+<!-- Tela: Criar Post -->
+<div class="tela" id="tela-criar">
+
+  <!-- FASE 1: Briefing -->
+  <div id="criar-fase1">
+    <div style="max-width:680px;margin:0 auto">
+      <h2 style="font-family:var(--font-titulo);font-size:1.3rem;margin-bottom:.3rem">Criar artigo com IA</h2>
+      <p style="font-size:.84rem;color:var(--grafite-lt);margin-bottom:1.5rem">Descreva o tema e a IA escreve o artigo completo — chapéu, título, resumo e corpo.</p>
+
+      <div class="campo-grupo">
+        <label>Sobre o que é o artigo? <span style="color:var(--vermelho)">*</span></label>
+        <textarea id="criar-tema" rows="5"
+          placeholder="Ex: Falar sobre a chegada do inverno no Sul do Brasil e o impacto na agricultura regional. Mencionar as regiões mais afetadas e as culturas em risco."
+          style="resize:vertical;font-size:.88rem;line-height:1.6"></textarea>
+      </div>
+
+      <div class="campo-grupo">
+        <label>Imagem de capa <span style="font-size:.78rem;color:var(--grafite-lt)">(opcional)</span></label>
+        <div id="criar-drop-area"
+          onclick="document.getElementById('criar-img-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--vermelho)'"
+          ondragleave="this.style.borderColor=''"
+          ondrop="criarHandleDrop(event)"
+          style="border:2px dashed var(--borda);border-radius:var(--radius);padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--branco)">
+          <div id="criar-drop-placeholder">
+            <div style="font-size:1.6rem;margin-bottom:.4rem">📷</div>
+            <div style="font-size:.85rem;color:var(--grafite-lt)">Clique ou arraste a imagem aqui</div>
+            <div style="font-size:.75rem;color:var(--grafite-lt);margin-top:.2rem">JPG, PNG, WEBP — máx. 5 MB</div>
+          </div>
+          <img id="criar-img-preview" src="" alt="" style="display:none;max-height:180px;max-width:100%;border-radius:4px;object-fit:cover">
+        </div>
+        <input type="file" id="criar-img-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+        <button id="criar-img-remover" style="display:none;margin-top:.4rem;background:none;border:none;color:var(--vermelho-lt);font-size:.8rem;cursor:pointer">✕ Remover imagem</button>
+      </div>
+
+      <div class="campo-grupo" style="margin-top:.75rem">
+        <label>Fonte <span style="font-size:.78rem;color:var(--grafite-lt)">(opcional)</span></label>
+        <input type="url" id="criar-fonte-url" placeholder="https://exemplo.com/materia-original"
+          style="width:100%;margin-bottom:.45rem">
+        <input type="text" id="criar-fonte-nome" placeholder="Nome da fonte (ex: G1, Prefeitura Municipal…)"
+          style="width:100%;font-size:.84rem">
+      </div>
+
+      <div style="display:flex;gap:.75rem;align-items:center;margin-top:.5rem">
+        <button class="btn btn-primario" id="btn-criar-gerar" style="padding:.65rem 1.5rem;font-size:.9rem">✦ Gerar artigo com IA</button>
+        <span id="criar-status" style="font-size:.82rem;color:var(--grafite-lt)"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 2: Resultado + Publicar (oculto até IA responder) -->
+  <div id="criar-fase2" style="display:none">
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+      <button onclick="criarVoltarBriefing()" style="background:none;border:none;color:var(--grafite-lt);font-size:.85rem;cursor:pointer;padding:0">← Editar briefing</button>
+      <h2 style="font-family:var(--font-titulo);font-size:1.15rem;margin:0">Artigo gerado — revise antes de publicar</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start">
+
+      <!-- Coluna esquerda: campos editoriais -->
+      <div>
+        <!-- Imagem de capa -->
+        <div id="criar-img-result-wrap" style="margin-bottom:1rem;display:none">
+          <img id="criar-img-result" src="" alt=""
+            style="width:100%;max-height:260px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--borda)">
+        </div>
+
+        <div class="campo-grupo">
+          <label>Chapéu</label>
+          <input type="text" id="criar-chapeu" maxlength="80"
+            style="font-size:.83rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--vermelho)">
+        </div>
+        <div class="campo-grupo">
+          <label>Título</label>
+          <input type="text" id="criar-titulo" style="font-size:1rem;font-weight:600">
+        </div>
+        <div class="campo-grupo">
+          <label>Resumo / Subtítulo</label>
+          <input type="text" id="criar-resumo" style="font-size:.88rem">
+        </div>
+        <div class="campo-grupo">
+          <label>Corpo do artigo</label>
+          <textarea id="criar-corpo" rows="14" style="font-size:.84rem;line-height:1.65;resize:vertical"></textarea>
+        </div>
+        <div class="campo-grupo">
+          <label>Tags <span style="font-size:.76rem;color:var(--grafite-lt)">(separadas por vírgula)</span></label>
+          <input type="text" id="criar-tags" style="font-size:.84rem">
+        </div>
+      </div>
+
+      <!-- Coluna direita: destino + publicar -->
+      <div style="position:sticky;top:80px">
+        <div style="background:var(--branco);border:1px solid var(--borda);border-radius:var(--radius);padding:1.25rem;box-shadow:var(--sombra)">
+          <div style="font-weight:700;font-size:.88rem;margin-bottom:1rem">🌐 Publicar em</div>
+
+          <div class="campo-grupo" style="margin-bottom:.75rem">
+            <label style="font-size:.78rem">Site de destino</label>
+            <select id="criar-site-dest" onchange="criarCarregarCategorias(this.value)"
+              style="width:100%;padding:.5rem .65rem;border:1px solid var(--borda);border-radius:var(--radius);font-size:.84rem;font-family:var(--font-corpo)">
+              <option value="">Selecione o site…</option>
+            </select>
+          </div>
+
+          <div class="campo-grupo" style="margin-bottom:1.25rem">
+            <label style="font-size:.78rem">Categorias</label>
+            <div id="criar-categorias" class="cat-checkboxes"
+              style="max-height:200px;overflow-y:auto">
+              <span class="cat-placeholder">Selecione o site primeiro…</span>
+            </div>
+          </div>
+
+          <button id="btn-criar-publicar" class="btn btn-primario"
+            style="width:100%;padding:.7rem;font-size:.9rem;justify-content:center" disabled>
+            ✓ Publicar
+          </button>
+          <div id="criar-link-publicado" style="margin-top:.75rem;font-size:.8rem;text-align:center"></div>
+
+          <button onclick="criarRegerar()"
+            style="width:100%;margin-top:.6rem;background:none;border:1px solid var(--borda);border-radius:var(--radius);padding:.55rem;font-size:.82rem;cursor:pointer;color:var(--grafite-md)">
+            ↻ Regerar com IA
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -525,10 +654,6 @@
         <div id="portais-checkboxes" class="portais-checkboxes"><span style="font-size:.78rem;color:var(--grafite-lt)">Carregando…</span></div>
       </div>
       <div class="portal-footer-acoes">
-        <select id="sel-ia-provider" title="Provedor de IA" style="border:1px solid var(--borda);border-radius:var(--radius);padding:0.4rem 0.55rem;font-size:0.78rem;font-family:var(--font-corpo);color:var(--grafite-md);background:var(--branco);cursor:pointer;flex-shrink:0;">
-          <option value="gemini">Gemini</option>
-          <option value="deepseek">DeepSeek</option>
-        </select>
         <button class="btn btn-ia" id="btn-gerar-ia" disabled style="flex:1;justify-content:center;">✦ Gerar com IA</button>
         <a id="ml-link" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
       </div>
@@ -568,8 +693,14 @@
       <div class="publicar-bar">
         <div class="publicar-bar-selects">
           <div class="publicar-sel-grupo">
+            <label>🌐 Canal de destino</label>
+            <select id="sel-site-dest">
+              <option value="">Selecione o canal…</option>
+            </select>
+          </div>
+          <div class="publicar-sel-grupo">
             <label>🗂 Categorias</label>
-            <div id="sel-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o site primeiro…</span></div>
+            <div id="sel-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o canal primeiro…</span></div>
           </div>
         </div>
         <div class="publicar-bar-acoes">
@@ -610,6 +741,7 @@ let pubHistoricoIndex = []; // Histórico de publicações do artigo atual
 let paginaAtual = 1;
 let totalPaginas = 1;
 let debounceTimer = null;
+let _iaProvider = 'gemini'; // provedor global definido pelo admin
 
 // ── Autenticação ──────────────────────────────────────────────────────────────
 function logout() {
@@ -678,6 +810,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'config')    preencherPerfil(subscriber || {});
     if (tab.dataset.tab === 'historico') carregarHistorico();
     if (tab.dataset.tab === 'fontes')   carregarTellaFontes();
+    if (tab.dataset.tab === 'criar')    criarPopularSites();
   });
 });
 
@@ -1004,6 +1137,8 @@ function fecharModal() {
   document.getElementById('overlay-leitura').classList.add('hidden');
   document.body.style.overflow = '';
   artigoAtual = null;
+  document.getElementById('sel-site-dest').value = '';
+  document.getElementById('sel-categoria').innerHTML = '<span class="cat-placeholder">Selecione o canal primeiro…</span>';
 }
 
 document.getElementById('btn-fechar-leitura').addEventListener('click', fecharModal);
@@ -1138,8 +1273,7 @@ async function gerarComIA() {
   document.getElementById('badge-rascunho').style.display = 'none';
   renderTabs();
 
-  const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
-  localStorage.setItem('ia_provider', provider);
+  const provider = _iaProvider;
 
   // Gera sequencialmente (evita rate limiting da API com requisições paralelas)
   for (let idx = 0; idx < portaisResultados.length; idx++) {
@@ -1254,6 +1388,8 @@ function loadTabContent(idx) {
 async function publicarPortal(idx) {
   const portal = portaisResultados[idx];
   if (!portal || !artigoAtual) return;
+  // Canal de destino: dropdown tem prioridade sobre o portal original
+  const destSiteId = document.getElementById('sel-site-dest').value || portal.siteId;
   const rewritten = {
     chapeu:       portal.chapeu,
     title:        portal.titulo,
@@ -1264,7 +1400,7 @@ async function publicarPortal(idx) {
   };
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
-    body: JSON.stringify({ article_id: artigoAtual.id, site_id: portal.siteId, rewritten, force })
+    body: JSON.stringify({ article_id: artigoAtual.id, site_id: destSiteId, rewritten, force })
   });
   try {
     let res = await req(false); let data = await res.json();
@@ -1463,14 +1599,14 @@ async function carregarCategoriasWP(siteId) {
     }
     sel.innerHTML = html;
 
-    // Restaura seleção salva; só auto-sugere se não houver seleção prévia
+    // Restaura seleção salva; se vazia e há conteúdo reescrito, auto-categoriza com IA
     const savedIds = portaisResultados[activePortalIndex]?.categoryIds;
     if (savedIds?.length) {
       sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
         i.checked = savedIds.includes(Number(i.value));
       });
     } else {
-      sugerirCategoria();
+      autoCategorizar(cats);
     }
   } catch (e) {
     sel.innerHTML = '<span class="cat-placeholder">Erro ao buscar categorias</span>';
@@ -1482,17 +1618,15 @@ function sugerirCategoria() {
   if (!artigoAtual || !wpCategorias.length) return;
   const sel = document.getElementById('sel-categoria');
 
-  // Palavras-chave da categoria do artigo original (ex: "Futebol", "Política", "Esportes")
   const categoriaArtigo = (artigoAtual.category || artigoAtual.source_name || '').toLowerCase();
   if (!categoriaArtigo) return;
 
-  // Tenta match exato → match parcial → match de palavra
   let melhor = null;
   for (const cat of wpCategorias) {
     const nome = cat.name.toLowerCase();
-    if (nome === categoriaArtigo)          { melhor = cat; break; }
-    if (!melhor && nome.includes(categoriaArtigo)) melhor = cat;
-    if (!melhor && categoriaArtigo.includes(nome))  melhor = cat;
+    if (nome === categoriaArtigo)                  { melhor = cat; break; }
+    if (!melhor && nome.includes(categoriaArtigo))   melhor = cat;
+    if (!melhor && categoriaArtigo.includes(nome))   melhor = cat;
   }
 
   if (melhor) {
@@ -1501,14 +1635,62 @@ function sugerirCategoria() {
   }
 }
 
-// ── Sites — popula checkboxes de portais ──────────────────────────────────────
+async function autoCategorizar(cats) {
+  const portal = portaisResultados[activePortalIndex];
+  // Sem conteúdo reescrito: usa fallback de match por texto simples
+  if (!portal || portal.status !== 'pronto' || !cats?.length) { sugerirCategoria(); return; }
+
+  const provider = _iaProvider;
+  try {
+    const resp = await fetch(`${BACKEND}/api/ia/categorize`, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title:  portal.titulo,
+        chapeu: portal.chapeu,
+        tags:   portal.tags,
+        corpo:  portal.corpo,
+        categories: cats,
+        provider
+      })
+    });
+    const r = await resp.json();
+    if (!Array.isArray(r.category_ids) || !r.category_ids.length) { sugerirCategoria(); return; }
+    const sel = document.getElementById('sel-categoria');
+    sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
+      i.checked = r.category_ids.includes(Number(i.value));
+    });
+  } catch (e) {
+    console.warn('[auto-cat]', e.message);
+    sugerirCategoria();
+  }
+}
+
+// ── Sites — popula checkboxes de portais e dropdown de destino ───────────────
 async function carregarSites() {
   try {
     const res = await fetch(`${BACKEND}/api/sites`, { headers: authHeader() });
     sitesData = await res.json();
     renderPortaisCheckboxes();
+    popularSitesDest();
   } catch {}
 }
+
+function popularSitesDest() {
+  const sel = document.getElementById('sel-site-dest');
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Selecione o canal…</option>';
+  (sitesData || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id; opt.textContent = s.name;
+    sel.appendChild(opt);
+  });
+  if (val) sel.value = val;
+}
+
+document.getElementById('sel-site-dest').addEventListener('change', function () {
+  carregarCategoriasWP(this.value || null);
+});
 
 function renderPortaisCheckboxes() {
   const container = document.getElementById('portais-checkboxes');
@@ -1724,16 +1906,259 @@ function usarDraft(d) {
 
 document.getElementById('btn-atualizar-historico').addEventListener('click', carregarHistorico);
 
+// ── Criar Post ───────────────────────────────────────────────────────────────
+let _pmImageData = null; // { base64, mime, name }
+
+function criarPopularSites() {
+  const sel = document.getElementById('criar-site-dest');
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Selecione o site…</option>';
+  (sitesData || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id; opt.textContent = s.name;
+    sel.appendChild(opt);
+  });
+  if (val) sel.value = val;
+}
+
+function criarSetImagem(file) {
+  if (!file || !file.type.startsWith('image/')) { toast('Arquivo inválido. Use JPG, PNG ou WEBP.', 'aviso'); return; }
+  if (file.size > 5 * 1024 * 1024) { toast('Imagem muito grande. Máximo 5 MB.', 'aviso'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const base64  = dataUrl.split(',')[1];
+    _pmImageData  = { base64, mime: file.type, name: file.name };
+    const prev = document.getElementById('criar-img-preview');
+    prev.src = dataUrl; prev.style.display = 'block';
+    document.getElementById('criar-drop-placeholder').style.display = 'none';
+    document.getElementById('criar-img-remover').style.display = 'block';
+    const wrap = document.getElementById('criar-img-result-wrap');
+    document.getElementById('criar-img-result').src = dataUrl;
+    wrap.style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('criar-img-input').addEventListener('change', function() {
+  if (this.files[0]) criarSetImagem(this.files[0]);
+});
+
+document.getElementById('criar-img-remover').addEventListener('click', () => {
+  _pmImageData = null;
+  document.getElementById('criar-img-input').value = '';
+  document.getElementById('criar-img-preview').style.display = 'none';
+  document.getElementById('criar-drop-placeholder').style.display = '';
+  document.getElementById('criar-img-remover').style.display = 'none';
+  document.getElementById('criar-img-result-wrap').style.display = 'none';
+});
+
+function criarHandleDrop(event) {
+  event.preventDefault();
+  document.getElementById('criar-drop-area').style.borderColor = '';
+  const file = event.dataTransfer?.files?.[0];
+  if (file) criarSetImagem(file);
+}
+
+document.getElementById('btn-criar-gerar').addEventListener('click', async () => {
+  const tema = document.getElementById('criar-tema').value.trim();
+  if (!tema) { toast('Descreva o tema do artigo.', 'aviso'); return; }
+
+  const btn    = document.getElementById('btn-criar-gerar');
+  const status = document.getElementById('criar-status');
+  btn.disabled = true; btn.textContent = '⟳ Gerando…';
+  status.textContent = 'Aguarde, a IA está escrevendo o artigo…';
+
+  try {
+    const resp = await fetch(`${BACKEND}/api/ia/gerar`, {
+      method:  'POST',
+      headers: authHeader(),
+      body:    JSON.stringify({ tema, provider: _iaProvider })
+    });
+    const r = await resp.json();
+    if (!resp.ok) throw new Error(r.error || 'Erro na IA');
+
+    document.getElementById('criar-chapeu').value = r.chapeu || '';
+    document.getElementById('criar-titulo').value = r.titulo || r.title   || '';
+    document.getElementById('criar-resumo').value = r.resumo || r.summary || '';
+    document.getElementById('criar-corpo').value  = r.corpo  || r.body    || '';
+    document.getElementById('criar-tags').value   = Array.isArray(r.tags) ? r.tags.join(', ') : (r.tags || '');
+
+    const wrap = document.getElementById('criar-img-result-wrap');
+    if (_pmImageData) {
+      document.getElementById('criar-img-result').src = `data:${_pmImageData.mime};base64,${_pmImageData.base64}`;
+      wrap.style.display = '';
+    } else {
+      wrap.style.display = 'none';
+    }
+
+    document.getElementById('criar-link-publicado').textContent = '';
+    document.getElementById('btn-criar-publicar').disabled = true;
+    document.getElementById('criar-categorias').innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>';
+
+    document.getElementById('criar-fase1').style.display = 'none';
+    document.getElementById('criar-fase2').style.display = '';
+    status.textContent = '';
+  } catch (err) {
+    status.textContent = 'Erro: ' + err.message;
+    toast('Erro na IA: ' + err.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = '✦ Gerar artigo com IA';
+  }
+});
+
+async function criarCarregarCategorias(siteId) {
+  const cont   = document.getElementById('criar-categorias');
+  const btnPub = document.getElementById('btn-criar-publicar');
+
+  if (!siteId) {
+    cont.innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>';
+    btnPub.disabled = true;
+    return;
+  }
+
+  cont.innerHTML = '<span class="cat-placeholder">Carregando categorias…</span>';
+  btnPub.disabled = true;
+
+  try {
+    const res  = await fetch(`${BACKEND}/api/sites/${siteId}/wp-categories`, { headers: authHeader() });
+    const cats = await res.json();
+
+    if (!Array.isArray(cats) || !cats.length) {
+      cont.innerHTML = '<span class="cat-placeholder">Sem categorias / não é WordPress</span>';
+      btnPub.disabled = false;
+      return;
+    }
+
+    const pais   = cats.filter(c => !c.parent);
+    const filhos = cats.filter(c => c.parent);
+    const paiIds = new Set(pais.map(c => c.id));
+    let html = '';
+    for (const pai of pais) {
+      html += `<label><input type="checkbox" value="${pai.id}"> ${pai.name}${pai.count ? ` (${pai.count})` : ''}</label>`;
+      for (const filho of filhos.filter(f => f.parent === pai.id)) {
+        html += `<label style="padding-left:1.2rem"><input type="checkbox" value="${filho.id}"> ↳ ${filho.name}${filho.count ? ` (${filho.count})` : ''}</label>`;
+      }
+    }
+    for (const orfao of filhos.filter(f => !paiIds.has(f.parent))) {
+      html += `<label><input type="checkbox" value="${orfao.id}"> ${orfao.name}${orfao.count ? ` (${orfao.count})` : ''}</label>`;
+    }
+    cont.innerHTML = html;
+
+    // Auto-categoriza com IA
+    const titulo = document.getElementById('criar-titulo').value;
+    const chapeu = document.getElementById('criar-chapeu').value;
+    const tags   = document.getElementById('criar-tags').value;
+    const corpo  = document.getElementById('criar-corpo').value;
+    if (titulo || chapeu) {
+      try {
+        const cr = await fetch(`${BACKEND}/api/ia/categorize`, {
+          method:  'POST',
+          headers: authHeader(),
+          body:    JSON.stringify({ title: titulo, chapeu, tags, corpo, categories: cats, provider: _iaProvider })
+        });
+        const cr2 = await cr.json();
+        if (Array.isArray(cr2.category_ids) && cr2.category_ids.length) {
+          cont.querySelectorAll('input[type="checkbox"]').forEach(i => {
+            i.checked = cr2.category_ids.includes(Number(i.value));
+          });
+        }
+      } catch {}
+    }
+
+    btnPub.disabled = false;
+  } catch {
+    cont.innerHTML = '<span class="cat-placeholder">Erro ao buscar categorias</span>';
+    btnPub.disabled = false;
+  }
+}
+
+document.getElementById('btn-criar-publicar').addEventListener('click', async () => {
+  const siteId = document.getElementById('criar-site-dest').value;
+  if (!siteId) { toast('Selecione o site de destino.', 'aviso'); return; }
+
+  const titulo = document.getElementById('criar-titulo').value.trim();
+  const corpo  = document.getElementById('criar-corpo').value.trim();
+  if (!titulo || !corpo) { toast('Título e corpo são obrigatórios.', 'aviso'); return; }
+
+  const btn    = document.getElementById('btn-criar-publicar');
+  const linkEl = document.getElementById('criar-link-publicado');
+  btn.disabled = true; btn.textContent = 'Publicando…';
+  linkEl.textContent = '';
+
+  // Sobe a imagem para a biblioteca de mídia do WP antes de publicar
+  // (mesmo fluxo que artigos normais — o conector recebe uma URL real do WP)
+  let imageUrl     = null;
+  let imageMediaId = null;
+  if (_pmImageData) {
+    btn.textContent = 'Enviando imagem…';
+    try {
+      const imgRes = await fetch(`${BACKEND}/api/sites/${siteId}/upload-image`, {
+        method:  'POST',
+        headers: authHeader(),
+        body:    JSON.stringify({ image_base64: _pmImageData.base64, image_mime: _pmImageData.mime, image_name: _pmImageData.name }),
+      });
+      const imgData = await imgRes.json();
+      if (imgRes.ok) { imageUrl = imgData.image_url; imageMediaId = imgData.media_id; }
+      else console.warn('[criar] Upload de imagem falhou:', imgData.error);
+    } catch (e) { console.warn('[criar] Upload de imagem falhou:', e.message); }
+    btn.textContent = 'Publicando…';
+  }
+
+  const categoryIds = Array.from(
+    document.querySelectorAll('#criar-categorias input[type="checkbox"]:checked')
+  ).map(i => Number(i.value)).filter(id => id > 0);
+
+  const payload = {
+    site_id:        siteId,
+    chapeu:         document.getElementById('criar-chapeu').value.trim(),
+    titulo,
+    resumo:         document.getElementById('criar-resumo').value.trim(),
+    corpo,
+    tags:           document.getElementById('criar-tags').value.trim(),
+    category_ids:   categoryIds,
+    fonte_url:      document.getElementById('criar-fonte-url').value.trim(),
+    fonte_nome:     document.getElementById('criar-fonte-nome').value.trim(),
+    image_url:      imageUrl,
+    image_media_id: imageMediaId,
+  };
+
+  try {
+    const res  = await fetch(`${BACKEND}/api/publish/manual`, {
+      method:  'POST',
+      headers: authHeader(),
+      body:    JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
+    linkEl.innerHTML = `✔ Publicado! <a href="${data.post_url}" target="_blank" rel="noopener" style="color:var(--verde)">${data.post_url}</a>`;
+    toast('Artigo publicado com sucesso!', 'sucesso');
+  } catch (err) {
+    linkEl.textContent = 'Erro: ' + err.message;
+    toast('Erro ao publicar: ' + err.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ Publicar';
+  }
+});
+
+function criarVoltarBriefing() {
+  document.getElementById('criar-fase2').style.display = 'none';
+  document.getElementById('criar-fase1').style.display = '';
+  document.getElementById('criar-status').textContent  = '';
+}
+
+function criarRegerar() {
+  criarVoltarBriefing();
+  document.getElementById('btn-criar-gerar').click();
+}
+
 // ── Inicializar ───────────────────────────────────────────────────────────────
 inicializarHeader();
 carregarFontes();
 carregarSites(); // popula o select de sites no modal de publicação
 
-// Restaura provedor de IA salvo anteriormente
-(function() {
-  const sel = document.getElementById('sel-ia-provider');
-  if (sel) sel.value = localStorage.getItem('ia_provider') || 'gemini';
-})();
+// Carrega provedor de IA definido pelo administrador
+fetch(`${BACKEND}/api/settings`).then(r => r.json()).then(s => { if (s.ia_provider) _iaProvider = s.ia_provider; }).catch(() => {});
 // Chrome preenche autocomplete DEPOIS do JS — limpa com delay e recarrega se necessário
 const campoBusca = document.getElementById('filtro-busca');
 campoBusca.value = '';
