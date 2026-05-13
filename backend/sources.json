@@ -677,7 +677,7 @@
     "slug": "juruaonline",
     "type": "rss",
     "url": "https://juruaonline.com.br/feed/",
-    "active": true,
+    "active": false,
     "category": "regional",
     "extract_body_image": false,
     "content_selector": ".entry-content",
