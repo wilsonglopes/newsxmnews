@@ -267,6 +267,9 @@ async function criarIndicesBanco() {
       CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(published_at DESC);
       CREATE INDEX IF NOT EXISTS idx_articles_src  ON articles(source_id);
     `);
+    // Colunas de perfil do assinante — precisam existir antes do GET /auth/me
+    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS phone   VARCHAR(30)`);
+    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS address TEXT`);
   } catch (err) {
     console.error('[DB] Erro ao criar índices:', err.message);
   }
