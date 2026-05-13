@@ -399,6 +399,9 @@ Portal<span class="logo-news">News</span>
   <a class="nav-item" data-page="criar-post" onclick="irPara('criar-post')">
     <span class="icon">✍️</span> Criar Post
   </a>
+  <a class="nav-item" data-page="sites-catalog" onclick="irPara('sites-catalog')">
+    <span class="icon">🌐</span> Sites
+  </a>
   <a class="nav-item" data-page="configuracoes" onclick="irPara('configuracoes')">
     <span class="icon">⚙️</span> Configurações
   </a>
@@ -702,6 +705,24 @@ Portal<span class="logo-news">News</span>
         </div>
       </div>
     </div><!-- /autopub -->
+
+    <!-- ══ SITES CATALOG ════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-sites-catalog">
+      <div class="section-hdr">
+        <h2>Catálogo de Sites</h2>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalCatalog()">+ Novo site</button>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <table class="data-table" id="tbl-sites-catalog">
+            <thead>
+              <tr><th>Nome</th><th>Plataforma</th><th>URL</th><th>Formato</th><th>Assinantes</th><th>Status</th><th>Ações</th></tr>
+            </thead>
+            <tbody><tr><td colspan="7" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /sites-catalog -->
 
     <div class="page" id="page-configuracoes">
       <div class="section-hdr"><h2>Configurações</h2></div>
@@ -1099,69 +1120,34 @@ Portal<span class="logo-news">News</span>
   </div>
 </div>
 
-<!-- Modal Site (sub-modal dentro do cliente) -->
+<!-- Modal Site (sub-modal dentro do cliente) — pick do catálogo + configs por assinante -->
 <div class="overlay hidden" id="modal-site-cli">
-  <div class="modal" style="width:580px;max-width:95vw;z-index:400">
+  <div class="modal" style="width:620px;max-width:95vw;z-index:400">
     <div class="modal-header">
-      <h3 id="msc-title">Novo Site</h3>
+      <h3 id="msc-title">Adicionar Site</h3>
       <button class="modal-close" onclick="fecharModal('modal-site-cli')">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="msc-id" />
-      <div class="form-row">
-        <div class="form-group"><label>Nome *</label><input type="text" id="msc-name" placeholder="Meu Site" /></div>
-        <div class="form-group">
-          <label>Plataforma *</label>
-          <select id="msc-platform" onchange="toggleSitePlatformFields()">
-            <option value="wordpress">WordPress</option>
-            <option value="blogger">Blogger</option>
-            <option value="webhook">Webhook</option>
-          </select>
+      <input type="hidden" id="msc-catalog-id" />
+
+      <!-- Picker do catálogo -->
+      <div class="form-group" id="msc-catalog-picker-wrap">
+        <label>Site do catálogo *
+          <small style="color:var(--muted);font-weight:400"> — escolha um site já configurado</small>
+        </label>
+        <select id="msc-catalog-select" onchange="onMscCatalogChange()" style="width:100%">
+          <option value="">Carregando catálogo…</option>
+        </select>
+        <div id="msc-catalog-info" style="display:none;margin-top:8px;padding:10px 12px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-size:.82rem;color:var(--muted)">
+          <span id="msc-catalog-url" style="word-break:break-all"></span>
+          <span id="msc-catalog-platform" style="margin-left:10px;font-weight:500"></span>
         </div>
       </div>
+
       <div class="form-group">
-        <label>URL do site *</label>
-        <input type="url" id="msc-url" placeholder="https://meusite.com.br" />
-        <div id="msc-url-hint" style="display:none;margin-top:6px;padding:8px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:.85rem;color:#166534;display:flex;align-items:center;gap:8px">
-          <span>✅ Site já cadastrado para outro cliente.</span>
-          <button type="button" onclick="preencherCredenciaisExistentes()" style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:.82rem;cursor:pointer;flex-shrink:0">Preencher credenciais</button>
-        </div>
-      </div>
-
-      <!-- WordPress -->
-      <div id="msc-wp-fields">
-        <div class="form-group" style="margin-bottom:10px">
-          <label>🔑 Chave XMNews Plugin <small style="color:var(--muted);font-weight:400">(recomendado — gerada em WP Admin → Portal Publisher)</small></label>
-          <input type="text" id="msc-xixo-key" placeholder="Cole aqui a chave gerada pelo plugin" style="font-family:monospace;font-size:.85rem" />
-        </div>
-        <div class="form-row" style="opacity:.7">
-          <div class="form-group"><label>Usuário WP <small style="color:var(--muted)">(fallback sem plugin)</small></label><input type="text" id="msc-wp-user" /></div>
-          <div class="form-group"><label>App Password WP <small style="color:var(--muted)">(fallback)</small></label><input type="password" id="msc-wp-pass" placeholder="xxxx xxxx xxxx…" /></div>
-        </div>
-      </div>
-
-      <!-- Blogger -->
-      <div id="msc-blogger-fields" style="display:none">
-        <div class="form-group"><label>Blog ID</label><input type="text" id="msc-blog-id" /></div>
-      </div>
-
-      <!-- Webhook -->
-      <div id="msc-webhook-fields" style="display:none">
-        <div class="form-row">
-          <div class="form-group"><label>Webhook URL</label><input type="url" id="msc-webhook-url" /></div>
-          <div class="form-group"><label>Webhook Secret</label><input type="text" id="msc-webhook-secret" /></div>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>Formato de post</label>
-          <select id="msc-post-format">
-            <option value="editorial">Editorial</option>
-            <option value="simple">Simples</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Categoria padrão</label><input type="text" id="msc-cat-id" placeholder="ID ou slug" /></div>
+        <label>Categoria padrão</label>
+        <input type="text" id="msc-cat-id" placeholder="ID numérico da categoria no WP" />
       </div>
       <div class="form-group">
         <label>Identidade Editorial <small style="color:var(--muted);font-weight:400">(instrução enviada à IA ao reescrever para este portal)</small></label>
@@ -1189,7 +1175,88 @@ Portal<span class="logo-news">News</span>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModal('modal-site-cli')">Cancelar</button>
-      <button class="btn btn-primary" id="btn-salvar-site-cli" onclick="salvarSiteCli()">Salvar site</button>
+      <button class="btn btn-primary" id="btn-salvar-site-cli" onclick="salvarSiteCli()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Catálogo de Sites (CRUD do catálogo central) -->
+<div class="overlay hidden" id="modal-catalog">
+  <div class="modal" style="width:640px;max-width:95vw">
+    <div class="modal-header">
+      <h3 id="mcat-title">Novo Site no Catálogo</h3>
+      <button class="modal-close" onclick="fecharModal('modal-catalog')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mcat-id" />
+      <div class="form-row">
+        <div class="form-group"><label>Nome *</label><input type="text" id="mcat-name" placeholder="Nome do portal" /></div>
+        <div class="form-group">
+          <label>Plataforma *</label>
+          <select id="mcat-platform" onchange="toggleCatalogPlatformFields()">
+            <option value="wordpress">WordPress</option>
+            <option value="blogger">Blogger</option>
+            <option value="webhook">Webhook</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>URL do site *</label>
+        <input type="url" id="mcat-url" placeholder="https://meusite.com.br" />
+      </div>
+
+      <!-- WordPress -->
+      <div id="mcat-wp-fields">
+        <div class="form-group" style="margin-bottom:10px">
+          <label>🔑 Chave XMNews Plugin <small style="color:var(--muted);font-weight:400">(recomendado)</small></label>
+          <input type="text" id="mcat-xixo-key" placeholder="Cole a chave gerada em WP Admin → Portal Publisher" style="font-family:monospace;font-size:.85rem" />
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Usuário WP <small style="color:var(--muted)">(fallback)</small></label><input type="text" id="mcat-wp-user" /></div>
+          <div class="form-group">
+            <label>App Password WP <small style="color:var(--muted)">(fallback)</small></label>
+            <input type="password" id="mcat-wp-pass" placeholder="xxxx xxxx xxxx…" />
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-test-wp-cat" onclick="testarWpCatalog()">🔌 Testar conexão</button>
+          <span id="mcat-test-result" style="font-size:.82rem;margin-left:8px"></span>
+        </div>
+      </div>
+
+      <!-- Blogger -->
+      <div id="mcat-blogger-fields" style="display:none">
+        <div class="form-group"><label>Blog ID</label><input type="text" id="mcat-blog-id" /></div>
+      </div>
+
+      <!-- Webhook -->
+      <div id="mcat-webhook-fields" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Webhook URL</label><input type="url" id="mcat-webhook-url" /></div>
+          <div class="form-group"><label>Webhook Secret</label><input type="text" id="mcat-webhook-secret" /></div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Formato de post</label>
+          <select id="mcat-post-format">
+            <option value="editorial">Editorial</option>
+            <option value="simple">Simples</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ativo</label>
+          <select id="mcat-active">
+            <option value="true">Sim</option>
+            <option value="false">Não</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-catalog')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-catalog" onclick="salvarCatalog()">Salvar site</button>
     </div>
   </div>
 </div>
@@ -1321,15 +1388,16 @@ function toast(msg, tipo = '') {
 
 // ── Navegação ─────────────────────────────────────────────────────────────────
 const PAGE_TITLES = {
-  painel:      ['Painel', 'Visão geral do sistema'],
-  publicar:    ['Publicar', 'Selecione um artigo e publique'],
-  clientes:    ['Clientes', 'Gerencie os assinantes da plataforma'],
-  financeiro:  ['Financeiro', 'Controle financeiro dos clientes'],
-  fontes:      ['Fontes', 'Portais e feeds de notícias'],
-  publicacoes:   ['Publicações', 'Histórico de artigos publicados'],
-  autopub:       ['Autopublicação', 'Monitor do sistema de postagem automática'],
-  'criar-post':  ['Criar Post', 'Crie um artigo com IA e publique diretamente'],
-  configuracoes: ['Configurações', 'Parâmetros globais do sistema'],
+  painel:          ['Painel', 'Visão geral do sistema'],
+  publicar:        ['Publicar', 'Selecione um artigo e publique'],
+  clientes:        ['Clientes', 'Gerencie os assinantes da plataforma'],
+  financeiro:      ['Financeiro', 'Controle financeiro dos clientes'],
+  fontes:          ['Fontes', 'Portais e feeds de notícias'],
+  publicacoes:     ['Publicações', 'Histórico de artigos publicados'],
+  autopub:         ['Autopublicação', 'Monitor do sistema de postagem automática'],
+  'sites-catalog': ['Sites', 'Catálogo central de sites configurados'],
+  'criar-post':    ['Criar Post', 'Crie um artigo com IA e publique diretamente'],
+  configuracoes:   ['Configurações', 'Parâmetros globais do sistema'],
 };
 
 function irPara(page) {
@@ -1341,15 +1409,16 @@ function irPara(page) {
   document.getElementById('topbar-title').textContent = title;
   document.getElementById('topbar-sub').textContent   = sub;
 
-  if (page === 'clientes')    carregarClientes();
-  if (page === 'fontes')      carregarFontes();
-  if (page === 'publicacoes') carregarPublicacoes();
-  if (page === 'publicar')       iniciarPublicar();
-  if (page === 'financeiro')     carregarFinanceiro();
-  if (page === 'configuracoes')  carregarConfiguracoes();
-  if (page === 'autopub')        iniciarMonitorAutopub();
-  else                           pararMonitorAutopub();
-  if (page === 'criar-post')     acpPopularSites();
+  if (page === 'clientes')        carregarClientes();
+  if (page === 'fontes')          carregarFontes();
+  if (page === 'publicacoes')     carregarPublicacoes();
+  if (page === 'publicar')        iniciarPublicar();
+  if (page === 'financeiro')      carregarFinanceiro();
+  if (page === 'configuracoes')   carregarConfiguracoes();
+  if (page === 'sites-catalog')   carregarCatalog();
+  if (page === 'autopub')         iniciarMonitorAutopub();
+  else                            pararMonitorAutopub();
+  if (page === 'criar-post')      acpPopularSites();
 }
 
 // ══ AUTOPUBLICAÇÃO — Monitor ══════════════════════════════════════════════════
@@ -1685,7 +1754,14 @@ async function carregarAutopubLog() {
 async function carregarSitesModal() {
   try {
     const sites = await fetch(`${BACKEND}/api/admin/all-sites`, { headers: authHeader() }).then(r => r.json());
-    allSitesCache = sites;
+    // Deduplica por catalog_id — mesmo site vinculado a vários assinantes aparece só uma vez
+    const vistos = new Set();
+    allSitesCache = sites.filter(s => {
+      const chave = s.catalog_id || s.id;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
     renderPortaisCheckboxesAdmin();
     popularSitesDestAdmin();
 
@@ -2854,126 +2930,101 @@ async function carregarSitesCli() {
   } catch { el.innerHTML = '<div class="empty" style="padding:16px">Erro ao carregar sites.</div>'; }
 }
 
-let _mscLookupData = null;
+// ── catálogo em memória para preencher o picker ───────────────────────────────
+let _catalogSites = [];
 
-document.getElementById('msc-url').addEventListener('blur', async function () {
-  const hint = document.getElementById('msc-url-hint');
-  hint.style.display = 'none';
-  _mscLookupData = null;
-  if (document.getElementById('msc-id').value) return; // só em modo "Novo Site"
-  const url = this.value.trim();
-  if (!url) return;
+async function carregarCatalogSelect() {
   try {
-    const r = await fetch(`${BACKEND}/api/admin/sites/lookup-by-url?url=${encodeURIComponent(url)}`, { headers: authHeader() });
-    const data = await r.json();
-    if (data && (data.xixo_api_key || data.wp_username)) {
-      _mscLookupData = data;
-      hint.style.display = 'flex';
-    }
-  } catch {}
-});
-
-function preencherCredenciaisExistentes() {
-  if (!_mscLookupData) return;
-  const d = _mscLookupData;
-  if (d.xixo_api_key) document.getElementById('msc-xixo-key').value = d.xixo_api_key;
-  if (d.wp_username)  document.getElementById('msc-wp-user').value  = d.wp_username;
-  if (d.platform)     { document.getElementById('msc-platform').value = d.platform; toggleSitePlatformFields(); }
-  if (d.post_format)  document.getElementById('msc-post-format').value = d.post_format;
-  if (d.ai_prompt)    document.getElementById('msc-ai-prompt').value   = d.ai_prompt;
-  document.getElementById('msc-url-hint').style.display = 'none';
-  toast('Credenciais preenchidas automaticamente.', 'sucesso');
+    const r = await fetch(`${BACKEND}/api/admin/sites-catalog`, { headers: authHeader() });
+    _catalogSites = await r.json();
+  } catch { _catalogSites = []; }
+  const sel = document.getElementById('msc-catalog-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Selecione um site —</option>' +
+    _catalogSites.map(s =>
+      `<option value="${s.id}">${s.name}${s.site_url ? ' — ' + s.site_url.replace(/https?:\/\//, '') : ''}</option>`
+    ).join('');
 }
 
-function abrirModalSite(siteId) {
+function onMscCatalogChange() {
+  const val = document.getElementById('msc-catalog-select').value;
+  const info = document.getElementById('msc-catalog-info');
+  if (!val) { info.style.display = 'none'; return; }
+  const site = _catalogSites.find(s => s.id === val);
+  if (!site) { info.style.display = 'none'; return; }
+  document.getElementById('msc-catalog-url').textContent      = site.site_url || '(sem URL)';
+  document.getElementById('msc-catalog-platform').textContent = site.platform || '';
+  info.style.display = '';
+}
+
+async function abrirModalSite(siteId) {
   const subId = document.getElementById('mc-id').value;
   if (!subId) { toast('Salve o cliente primeiro antes de adicionar sites.', 'aviso'); return; }
   mcSiteEditId = siteId || null;
-  _mscLookupData = null;
-  document.getElementById('msc-url-hint').style.display = 'none';
-  document.getElementById('msc-title').textContent = siteId ? 'Editar Site' : 'Novo Site';
-  document.getElementById('msc-id').value     = siteId || '';
-  document.getElementById('msc-name').value   = '';
-  document.getElementById('msc-url').value    = '';
-  document.getElementById('msc-xixo-key').value = '';
-  document.getElementById('msc-wp-user').value  = '';
-  document.getElementById('msc-wp-pass').value  = '';
-  document.getElementById('msc-blog-id').value  = '';
-  document.getElementById('msc-webhook-url').value    = '';
-  document.getElementById('msc-webhook-secret').value = '';
-  document.getElementById('msc-post-format').value    = 'editorial';
-  document.getElementById('msc-cat-id').value  = '';
-  document.getElementById('msc-ai-prompt').value = '';
-  document.getElementById('msc-platform').value  = 'wordpress';
+
+  document.getElementById('msc-title').textContent = siteId ? 'Editar Site' : 'Adicionar Site';
+  document.getElementById('msc-id').value          = siteId || '';
+  document.getElementById('msc-catalog-id').value  = '';
+  document.getElementById('msc-cat-id').value      = '';
+  document.getElementById('msc-ai-prompt').value   = '';
   document.getElementById('msc-auto-publish').checked = false;
   document.getElementById('msc-autopub-fontes').style.display = 'none';
   document.getElementById('msc-fontes-lista').innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Carregando fontes…</span>';
   if (document.getElementById('msc-fontes-filtro')) document.getElementById('msc-fontes-filtro').value = '';
-  _fontesDoCliente = []; // limpa cache ao trocar de cliente
-  toggleSitePlatformFields();
+  _fontesDoCliente = [];
 
+  await carregarCatalogSelect();
+
+  const picker = document.getElementById('msc-catalog-picker-wrap');
   if (siteId) {
-    // Busca dados do site para preencher
-    const subId = document.getElementById('mc-id').value;
+    // Em modo edição o site já foi vinculado — desabilita o picker
+    picker.style.opacity = '.6';
+    document.getElementById('msc-catalog-select').disabled = true;
     fetch(`${BACKEND}/api/admin/subscribers/${subId}/sites`, { headers: authHeader() })
       .then(r => r.json())
       .then(sites => {
         const s = sites.find(x => x.id === siteId);
         if (!s) return;
-        document.getElementById('msc-name').value          = s.name || '';
-        document.getElementById('msc-url').value           = s.site_url || '';
-        document.getElementById('msc-xixo-key').value      = s.xixo_api_key || '';
-        document.getElementById('msc-wp-user').value       = s.wp_username || '';
-        document.getElementById('msc-blog-id').value       = s.blogger_blog_id || '';
-        document.getElementById('msc-webhook-url').value   = s.webhook_url || '';
-        document.getElementById('msc-webhook-secret').value= s.webhook_secret || '';
-        document.getElementById('msc-post-format').value   = s.post_format || 'editorial';
-        document.getElementById('msc-cat-id').value        = s.default_category_id || '';
-        document.getElementById('msc-ai-prompt').value     = s.ai_prompt || '';
-        document.getElementById('msc-platform').value      = s.platform || 'wordpress';
+        document.getElementById('msc-cat-id').value      = s.default_category_id || '';
+        document.getElementById('msc-ai-prompt').value   = s.ai_prompt || '';
         document.getElementById('msc-auto-publish').checked = s.auto_publish || false;
-        toggleSitePlatformFields();
+        if (s.catalog_id) {
+          document.getElementById('msc-catalog-id').value = s.catalog_id;
+          document.getElementById('msc-catalog-select').value = s.catalog_id;
+          onMscCatalogChange();
+        }
         if (s.auto_publish) {
           document.getElementById('msc-autopub-fontes').style.display = '';
           const sel = Array.isArray(s.autopub_source_ids) ? s.autopub_source_ids.map(String) : [];
           carregarFontesDoCliente().then(() => renderFontesAutopub(sel));
         }
       }).catch(() => {});
+  } else {
+    picker.style.opacity = '';
+    document.getElementById('msc-catalog-select').disabled = false;
+    document.getElementById('msc-catalog-info').style.display = 'none';
   }
 
   document.getElementById('modal-site-cli').classList.remove('hidden');
 }
 
-function toggleSitePlatformFields() {
-  const p = document.getElementById('msc-platform').value;
-  document.getElementById('msc-wp-fields').style.display      = p === 'wordpress' ? '' : 'none';
-  document.getElementById('msc-blogger-fields').style.display = p === 'blogger'   ? '' : 'none';
-  document.getElementById('msc-webhook-fields').style.display = p === 'webhook'   ? '' : 'none';
-}
-
 async function salvarSiteCli() {
-  const subId  = document.getElementById('mc-id').value;
-  const siteId = document.getElementById('msc-id').value;
-  const platform = document.getElementById('msc-platform').value;
+  const subId   = document.getElementById('mc-id').value;
+  const siteId  = document.getElementById('msc-id').value;
+  const siteIdCatalog = siteId
+    ? document.getElementById('msc-catalog-id').value
+    : document.getElementById('msc-catalog-select').value;
+
+  if (!siteId && !siteIdCatalog) return toast('Selecione um site do catálogo.', 'erro');
 
   const body = {
-    name:       document.getElementById('msc-name').value.trim(),
-    platform,
-    site_url:   document.getElementById('msc-url').value.trim() || null,
-    xixo_api_key:   platform === 'wordpress' ? document.getElementById('msc-xixo-key').value.trim() || null : null,
-    wp_username:    platform === 'wordpress' ? document.getElementById('msc-wp-user').value.trim() || null : null,
-    wp_app_password: platform === 'wordpress' ? document.getElementById('msc-wp-pass').value.trim() || null : null,
-    blogger_blog_id: platform === 'blogger'   ? document.getElementById('msc-blog-id').value.trim() || null : null,
-    webhook_url:    platform === 'webhook'    ? document.getElementById('msc-webhook-url').value.trim() || null : null,
-    webhook_secret: platform === 'webhook'    ? document.getElementById('msc-webhook-secret').value.trim() || null : null,
-    post_format:    document.getElementById('msc-post-format').value || 'editorial',
+    site_id:             siteIdCatalog || undefined,
     default_category_id: document.getElementById('msc-cat-id').value.trim() || null,
-    ai_prompt:      document.getElementById('msc-ai-prompt').value.trim() || null,
-    auto_publish:   document.getElementById('msc-auto-publish').checked,
-    autopub_source_ids: getAutopubSourceIds(),
+    ai_prompt:           document.getElementById('msc-ai-prompt').value.trim() || null,
+    auto_publish:        document.getElementById('msc-auto-publish').checked,
+    autopub_source_ids:  getAutopubSourceIds(),
   };
-
-  if (!body.name) return toast('Nome é obrigatório.', 'erro');
+  if (siteId) delete body.site_id; // PUT não altera o vínculo de catálogo
 
   const btn = document.getElementById('btn-salvar-site-cli');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
@@ -2989,7 +3040,7 @@ async function salvarSiteCli() {
     await carregarSitesCli();
     toast(siteId ? 'Site atualizado!' : 'Site adicionado!', 'sucesso');
   } catch(e) { toast(e.message, 'erro'); }
-  finally { btn.disabled = false; btn.textContent = 'Salvar site'; }
+  finally { btn.disabled = false; btn.textContent = 'Salvar'; }
 }
 
 async function deletarSiteCli(siteId, nome) {
@@ -3000,6 +3051,151 @@ async function deletarSiteCli(siteId, nome) {
     await carregarSitesCli();
     toast(`"${nome}" removido.`, 'sucesso');
   } catch { toast('Erro ao remover.', 'erro'); }
+}
+
+// ══ CATÁLOGO CENTRAL DE SITES ════════════════════════════════════════════════
+
+let _catalogList = [];
+
+async function carregarCatalog() {
+  const tbody = document.querySelector('#tbl-sites-catalog tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" class="loading"><span class="spin"></span>Carregando…</td></tr>';
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/sites-catalog`, { headers: authHeader() });
+    _catalogList = await r.json();
+    if (!_catalogList.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhum site cadastrado no catálogo.</td></tr>';
+      return;
+    }
+    const platLabel = { wordpress:'WordPress', blogger:'Blogger', webhook:'Webhook' };
+    tbody.innerHTML = _catalogList.map(s => `
+      <tr>
+        <td style="font-weight:500">${s.name}</td>
+        <td><span class="badge badge-blue">${platLabel[s.platform] || s.platform}</span></td>
+        <td style="font-size:.8rem;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.site_url || '—'}</td>
+        <td>${s.post_format || 'editorial'}</td>
+        <td style="text-align:center">${s.subscribers_count ?? 0}</td>
+        <td>${s.active ? '<span class="badge badge-green">Ativo</span>' : '<span class="badge badge-red">Inativo</span>'}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="abrirModalCatalog('${s.id}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="excluirCatalog('${s.id}','${s.name.replace(/'/g,"\\'")}')">✕</button>
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">Erro: ${e.message}</td></tr>`;
+  }
+}
+
+function toggleCatalogPlatformFields() {
+  const p = document.getElementById('mcat-platform').value;
+  document.getElementById('mcat-wp-fields').style.display      = p === 'wordpress' ? '' : 'none';
+  document.getElementById('mcat-blogger-fields').style.display = p === 'blogger'   ? '' : 'none';
+  document.getElementById('mcat-webhook-fields').style.display = p === 'webhook'   ? '' : 'none';
+}
+
+async function abrirModalCatalog(siteId) {
+  document.getElementById('mcat-title').textContent  = siteId ? 'Editar Site' : 'Novo Site no Catálogo';
+  document.getElementById('mcat-id').value           = siteId || '';
+  document.getElementById('mcat-name').value         = '';
+  document.getElementById('mcat-url').value          = '';
+  document.getElementById('mcat-xixo-key').value     = '';
+  document.getElementById('mcat-wp-user').value      = '';
+  document.getElementById('mcat-wp-pass').value      = '';
+  document.getElementById('mcat-blog-id').value      = '';
+  document.getElementById('mcat-webhook-url').value  = '';
+  document.getElementById('mcat-webhook-secret').value = '';
+  document.getElementById('mcat-post-format').value  = 'editorial';
+  document.getElementById('mcat-active').value       = 'true';
+  document.getElementById('mcat-test-result').textContent = '';
+  document.getElementById('mcat-platform').value     = 'wordpress';
+  toggleCatalogPlatformFields();
+
+  if (siteId) {
+    const s = _catalogList.find(x => x.id === siteId);
+    if (s) {
+      document.getElementById('mcat-name').value         = s.name || '';
+      document.getElementById('mcat-url').value          = s.site_url || '';
+      document.getElementById('mcat-xixo-key').value     = s.xixo_api_key || '';
+      document.getElementById('mcat-wp-user').value      = s.wp_username || '';
+      document.getElementById('mcat-blog-id').value      = s.blogger_blog_id || '';
+      document.getElementById('mcat-webhook-url').value  = s.webhook_url || '';
+      document.getElementById('mcat-webhook-secret').value = s.webhook_secret || '';
+      document.getElementById('mcat-post-format').value  = s.post_format || 'editorial';
+      document.getElementById('mcat-active').value       = s.active ? 'true' : 'false';
+      document.getElementById('mcat-platform').value     = s.platform || 'wordpress';
+      toggleCatalogPlatformFields();
+    }
+  }
+
+  document.getElementById('modal-catalog').classList.remove('hidden');
+}
+
+async function salvarCatalog() {
+  const id       = document.getElementById('mcat-id').value;
+  const platform = document.getElementById('mcat-platform').value;
+  const body = {
+    name:        document.getElementById('mcat-name').value.trim(),
+    platform,
+    site_url:    document.getElementById('mcat-url').value.trim() || null,
+    xixo_api_key: platform === 'wordpress' ? document.getElementById('mcat-xixo-key').value.trim() || null : null,
+    wp_username:  platform === 'wordpress' ? document.getElementById('mcat-wp-user').value.trim() || null : null,
+    wp_app_password: platform === 'wordpress' ? document.getElementById('mcat-wp-pass').value.trim() || null : null,
+    blogger_blog_id: platform === 'blogger'  ? document.getElementById('mcat-blog-id').value.trim() || null : null,
+    webhook_url:  platform === 'webhook' ? document.getElementById('mcat-webhook-url').value.trim() || null : null,
+    webhook_secret: platform === 'webhook' ? document.getElementById('mcat-webhook-secret').value.trim() || null : null,
+    post_format: document.getElementById('mcat-post-format').value || 'editorial',
+    active:      document.getElementById('mcat-active').value === 'true',
+  };
+  if (!body.name)     return toast('Nome é obrigatório.', 'erro');
+  if (!body.platform) return toast('Plataforma é obrigatória.', 'erro');
+
+  const btn = document.getElementById('btn-salvar-catalog');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const url = id ? `${BACKEND}/api/admin/sites-catalog/${id}` : `${BACKEND}/api/admin/sites-catalog`;
+    const r = await fetch(url, { method: id ? 'PUT' : 'POST', headers: authHeader(), body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro');
+    fecharModal('modal-catalog');
+    await carregarCatalog();
+    toast(id ? 'Site atualizado!' : 'Site criado no catálogo!', 'sucesso');
+  } catch(e) { toast(e.message, 'erro'); }
+  finally { btn.disabled = false; btn.textContent = 'Salvar site'; }
+}
+
+async function excluirCatalog(id, nome) {
+  if (!confirm(`Remover "${nome}" do catálogo?`)) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/sites-catalog/${id}`, { method: 'DELETE', headers: authHeader() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro');
+    await carregarCatalog();
+    toast(`"${nome}" removido do catálogo.`, 'sucesso');
+  } catch(e) { toast(e.message, 'erro'); }
+}
+
+async function testarWpCatalog() {
+  const btn = document.getElementById('btn-test-wp-cat');
+  const result = document.getElementById('mcat-test-result');
+  const site_url = document.getElementById('mcat-url').value.trim();
+  const wp_username = document.getElementById('mcat-wp-user').value.trim();
+  const wp_app_password = document.getElementById('mcat-wp-pass').value.trim();
+  if (!site_url || !wp_username || !wp_app_password) {
+    result.textContent = '⚠️ Preencha URL, usuário e senha para testar.';
+    result.style.color = '#c2410c';
+    return;
+  }
+  btn.disabled = true; result.textContent = 'Testando…'; result.style.color = 'var(--muted)';
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/sites-catalog/test-wp`, {
+      method: 'POST', headers: authHeader(), body: JSON.stringify({ site_url, wp_username, wp_app_password })
+    });
+    const d = await r.json();
+    if (r.ok) { result.textContent = '✅ Conexão OK!'; result.style.color = '#15803d'; }
+    else { result.textContent = `❌ ${d.error}`; result.style.color = '#b91c1c'; }
+  } catch(e) { result.textContent = `❌ ${e.message}`; result.style.color = '#b91c1c'; }
+  finally { btn.disabled = false; }
 }
 
 // ══ FONTES DO CLIENTE (tab Fontes no modal cliente) ══════════════════════════
@@ -3501,7 +3697,7 @@ async function republicarDoHistorico(pubJsonStr) {
 function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 // modal-artigo-pub: fecha só por X ou ESC — não por clique fora
-const MODAIS_SEM_CLICK_FORA = new Set(['modal-artigo-pub', 'modal-fonte', 'modal-cliente', 'modal-site-cli']);
+const MODAIS_SEM_CLICK_FORA = new Set(['modal-artigo-pub', 'modal-fonte', 'modal-cliente', 'modal-site-cli', 'modal-catalog']);
 document.querySelectorAll('.overlay').forEach(o => {
   if (MODAIS_SEM_CLICK_FORA.has(o.id)) return;
   o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
@@ -3517,7 +3713,15 @@ carregarDashboard();
 // Pré-carrega sites para que "Criar Post" funcione mesmo sem passar pela aba Publicar
 fetch(`${BACKEND}/api/admin/all-sites`, { headers: authHeader() })
   .then(r => r.json())
-  .then(sites => { allSitesCache = sites; })
+  .then(sites => {
+    const vistos = new Set();
+    allSitesCache = sites.filter(s => {
+      const chave = s.catalog_id || s.id;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+  })
   .catch(() => {});
 </script>
 </body>

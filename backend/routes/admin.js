@@ -563,15 +563,25 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   router.get('/all-sites', async (req, res) => {
     try {
       const { rows } = await pool.query(`
-        SELECT ss.id, ss.name, ss.platform, ss.site_url, ss.wp_username,
-               ss.wp_app_password, ss.blogger_blog_id, ss.blogger_access_token,
-               ss.webhook_url, ss.webhook_secret, ss.ai_prompt,
-               ss.default_category_id, ss.active,
-               sub.name AS subscriber_name, sub.email AS subscriber_email
+        SELECT ss.id, ss.ai_prompt, ss.default_category_id, ss.active,
+               ss.site_id                                        AS catalog_id,
+               COALESCE(sc.name, ss.name)                       AS name,
+               COALESCE(sc.platform, ss.platform)               AS platform,
+               COALESCE(sc.site_url, ss.site_url)               AS site_url,
+               COALESCE(sc.wp_username, ss.wp_username)         AS wp_username,
+               COALESCE(sc.wp_app_password, ss.wp_app_password) AS wp_app_password,
+               COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
+               COALESCE(sc.xixo_api_key, ss.xixo_api_key)       AS xixo_api_key,
+               COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
+               COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
+               COALESCE(sc.post_format, ss.post_format)         AS post_format,
+               sub.name  AS subscriber_name,
+               sub.email AS subscriber_email
         FROM subscriber_sites ss
-        JOIN subscribers sub ON sub.id = ss.subscriber_id
+        LEFT JOIN sites_catalog sc  ON sc.id = ss.site_id
+        JOIN subscribers        sub ON sub.id = ss.subscriber_id
         WHERE ss.active = true
-        ORDER BY sub.name, ss.name
+        ORDER BY sub.name, name
       `);
       res.json(rows);
     } catch (err) {
@@ -719,18 +729,19 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   router.get('/subscribers/:id/sites', async (req, res) => {
     try {
       const { rows } = await pool.query(
-        `SELECT ss.id, ss.name, ss.platform, ss.site_url, ss.wp_username, ss.ai_prompt,
-                ss.default_category_id, ss.webhook_url, ss.webhook_secret,
-                ss.blogger_blog_id, ss.post_format, ss.active, ss.created_at,
-                ss.xixo_api_key, ss.auto_publish,
+        `SELECT ss.id, ss.ai_prompt, ss.default_category_id, ss.auto_publish,
+                ss.active, ss.created_at, ss.site_id AS catalog_id,
+                sc.name, sc.platform, sc.site_url, sc.wp_username, sc.xixo_api_key,
+                sc.blogger_blog_id, sc.webhook_url, sc.webhook_secret, sc.post_format,
                 COALESCE(
                   json_agg(ar.source_id::text) FILTER (WHERE ar.source_id IS NOT NULL),
                   '[]'
                 ) AS autopub_source_ids
          FROM subscriber_sites ss
+         LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
          LEFT JOIN autopub_rules ar ON ar.site_id = ss.id
          WHERE ss.subscriber_id = $1
-         GROUP BY ss.id
+         GROUP BY ss.id, sc.id
          ORDER BY ss.created_at DESC`,
         [req.params.id]
       );
@@ -748,63 +759,51 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // POST /api/admin/subscribers/:id/sites
+  // POST /api/admin/subscribers/:id/sites — vincula site do catálogo ao assinante
   router.post('/subscribers/:id/sites', async (req, res) => {
-    const { name, platform, site_url, wp_username, wp_app_password,
-            blogger_blog_id, webhook_url, webhook_secret, ai_prompt,
-            default_category_id, post_format, xixo_api_key, auto_publish,
+    const { site_id, ai_prompt, default_category_id, auto_publish,
             autopub_source_ids } = req.body || {};
-    if (!name || !platform) return res.status(400).json({ error: 'name e platform obrigatórios.' });
+    if (!site_id) return res.status(400).json({ error: 'site_id é obrigatório.' });
     try {
+      const { rows: cat } = await pool.query(
+        `SELECT id, name, platform, site_url FROM sites_catalog WHERE id = $1 AND active = true`,
+        [site_id]
+      );
+      if (!cat[0]) return res.status(404).json({ error: 'Site não encontrado no catálogo.' });
       const { rows } = await pool.query(
-        `INSERT INTO subscriber_sites
-           (subscriber_id, name, platform, site_url, wp_username, wp_app_password,
-            blogger_blog_id, webhook_url, webhook_secret, ai_prompt, default_category_id,
-            post_format, xixo_api_key, auto_publish)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-         RETURNING id, name, platform, site_url, active`,
-        [req.params.id, name, platform, site_url || null, wp_username || null,
-         wp_app_password ? encryptToken(wp_app_password) : null,
-         blogger_blog_id || null, webhook_url || null, webhook_secret || null,
-         ai_prompt || null, default_category_id || null, post_format || 'editorial',
-         xixo_api_key || null, auto_publish === true || auto_publish === 'true' ? true : false]
+        `INSERT INTO subscriber_sites (subscriber_id, site_id, ai_prompt, default_category_id, auto_publish)
+         VALUES ($1,$2,$3,$4,$5)
+         RETURNING id, active`,
+        [req.params.id, site_id, ai_prompt || null, default_category_id || null,
+         auto_publish === true || auto_publish === 'true']
       );
       await salvarAutopubRules(rows[0].id, req.params.id, autopub_source_ids);
-      res.status(201).json(rows[0]);
+      res.status(201).json({ ...rows[0], name: cat[0].name, platform: cat[0].platform, site_url: cat[0].site_url });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // PUT /api/admin/subscribers/:id/sites/:siteId
+  // PUT /api/admin/subscribers/:id/sites/:siteId — atualiza config do assinante (não as credenciais)
   router.put('/subscribers/:id/sites/:siteId', async (req, res) => {
-    const { name, platform, site_url, wp_username, wp_app_password,
-            blogger_blog_id, webhook_url, webhook_secret, ai_prompt,
-            default_category_id, post_format, xixo_api_key, auto_publish,
-            autopub_source_ids } = req.body || {};
+    const { ai_prompt, default_category_id, auto_publish, autopub_source_ids } = req.body || {};
     try {
       const sets = []; const vals = []; let p = 1;
-      if (name       !== undefined) { sets.push(`name = $${p++}`);       vals.push(name); }
-      if (platform   !== undefined) { sets.push(`platform = $${p++}`);   vals.push(platform); }
-      if (site_url   !== undefined) { sets.push(`site_url = $${p++}`);   vals.push(site_url || null); }
-      if (wp_username!== undefined) { sets.push(`wp_username = $${p++}`);vals.push(wp_username || null); }
-      if (wp_app_password)          { sets.push(`wp_app_password = $${p++}`); vals.push(encryptToken(wp_app_password)); }
-      if (blogger_blog_id !== undefined) { sets.push(`blogger_blog_id = $${p++}`); vals.push(blogger_blog_id || null); }
-      if (webhook_url     !== undefined) { sets.push(`webhook_url = $${p++}`);     vals.push(webhook_url || null); }
-      if (webhook_secret  !== undefined) { sets.push(`webhook_secret = $${p++}`);  vals.push(webhook_secret || null); }
-      if (ai_prompt       !== undefined) { sets.push(`ai_prompt = $${p++}`);       vals.push(ai_prompt || null); }
+      if (ai_prompt           !== undefined) { sets.push(`ai_prompt = $${p++}`);           vals.push(ai_prompt || null); }
       if (default_category_id !== undefined) { sets.push(`default_category_id = $${p++}`); vals.push(default_category_id || null); }
-      if (post_format         !== undefined) { sets.push(`post_format = $${p++}`);         vals.push(post_format || 'editorial'); }
-      if (xixo_api_key        !== undefined) { sets.push(`xixo_api_key = $${p++}`);  vals.push(xixo_api_key || null); }
-      if (auto_publish        !== undefined) { sets.push(`auto_publish = $${p++}`);  vals.push(auto_publish === true || auto_publish === 'true' ? true : false); }
-      if (!sets.length) return res.status(400).json({ error: 'Nada para atualizar.' });
-      vals.push(req.params.siteId, req.params.id);
-      const { rows } = await pool.query(
-        `UPDATE subscriber_sites SET ${sets.join(', ')} WHERE id = $${p++} AND subscriber_id = $${p} RETURNING id, name, platform, site_url, active`,
-        vals
-      );
-      if (!rows[0]) return res.status(404).json({ error: 'Site não encontrado.' });
+      if (auto_publish        !== undefined) { sets.push(`auto_publish = $${p++}`);        vals.push(auto_publish === true || auto_publish === 'true'); }
+      if (!sets.length && autopub_source_ids === undefined)
+        return res.status(400).json({ error: 'Nada para atualizar.' });
+      if (sets.length) {
+        vals.push(req.params.siteId, req.params.id);
+        const { rows } = await pool.query(
+          `UPDATE subscriber_sites SET ${sets.join(', ')}
+           WHERE id = $${p++} AND subscriber_id = $${p} RETURNING id`,
+          vals
+        );
+        if (!rows[0]) return res.status(404).json({ error: 'Vínculo não encontrado.' });
+      }
       if (autopub_source_ids !== undefined)
         await salvarAutopubRules(req.params.siteId, req.params.id, autopub_source_ids);
-      res.json(rows[0]);
+      res.json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
@@ -817,14 +816,14 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // GET /api/admin/sites/lookup-by-url?url=... — busca credenciais de um site já cadastrado para qualquer assinante
+  // GET /api/admin/sites/lookup-by-url?url=... — busca site no catálogo pela URL
   router.get('/sites/lookup-by-url', async (req, res) => {
     const url = (req.query.url || '').replace(/\/$/, '').trim();
     if (!url) return res.json(null);
     try {
       const { rows } = await pool.query(
-        `SELECT xixo_api_key, wp_username, platform, post_format, ai_prompt
-         FROM subscriber_sites
+        `SELECT id, name, xixo_api_key, wp_username, platform, post_format
+         FROM sites_catalog
          WHERE LOWER(TRIM(TRAILING '/' FROM site_url)) = LOWER($1)
            AND (xixo_api_key IS NOT NULL OR wp_username IS NOT NULL)
          LIMIT 1`,

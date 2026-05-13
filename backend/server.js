@@ -272,6 +272,62 @@ async function criarIndicesBanco() {
   }
 }
 
+// ─── Sincronizar sources.json → tabela sources do banco ──────────────────────
+// Garante que featured_image_selector e content_selector estejam gravados
+// para fontes adicionadas diretamente ao arquivo (sem passar pelo admin UI).
+async function sincronizarFontesDB() {
+  if (!pool) return;
+  try {
+    for (const s of sources) {
+      const cfg = s.scraping || {};
+      await pool.query(`
+        INSERT INTO sources
+          (name, slug, type, url, section_selector, title_selector, date_selector,
+           link_selector, image_selector, content_selector, category, active,
+           extract_body_image, featured_image_selector)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        ON CONFLICT (slug) DO UPDATE SET
+          name                    = EXCLUDED.name,
+          url                     = EXCLUDED.url,
+          type                    = EXCLUDED.type,
+          category                = EXCLUDED.category,
+          active                  = EXCLUDED.active,
+          content_selector        = EXCLUDED.content_selector,
+          extract_body_image      = EXCLUDED.extract_body_image,
+          featured_image_selector = EXCLUDED.featured_image_selector`,
+        [
+          s.name, s.slug, s.type || 'rss', s.url || null,
+          cfg.itemSelector  || null,
+          cfg.titleSelector || null,
+          cfg.dateSelector  || null,
+          cfg.linkSelector  || null,
+          cfg.imageSelector || null,
+          s.content_selector        || cfg.contentSelector || null,
+          s.category || null,
+          s.active !== false,
+          s.extract_body_image || false,
+          s.featured_image_selector || null,
+        ]
+      );
+    }
+    console.log(`[DB] ${sources.length} fontes sincronizadas com o banco.`);
+
+    // Repara artigos antigos com source_id = NULL: vincula pelo domínio da URL da fonte.
+    // Isso corrige artigos inseridos antes da fonte existir na tabela sources.
+    await pool.query(`
+      UPDATE articles a
+      SET source_id = s.id
+      FROM sources s
+      WHERE a.source_id IS NULL
+        AND a.external_url ILIKE (
+          regexp_replace(s.url, '^(https?://[^/?#]+).*', '\\1') || '%'
+        )
+    `);
+  } catch (err) {
+    console.error('[DB] Erro ao sincronizar fontes:', err.message);
+  }
+}
+
 // ─── Persistir artigos no banco (fire-and-forget, não bloqueia o cache) ──────
 async function persistirArtigos(itens, sourceSlug, source) {
   if (!pool) return;
@@ -421,6 +477,7 @@ async function limparArtigosAntigos() {
 
 // ─── Carga inicial e agendamento ──────────────────────────────────────────────
 criarIndicesBanco().catch(() => {});
+sincronizarFontesDB().catch(() => {});
 atualizarTodasFontes();
 limparArtigosAntigos();
 cron.schedule('*/15 * * * *', atualizarTodasFontes);
@@ -455,6 +512,9 @@ app.get('/api/settings', (req, res) => {
 
 // Proxy de imagens (evita bloqueio de hotlink nos portais)
 app.use('/api/proxy-image', require('./routes/image-proxy'));
+
+// Catálogo central de sites (admin)
+app.use('/api/admin/sites-catalog', require('./routes/sites-catalog'));
 
 // Admin (Fase 4) — injeta contexto mutável do servidor
 app.use('/api/admin', require('./routes/admin')({ sources, cache, atualizarFonte }));

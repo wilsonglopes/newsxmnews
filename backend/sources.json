@@ -627,5 +627,82 @@
     "url": "https://riobranco.mt.leg.br/imprensa",
     "active": true,
     "category": "regional"
+  },
+  {
+    "name": "Folha do Acre",
+    "slug": "folhadoacre",
+    "type": "rss",
+    "url": "https://folhadoacre.com.br/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": false,
+    "content_selector": ".tdb_single_content .tdb-block-inner",
+    "featured_image_selector": ".tdb_single_featured_image img.entry-thumb"
+  },
+  {
+    "name": "Ecos da Notícia",
+    "slug": "ecosdanoticia",
+    "type": "rss",
+    "url": "https://ecosdanoticia.net/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": false,
+    "content_selector": ".elementor-widget-theme-post-content .elementor-widget-container",
+    "featured_image_selector": ".elementor-widget-theme-post-featured-image img"
+  },
+  {
+    "name": "ContilNet Notícias",
+    "slug": "contilnet",
+    "type": "rss",
+    "url": "https://contilnetnoticias.com.br/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": false,
+    "content_selector": ".entry-content",
+    "featured_image_selector": "figure.thnsp-featured img"
+  },
+  {
+    "name": "A Gazeta do Acre",
+    "slug": "agazetadoacre",
+    "type": "rss",
+    "url": "https://agazetadoacre.com/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": false,
+    "content_selector": "article .entry-content",
+    "featured_image_selector": "article .post-thumbnail img"
+  },
+  {
+    "name": "Juruá Online",
+    "slug": "juruaonline",
+    "type": "rss",
+    "url": "https://juruaonline.com.br/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": false,
+    "content_selector": ".entry-content",
+    "featured_image_selector": "img.wp-post-image"
+  },
+  {
+    "name": "Portal Acre",
+    "slug": "portalacre",
+    "type": "rss",
+    "url": "https://portalacre.com.br/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": false,
+    "content_selector": ".elementor-widget-theme-post-content .elementor-widget-container",
+    "featured_image_selector": "figure.wp-block-image img"
+  },
+  {
+    "name": "Na Hora da Notícia",
+    "slug": "nahoradanoticia",
+    "type": "rss",
+    "url": "https://nahoradanoticia.com.br/feed/",
+    "active": true,
+    "category": "regional",
+    "extract_body_image": false,
+    "content_selector": ".entry-content",
+    "featured_image_selector": ".single-featured figure img"
   }
 ]

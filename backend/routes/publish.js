@@ -32,9 +32,24 @@ router.post('/', async (req, res) => {
     if (!article) return res.status(404).json({ error: 'Artigo não encontrado.' });
 
     // Busca o site — admin pode publicar em qualquer site, assinante só nos seus
-    const siteQuery = req.subscriber.is_admin
-      ? 'SELECT * FROM subscriber_sites WHERE id = $1 AND active = true'
-      : 'SELECT * FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2 AND active = true';
+    const siteBase = `
+      SELECT ss.id, ss.subscriber_id, ss.ai_prompt, ss.default_category_id, ss.auto_publish,
+             COALESCE(sc.name, ss.name)                       AS name,
+             COALESCE(sc.platform, ss.platform)               AS platform,
+             COALESCE(sc.site_url, ss.site_url)               AS site_url,
+             COALESCE(sc.wp_username, ss.wp_username)         AS wp_username,
+             COALESCE(sc.wp_app_password, ss.wp_app_password) AS wp_app_password,
+             COALESCE(sc.xixo_api_key, ss.xixo_api_key)       AS xixo_api_key,
+             COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
+             COALESCE(sc.blogger_access_token, ss.blogger_access_token)   AS blogger_access_token,
+             COALESCE(sc.blogger_refresh_token, ss.blogger_refresh_token) AS blogger_refresh_token,
+             COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
+             COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
+             COALESCE(sc.post_format, ss.post_format)         AS post_format
+      FROM subscriber_sites ss
+      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
+      WHERE ss.id = $1 AND ss.active = true`;
+    const siteQuery  = req.subscriber.is_admin ? siteBase : siteBase + ' AND ss.subscriber_id = $2';
     const siteParams = req.subscriber.is_admin ? [site_id] : [site_id, req.subscriber.id];
     const { rows: siteRows } = await pool.query(siteQuery, siteParams);
     const site = siteRows[0];
@@ -126,9 +141,24 @@ router.post('/manual', async (req, res) => {
 
   try {
     // Busca o site
-    const siteQuery  = req.subscriber.is_admin
-      ? 'SELECT * FROM subscriber_sites WHERE id = $1 AND active = true'
-      : 'SELECT * FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2 AND active = true';
+    const siteBase = `
+      SELECT ss.id, ss.subscriber_id, ss.ai_prompt, ss.default_category_id,
+             COALESCE(sc.name, ss.name)                       AS name,
+             COALESCE(sc.platform, ss.platform)               AS platform,
+             COALESCE(sc.site_url, ss.site_url)               AS site_url,
+             COALESCE(sc.wp_username, ss.wp_username)         AS wp_username,
+             COALESCE(sc.wp_app_password, ss.wp_app_password) AS wp_app_password,
+             COALESCE(sc.xixo_api_key, ss.xixo_api_key)       AS xixo_api_key,
+             COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
+             COALESCE(sc.blogger_access_token, ss.blogger_access_token)   AS blogger_access_token,
+             COALESCE(sc.blogger_refresh_token, ss.blogger_refresh_token) AS blogger_refresh_token,
+             COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
+             COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
+             COALESCE(sc.post_format, ss.post_format)         AS post_format
+      FROM subscriber_sites ss
+      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
+      WHERE ss.id = $1 AND ss.active = true`;
+    const siteQuery  = req.subscriber.is_admin ? siteBase : siteBase + ' AND ss.subscriber_id = $2';
     const siteParams = req.subscriber.is_admin ? [site_id] : [site_id, req.subscriber.id];
     const { rows: siteRows } = await pool.query(siteQuery, siteParams);
     const site = siteRows[0];

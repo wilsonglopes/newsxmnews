@@ -243,9 +243,23 @@ async function rodarAutopub() {
   _rodando = true;
   try {
     const { rows: sites } = await pool.query(`
-      SELECT ss.*, s.id AS subscriber_id
+      SELECT ss.id, ss.auto_publish, ss.ai_prompt, ss.default_category_id,
+             s.id AS subscriber_id,
+             COALESCE(sc.name, ss.name)                       AS name,
+             COALESCE(sc.platform, ss.platform)               AS platform,
+             COALESCE(sc.site_url, ss.site_url)               AS site_url,
+             COALESCE(sc.wp_username, ss.wp_username)         AS wp_username,
+             COALESCE(sc.wp_app_password, ss.wp_app_password) AS wp_app_password,
+             COALESCE(sc.xixo_api_key, ss.xixo_api_key)       AS xixo_api_key,
+             COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
+             COALESCE(sc.blogger_access_token, ss.blogger_access_token)   AS blogger_access_token,
+             COALESCE(sc.blogger_refresh_token, ss.blogger_refresh_token) AS blogger_refresh_token,
+             COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
+             COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
+             COALESCE(sc.post_format, ss.post_format)         AS post_format
       FROM subscriber_sites ss
-      JOIN subscribers s ON s.id = ss.subscriber_id
+      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
+      JOIN subscribers        s  ON s.id  = ss.subscriber_id
       WHERE ss.auto_publish = true AND ss.active = true AND s.active = true
     `);
 

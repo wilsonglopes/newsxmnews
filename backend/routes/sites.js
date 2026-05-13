@@ -17,12 +17,20 @@ router.use(auth);
 router.get('/', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, platform, site_url, wp_username,
-              blogger_blog_id, webhook_url, ai_prompt,
-              default_category_id, post_format, xixo_api_key, active, created_at
-       FROM subscriber_sites
-       WHERE subscriber_id = $1
-       ORDER BY created_at DESC`,
+      `SELECT ss.id, ss.ai_prompt, ss.default_category_id, ss.active, ss.created_at,
+              ss.site_id AS catalog_id,
+              COALESCE(sc.name, ss.name)                   AS name,
+              COALESCE(sc.platform, ss.platform)           AS platform,
+              COALESCE(sc.site_url, ss.site_url)           AS site_url,
+              COALESCE(sc.wp_username, ss.wp_username)     AS wp_username,
+              COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
+              COALESCE(sc.xixo_api_key, ss.xixo_api_key)  AS xixo_api_key,
+              COALESCE(sc.webhook_url, ss.webhook_url)     AS webhook_url,
+              COALESCE(sc.post_format, ss.post_format)     AS post_format
+       FROM subscriber_sites ss
+       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
+       WHERE ss.subscriber_id = $1
+       ORDER BY ss.created_at DESC`,
       [req.subscriber.id]
     );
     res.json(rows);
@@ -37,10 +45,17 @@ router.get('/:id/wp-categories', async (req, res) => {
   try {
     // Admin pode buscar categorias de qualquer site; assinante só dos seus
     const isAdmin = req.subscriber.is_admin;
-    const query   = isAdmin
-      ? 'SELECT site_url, wp_username, wp_app_password, platform, xixo_api_key FROM subscriber_sites WHERE id = $1'
-      : 'SELECT site_url, wp_username, wp_app_password, platform, xixo_api_key FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2';
-    const params  = isAdmin ? [req.params.id] : [req.params.id, req.subscriber.id];
+    const base = `
+      SELECT COALESCE(sc.site_url, ss.site_url)               AS site_url,
+             COALESCE(sc.wp_username, ss.wp_username)         AS wp_username,
+             COALESCE(sc.wp_app_password, ss.wp_app_password) AS wp_app_password,
+             COALESCE(sc.platform, ss.platform)               AS platform,
+             COALESCE(sc.xixo_api_key, ss.xixo_api_key)       AS xixo_api_key
+      FROM subscriber_sites ss
+      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
+      WHERE ss.id = $1`;
+    const query  = isAdmin ? base : base + ' AND ss.subscriber_id = $2';
+    const params = isAdmin ? [req.params.id] : [req.params.id, req.subscriber.id];
 
     const { rows } = await pool.query(query, params);
     const site = rows[0];
@@ -206,13 +221,18 @@ router.post('/:id/upload-image', async (req, res) => {
   }
 
   try {
-    const isAdmin  = req.subscriber.is_admin;
-    const query    = isAdmin
-      ? 'SELECT site_url, wp_username, wp_app_password FROM subscriber_sites WHERE id = $1 AND active = true'
-      : 'SELECT site_url, wp_username, wp_app_password FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2 AND active = true';
-    const params   = isAdmin ? [req.params.id] : [req.params.id, req.subscriber.id];
+    const isAdmin = req.subscriber.is_admin;
+    const base = `
+      SELECT COALESCE(sc.site_url, ss.site_url)               AS site_url,
+             COALESCE(sc.wp_username, ss.wp_username)         AS wp_username,
+             COALESCE(sc.wp_app_password, ss.wp_app_password) AS wp_app_password
+      FROM subscriber_sites ss
+      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
+      WHERE ss.id = $1 AND ss.active = true`;
+    const query  = isAdmin ? base : base + ' AND ss.subscriber_id = $2';
+    const params = isAdmin ? [req.params.id] : [req.params.id, req.subscriber.id];
     const { rows } = await pool.query(query, params);
-    const site     = rows[0];
+    const site = rows[0];
 
     if (!site) return res.status(404).json({ error: 'Site não encontrado ou sem permissão.' });
     if (!site.wp_app_password || !site.wp_username) {
