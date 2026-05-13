@@ -655,6 +655,7 @@
       </div>
       <div class="portal-footer-acoes">
         <button class="btn btn-ia" id="btn-gerar-ia" disabled style="flex:1;justify-content:center;">✦ Gerar com IA</button>
+        <button class="btn btn-ghost" id="btn-recarregar-leitura" title="Busca novamente o conteúdo completo ignorando o cache">↺ Recarregar</button>
         <a id="ml-link" href="#" target="_blank" rel="noopener" class="link-original">Ver original ↗</a>
       </div>
     </div>
@@ -730,6 +731,14 @@ function proxyImg(url) {
   // Não proxear URLs que já são do nosso próprio backend
   if (url.startsWith(BACKEND) || url.startsWith('/')) return url;
   return `${BACKEND}/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
+// Remove imagens do corpo antes de exibir no modal (evita duplicata e imagens borradas)
+function limparBodyPreview(html) {
+  if (!html) return '';
+  return html
+    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, '')
+    .replace(/<img\b[^>]*\/?>/gi, '');
 }
 let token      = localStorage.getItem('rb24_token');
 let subscriber = null;
@@ -1103,7 +1112,7 @@ async function abrirModal(artigo) {
 
   if (!precisaBuscar) {
     // Já foi buscado nesta sessão — usa o que está em memória
-    corpo.innerHTML = artigo.body || (artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>');
+    corpo.innerHTML = limparBodyPreview(artigo.body) || (artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>');
   } else {
     corpo.innerHTML = '<div class="modal-carregando">Carregando artigo completo…</div>';
     try {
@@ -1115,7 +1124,7 @@ async function abrirModal(artigo) {
       // Atualiza corpo — se vier vazio, fallback para summary
       if (data.body) {
         artigo.body = data.body;
-        corpo.innerHTML = data.body;
+        corpo.innerHTML = limparBodyPreview(data.body);
       } else {
         corpo.innerHTML = artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>';
       }
@@ -1146,6 +1155,35 @@ function fecharModal() {
 
 document.getElementById('btn-fechar-leitura').addEventListener('click', fecharModal);
 // Fechamento apenas pelo botão X — clique fora não fecha para evitar perda de conteúdo
+
+document.getElementById('btn-recarregar-leitura').addEventListener('click', async () => {
+  if (!artigoAtual) return;
+  const btn   = document.getElementById('btn-recarregar-leitura');
+  const imgEl = document.getElementById('ml-imagem');
+  const corpo = document.getElementById('ml-corpo');
+  btn.disabled = true; btn.textContent = '↺ Carregando…';
+  corpo.innerHTML = '<div class="modal-carregando">Buscando conteúdo atualizado…</div>';
+  try {
+    const res  = await fetch(`${BACKEND}/api/articles/${artigoAtual.id}/full-content?force=1`, { headers: authHeader() });
+    const data = await res.json();
+    const textoRetornado = (data.body || '').replace(/<[^>]*>/g, '').trim();
+    artigoAtual.bodyFetched = textoRetornado.length >= 300;
+    if (data.body) {
+      artigoAtual.body = data.body;
+      corpo.innerHTML = limparBodyPreview(data.body);
+    } else {
+      corpo.innerHTML = artigoAtual.summary ? `<p>${artigoAtual.summary}</p>` : '<p><em>Conteúdo não disponível.</em></p>';
+    }
+    if (data.image_url) {
+      artigoAtual.image_url = data.image_url;
+      imgEl.src = proxyImg(data.image_url);
+      imgEl.classList.remove('hidden');
+    }
+  } catch {
+    corpo.innerHTML = '<p><em>Erro ao recarregar. Tente novamente.</em></p>';
+  }
+  btn.disabled = false; btn.textContent = '↺ Recarregar';
+});
 
 // ── Rascunho IA (localStorage) ────────────────────────────────────────────────
 function salvarRascunho(artId) {
