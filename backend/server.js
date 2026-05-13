@@ -357,6 +357,80 @@ async function sincronizarFontesDB() {
   }
 }
 
+// ─── Migrar sites antigos (subscriber_sites sem site_id) para o sites_catalog ─
+// Roda no startup. Só processa linhas com site_id = NULL — idempotente.
+async function migrarSitesParaCatalogo() {
+  if (!pool) return;
+  try {
+    const { rows: antigos } = await pool.query(`
+      SELECT id, name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
+             blogger_blog_id, blogger_access_token, blogger_refresh_token,
+             webhook_url, webhook_secret, post_format, active
+      FROM subscriber_sites
+      WHERE site_id IS NULL AND name IS NOT NULL
+    `);
+    if (!antigos.length) return;
+
+    // Mapa chave → catalog_id para deduplicar sites idênticos por URL (ou nome)
+    const vistos = new Map();
+    let migrados = 0;
+
+    for (const ss of antigos) {
+      const chave = (ss.site_url || ss.name).toLowerCase().trim().replace(/\/$/, '');
+
+      if (!vistos.has(chave)) {
+        // Verifica se já existe entrada compatível no catálogo
+        const { rows: ex } = await pool.query(
+          `SELECT id FROM sites_catalog
+           WHERE LOWER(TRIM(TRAILING '/' FROM COALESCE(site_url, name))) = $1
+           LIMIT 1`,
+          [chave]
+        );
+        let catalogId;
+        if (ex[0]) {
+          catalogId = ex[0].id;
+        } else {
+          const { rows: novo } = await pool.query(
+            `INSERT INTO sites_catalog
+               (name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
+                blogger_blog_id, blogger_access_token, blogger_refresh_token,
+                webhook_url, webhook_secret, post_format, active)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+             RETURNING id`,
+            [
+              ss.name,
+              ss.platform || 'wordpress',
+              ss.site_url  || null,
+              ss.xixo_api_key || null,
+              ss.wp_username  || null,
+              ss.wp_app_password || null,   // já está criptografado
+              ss.blogger_blog_id || null,
+              ss.blogger_access_token  || null,
+              ss.blogger_refresh_token || null,
+              ss.webhook_url    || null,
+              ss.webhook_secret || null,
+              ss.post_format || 'editorial',
+              ss.active !== false,
+            ]
+          );
+          catalogId = novo[0].id;
+        }
+        vistos.set(chave, catalogId);
+      }
+
+      await pool.query(
+        'UPDATE subscriber_sites SET site_id = $1 WHERE id = $2',
+        [vistos.get(chave), ss.id]
+      );
+      migrados++;
+    }
+
+    if (migrados) console.log(`[DB] ${migrados} site(s) migrado(s) para o catálogo.`);
+  } catch (err) {
+    console.error('[DB] Erro ao migrar sites para o catálogo:', err.message);
+  }
+}
+
 // ─── Persistir artigos no banco (fire-and-forget, não bloqueia o cache) ──────
 async function persistirArtigos(itens, sourceSlug, source) {
   if (!pool) return;
@@ -507,6 +581,7 @@ async function limparArtigosAntigos() {
 // ─── Carga inicial e agendamento ──────────────────────────────────────────────
 criarIndicesBanco().catch(() => {});
 sincronizarFontesDB().catch(() => {});
+migrarSitesParaCatalogo().catch(() => {});
 atualizarTodasFontes();
 limparArtigosAntigos();
 cron.schedule('*/15 * * * *', atualizarTodasFontes);
