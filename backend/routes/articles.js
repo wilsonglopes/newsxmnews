@@ -142,7 +142,7 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/full-content', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT a.id, a.external_url, a.body, a.image_url,
+      `SELECT a.id, a.external_url, a.body, a.image_url, a.source_id,
               so.content_selector, so.featured_image_selector,
               so.slug AS source_slug, so.category,
               so.extract_body_image
@@ -153,6 +153,29 @@ router.get('/:id/full-content', async (req, res) => {
     );
     const article = rows[0];
     if (!article) return res.status(404).json({ error: 'Artigo não encontrado.' });
+
+    // Fallback: se source_id não está vinculado, busca a fonte pelo domínio da URL do artigo
+    if (!article.source_id && article.external_url) {
+      try {
+        const { protocol, hostname } = new URL(article.external_url);
+        const origin = `${protocol}//${hostname}`;
+        const { rows: srcRows } = await pool.query(
+          `SELECT id, content_selector, featured_image_selector, extract_body_image, slug, category
+           FROM sources WHERE url ILIKE $1 LIMIT 1`,
+          [origin + '%']
+        );
+        if (srcRows[0]) {
+          article.content_selector        = srcRows[0].content_selector;
+          article.featured_image_selector  = srcRows[0].featured_image_selector;
+          article.extract_body_image       = srcRows[0].extract_body_image;
+          article.source_slug              = srcRows[0].slug;
+          article.category                 = srcRows[0].category;
+          // Corrige source_id para próximas chamadas (fire-and-forget)
+          pool.query('UPDATE articles SET source_id = $1 WHERE id = $2 AND source_id IS NULL',
+            [srcRows[0].id, article.id]).catch(() => {});
+        }
+      } catch { /* URL inválida ou fonte não encontrada */ }
+    }
 
     const bodyText = (article.body || '').replace(/<[^>]*>/g, '').trim();
     const forceRefresh = req.query.force === '1' || req.query.force === 'true';

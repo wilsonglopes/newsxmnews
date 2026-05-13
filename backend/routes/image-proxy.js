@@ -31,6 +31,13 @@ const ALLOWED_HOSTS = [
   // Assembleias legislativas
   'alesc.sc.gov.br',
   'al.rs.gov.br',
+  // Portais regionais do Acre
+  'folhadoacre.com.br',
+  'ecosdanoticia.net',
+  'contilnetnoticias.com.br',
+  'agazetadoacre.com',
+  'portalacre.com.br',
+  'nahoradanoticia.com.br',
   // Prefeituras (.rs.gov.br, .sc.gov.br, .ac.gov.br, .sp.gov.br, atende.net)
   'rs.gov.br',
   'sc.gov.br',
