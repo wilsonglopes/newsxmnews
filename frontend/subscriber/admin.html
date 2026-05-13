@@ -2925,7 +2925,7 @@ async function carregarSitesCli() {
           <div class="site-item-url">${s.site_url || '—'}</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="abrirModalSite('${s.id}')">Editar</button>
-        <button class="btn btn-danger btn-sm" onclick="deletarSiteCli('${s.id}','${s.name.replace(/'/g,"\\'")}')">✕</button>
+        <button class="btn btn-danger btn-sm" onclick="deletarSiteCli('${s.id}','${(s.name||'').replace(/'/g,"\\'")}')">✕</button>
       </div>`).join('');
   } catch { el.innerHTML = '<div class="empty" style="padding:16px">Erro ao carregar sites.</div>'; }
 }

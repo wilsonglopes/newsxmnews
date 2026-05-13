@@ -731,8 +731,15 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       const { rows } = await pool.query(
         `SELECT ss.id, ss.ai_prompt, ss.default_category_id, ss.auto_publish,
                 ss.active, ss.created_at, ss.site_id AS catalog_id,
-                sc.name, sc.platform, sc.site_url, sc.wp_username, sc.xixo_api_key,
-                sc.blogger_blog_id, sc.webhook_url, sc.webhook_secret, sc.post_format,
+                COALESCE(sc.name, ss.name)                       AS name,
+                COALESCE(sc.platform, ss.platform)               AS platform,
+                COALESCE(sc.site_url, ss.site_url)               AS site_url,
+                COALESCE(sc.wp_username, ss.wp_username)         AS wp_username,
+                COALESCE(sc.xixo_api_key, ss.xixo_api_key)       AS xixo_api_key,
+                COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
+                COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
+                COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
+                COALESCE(sc.post_format, ss.post_format)         AS post_format,
                 COALESCE(
                   json_agg(ar.source_id::text) FILTER (WHERE ar.source_id IS NOT NULL),
                   '[]'
