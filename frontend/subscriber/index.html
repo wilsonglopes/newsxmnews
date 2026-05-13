@@ -873,17 +873,22 @@ async function carregarTellaFontes() {
 }
 
 function renderFontesGrid() {
-  const grid       = document.getElementById('fontes-grid');
-  const selecionadas = catalogoFontes.filter(f => f.selected).length;
-  const filtradas  = filtroCategoria
-    ? catalogoFontes.filter(f => f.category === filtroCategoria)
-    : catalogoFontes;
+  const grid     = document.getElementById('fontes-grid');
+  const ativas   = catalogoFontes.filter(f => f.selected);
+  const filtradas = filtroCategoria
+    ? ativas.filter(f => f.category === filtroCategoria)
+    : ativas;
 
   // Atualiza contador
   const contador = document.getElementById('fontes-contador');
-  if (contador) {
-    contador.textContent = `${selecionadas} portal(is) disponível(is)`;
-  }
+  if (contador) contador.textContent = `${ativas.length} portal(is) disponível(is)`;
+
+  // Oculta botões de categoria sem fontes ativas
+  const catsAtivas = new Set(ativas.map(f => f.category));
+  document.querySelectorAll('.btn-cat-filtro').forEach(btn => {
+    const cat = btn.dataset.cat;
+    btn.style.display = (!cat || catsAtivas.has(cat)) ? '' : 'none';
+  });
 
   if (filtradas.length === 0) {
     grid.innerHTML = '<div class="empty">Nenhuma fonte nesta categoria.</div>';
@@ -894,16 +899,14 @@ function renderFontesGrid() {
   grid.innerHTML = '';
   filtradas.forEach(f => {
     const card = document.createElement('div');
-    // Somente leitura: sem cursor pointer, sem interação
-    card.className = 'fonte-card' + (f.selected ? ' selecionada' : '');
+    card.className = 'fonte-card selecionada';
     card.style.cursor = 'default';
     card.innerHTML = `
-      <div class="fonte-card-check">${f.selected ? '✓' : ''}</div>
+      <div class="fonte-card-check">✓</div>
       <div class="fonte-card-info">
         <div class="fonte-card-nome">${f.name}</div>
         <div class="fonte-card-cat">${f.category || ''} <span class="fonte-card-tipo ${f.type}">${f.type}</span></div>
       </div>`;
-    // Sem addEventListener — somente visualização
     grid.appendChild(card);
   });
 }

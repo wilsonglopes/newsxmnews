@@ -3496,7 +3496,7 @@ async function republicarDoHistorico(pubJsonStr) {
 function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 // modal-artigo-pub: fecha só por X ou ESC — não por clique fora
-const MODAIS_SEM_CLICK_FORA = new Set(['modal-artigo-pub', 'modal-fonte']);
+const MODAIS_SEM_CLICK_FORA = new Set(['modal-artigo-pub', 'modal-fonte', 'modal-cliente', 'modal-site-cli']);
 document.querySelectorAll('.overlay').forEach(o => {
   if (MODAIS_SEM_CLICK_FORA.has(o.id)) return;
   o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
