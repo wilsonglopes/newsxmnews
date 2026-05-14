@@ -2635,29 +2635,6 @@ async function acpCarregarCategorias(siteId) {
       html += `<label><input type="checkbox" value="${orfao.id}"> ${orfao.name}${orfao.count ? ` (${orfao.count})` : ''}</label>`;
     }
     cont.innerHTML = html;
-
-    // Auto-categoriza com IA
-    const titulo = document.getElementById('acp-titulo').value;
-    const chapeu = document.getElementById('acp-chapeu').value;
-    const tags   = document.getElementById('acp-tags').value;
-    const corpo  = document.getElementById('acp-corpo').value;
-    const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
-    if (titulo || chapeu) {
-      try {
-        const cr = await fetch(`${BACKEND}/api/ia/categorize`, {
-          method:  'POST',
-          headers: authHeader(),
-          body:    JSON.stringify({ title: titulo, chapeu, tags, corpo, categories: cats, provider })
-        });
-        const cr2 = await cr.json();
-        if (Array.isArray(cr2.category_ids) && cr2.category_ids.length) {
-          cont.querySelectorAll('input[type="checkbox"]').forEach(i => {
-            i.checked = cr2.category_ids.includes(Number(i.value));
-          });
-        }
-      } catch {}
-    }
-
     btnPub.disabled = false;
   } catch {
     cont.innerHTML = '<span class="cat-placeholder">Erro ao buscar categorias</span>';
