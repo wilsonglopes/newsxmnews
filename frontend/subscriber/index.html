@@ -222,6 +222,11 @@
     .cat-checkboxes label:hover { background: #f1f5f9; }
     .cat-checkboxes input[type="checkbox"] { cursor: pointer; accent-color: var(--vermelho); flex-shrink: 0; }
     .cat-placeholder { color: var(--grafite-lt); font-size: 0.8rem; padding: 4px 2px; display: block; }
+    .cat-chips { display:flex; flex-wrap:wrap; gap:.3rem; align-content:flex-start; padding:.35rem .5rem; min-height:80px; max-height:120px; overflow-y:auto; border:1.5px solid var(--borda); border-radius:8px; background:var(--branco); }
+    .cat-chips-empty { color:var(--grafite-lt); font-size:.78rem; padding:4px 2px; }
+    .cat-chip { display:inline-flex; align-items:center; gap:.2rem; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:20px; padding:.18rem .5rem; font-size:.74rem; font-weight:600; cursor:pointer; line-height:1.4; transition:background .15s; }
+    .cat-chip:hover { background:#fca5a5; border-color:#f87171; }
+    .cat-chip .chip-x { font-size:.85rem; opacity:.65; margin-left:.1rem; }
     .publicar-bar-selects { grid-column: 1 / -1; }
     .publicar-bar-acoes {
       grid-column: 1 / -1;
@@ -703,6 +708,10 @@
             <label>🗂 Categorias</label>
             <div id="sel-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o canal primeiro…</span></div>
           </div>
+          <div class="publicar-sel-grupo" id="sel-grupo-cats-sel" style="display:none">
+            <label>✓ Selecionadas</label>
+            <div id="sel-cats-chips" class="cat-chips"><span class="cat-chips-empty">Nenhuma selecionada</span></div>
+          </div>
         </div>
         <div class="publicar-bar-acoes">
           <button class="btn-publicar" id="btn-publicar-agora" disabled>✓ Publicar este</button>
@@ -1151,6 +1160,8 @@ function fecharModal() {
   artigoAtual = null;
   document.getElementById('sel-site-dest').value = '';
   document.getElementById('sel-categoria').innerHTML = '<span class="cat-placeholder">Selecione o canal primeiro…</span>';
+  document.getElementById('sel-grupo-cats-sel').style.display = 'none';
+  document.getElementById('sel-cats-chips').innerHTML = '<span class="cat-chips-empty">Nenhuma selecionada</span>';
 }
 
 document.getElementById('btn-fechar-leitura').addEventListener('click', fecharModal);
@@ -1602,6 +1613,34 @@ document.getElementById('btn-visualizar-html').addEventListener('click', () => {
 // ── Categorias WP ─────────────────────────────────────────────────────────────
 let wpCategorias = []; // cache das categorias do site selecionado
 
+function atualizarCatChips() {
+  const chipsDiv = document.getElementById('sel-cats-chips');
+  const lista    = document.getElementById('sel-categoria');
+  const grupo    = document.getElementById('sel-grupo-cats-sel');
+  if (!chipsDiv || !lista) return;
+
+  const selecionadas = Array.from(lista.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(i => {
+      const label = i.closest('label');
+      const nome  = (label?.textContent || '').replace(/↳\s*/, '').replace(/\s*\(\d+\)\s*$/, '').trim();
+      return { id: Number(i.value), nome };
+    });
+
+  grupo.style.display = selecionadas.length ? '' : 'none';
+  chipsDiv.innerHTML  = selecionadas.length
+    ? selecionadas.map(c =>
+        `<span class="cat-chip" data-id="${c.id}" title="Clique para desmarcar">${c.nome} <span class="chip-x">×</span></span>`
+      ).join('')
+    : '<span class="cat-chips-empty">Nenhuma selecionada</span>';
+
+  chipsDiv.querySelectorAll('.cat-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const inp = lista.querySelector(`input[value="${chip.dataset.id}"]`);
+      if (inp) { inp.checked = false; atualizarCatChips(); }
+    });
+  });
+}
+
 async function carregarCategoriasWP(siteId) {
   const sel = document.getElementById('sel-categoria');
   sel.innerHTML = '<span class="cat-placeholder">Carregando categorias…</span>';
@@ -1639,6 +1678,9 @@ async function carregarCategoriasWP(siteId) {
       html += `<label><input type="checkbox" value="${orfao.id}"> ${orfao.name}${orfao.count ? ` (${orfao.count})` : ''}</label>`;
     }
     sel.innerHTML = html;
+    sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
+      i.addEventListener('change', atualizarCatChips);
+    });
 
     // Restaura seleção salva; se vazia e há conteúdo reescrito, auto-categoriza com IA
     const savedIds = portaisResultados[activePortalIndex]?.categoryIds;
@@ -1646,6 +1688,7 @@ async function carregarCategoriasWP(siteId) {
       sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
         i.checked = savedIds.includes(Number(i.value));
       });
+      atualizarCatChips();
     } else {
       autoCategorizar(cats);
     }
@@ -1674,6 +1717,7 @@ function sugerirCategoria() {
     const inp = sel.querySelector(`input[value="${melhor.id}"]`);
     if (inp) inp.checked = true;
   }
+  atualizarCatChips();
 }
 
 async function autoCategorizar(cats) {
@@ -1701,6 +1745,7 @@ async function autoCategorizar(cats) {
     sel.querySelectorAll('input[type="checkbox"]').forEach(i => {
       i.checked = r.category_ids.includes(Number(i.value));
     });
+    atualizarCatChips();
   } catch (e) {
     console.warn('[auto-cat]', e.message);
     sugerirCategoria();
