@@ -713,23 +713,15 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
 
   const { encryptToken } = require('../connectors/encrypt');
 
-  // Salva regras de autopub para um site (substitui tudo)
-  async function salvarAutopubRules(siteId, subscriberId, sourceIds) {
-    await pool.query('DELETE FROM autopub_rules WHERE site_id = $1', [siteId]);
-    if (!Array.isArray(sourceIds) || !sourceIds.length) return;
-    for (const srcId of sourceIds) {
-      await pool.query(
-        'INSERT INTO autopub_rules (site_id, source_id, subscriber_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-        [siteId, srcId, subscriberId]
-      );
-    }
-  }
+  // Regras de autopub agora são gerenciadas no nível do catálogo (sites_catalog).
+  // Esta função é mantida apenas para não quebrar chamadas legadas, mas não faz nada.
+  async function salvarAutopubRules() {}
 
   // GET /api/admin/subscribers/:id/sites
   router.get('/subscribers/:id/sites', async (req, res) => {
     try {
       const { rows } = await pool.query(
-        `SELECT ss.id, ss.ai_prompt, ss.default_category_id, ss.auto_publish,
+        `SELECT ss.id, ss.ai_prompt, ss.default_category_id,
                 ss.active, ss.created_at, ss.site_id AS catalog_id,
                 COALESCE(sc.name, ss.name)                       AS name,
                 COALESCE(sc.platform, ss.platform)               AS platform,
@@ -739,16 +731,10 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
                 COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
                 COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
                 COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
-                COALESCE(sc.post_format, ss.post_format)         AS post_format,
-                COALESCE(
-                  json_agg(ar.source_id::text) FILTER (WHERE ar.source_id IS NOT NULL),
-                  '[]'
-                ) AS autopub_source_ids
+                COALESCE(sc.post_format, ss.post_format)         AS post_format
          FROM subscriber_sites ss
          LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
-         LEFT JOIN autopub_rules ar ON ar.site_id = ss.id
          WHERE ss.subscriber_id = $1
-         GROUP BY ss.id, sc.id
          ORDER BY ss.created_at DESC`,
         [req.params.id]
       );
@@ -768,7 +754,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
 
   // POST /api/admin/subscribers/:id/sites — vincula site do catálogo ao assinante
   router.post('/subscribers/:id/sites', async (req, res) => {
-    const { site_id, ai_prompt, default_category_id, auto_publish,
+    const { site_id, ai_prompt, default_category_id,
             autopub_source_ids } = req.body || {};
     if (!site_id) return res.status(400).json({ error: 'site_id é obrigatório.' });
     try {
@@ -778,11 +764,10 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       );
       if (!cat[0]) return res.status(404).json({ error: 'Site não encontrado no catálogo.' });
       const { rows } = await pool.query(
-        `INSERT INTO subscriber_sites (subscriber_id, site_id, ai_prompt, default_category_id, auto_publish)
-         VALUES ($1,$2,$3,$4,$5)
+        `INSERT INTO subscriber_sites (subscriber_id, site_id, ai_prompt, default_category_id)
+         VALUES ($1,$2,$3,$4)
          RETURNING id, active`,
-        [req.params.id, site_id, ai_prompt || null, default_category_id || null,
-         auto_publish === true || auto_publish === 'true']
+        [req.params.id, site_id, ai_prompt || null, default_category_id || null]
       );
       await salvarAutopubRules(rows[0].id, req.params.id, autopub_source_ids);
       res.status(201).json({ ...rows[0], name: cat[0].name, platform: cat[0].platform, site_url: cat[0].site_url });
@@ -791,12 +776,11 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
 
   // PUT /api/admin/subscribers/:id/sites/:siteId — atualiza config do assinante (não as credenciais)
   router.put('/subscribers/:id/sites/:siteId', async (req, res) => {
-    const { ai_prompt, default_category_id, auto_publish, autopub_source_ids } = req.body || {};
+    const { ai_prompt, default_category_id, autopub_source_ids } = req.body || {};
     try {
       const sets = []; const vals = []; let p = 1;
       if (ai_prompt           !== undefined) { sets.push(`ai_prompt = $${p++}`);           vals.push(ai_prompt || null); }
       if (default_category_id !== undefined) { sets.push(`default_category_id = $${p++}`); vals.push(default_category_id || null); }
-      if (auto_publish        !== undefined) { sets.push(`auto_publish = $${p++}`);        vals.push(auto_publish === true || auto_publish === 'true'); }
       if (!sets.length && autopub_source_ids === undefined)
         return res.status(400).json({ error: 'Nada para atualizar.' });
       if (sets.length) {

@@ -117,17 +117,9 @@ async function uploadImageToWP(baseUrl, wpHeaders, img) {
 
 // ── Publicação via Plugin XMNews Publisher (modo preferencial) ───────────────
 // Usado quando o site tem o plugin XMNews Publisher instalado e a chave configurada.
-//
-// COMPORTAMENTO POR post_format:
-//   'editorial' — Plugin v1.2.0+: envia image_url, o plugin injeta a imagem no
-//                 corpo E usa JS para ocultá-la quando o tema exibe featured_media.
-//                 (ex: vozesdooraculo — plugin v1.2.0)
-//
-//   'standard'  — Plugin v1.1.0: NÃO envia image_url para o plugin (evita injeção
-//                 no corpo). Após criar o post, faz upload da imagem via WP REST API
-//                 nativa e define featured_media separadamente.
-//                 (ex: rb24horas — plugin v1.1.0 sem JS de ocultação)
-//
+// O plugin (v2.1.0+) gerencia download de imagem, featured_media e corpo em ambos os modos:
+//   'editorial' — imagem injetada no corpo + featured_media
+//   'standard'  — apenas featured_media (tema exibe a imagem via featured_media)
 async function publishViaPlugin(site, rewritten, article) {
   const baseUrl = (site.site_url || '').replace(/\/$/, '');
   const apiKey  = site.xixo_api_key;
@@ -250,43 +242,6 @@ async function publishViaPlugin(site, rewritten, article) {
 
   const postId  = String(data.post_id);
   const postUrl = data.post_url;
-
-  // ── Modo standard: define featured_media no post ──────────────────────────
-  // Para editorial, o plugin já injeta a imagem no corpo via image_url.
-  // Para standard, o tema exibe a featured_media — precisamos vincular ao post.
-  // Modo 'standard': o plugin NÃO injeta imagem no corpo — o backend deve fazer upload
-  // e definir featured_media via WP REST API.
-  // Modos 'editorial', 'simple' e outros: o plugin já faz download e define featured_media
-  // por conta própria (via download_url no PHP). Backend não deve tentar upload.
-  if (postFormat === 'standard' && site.wp_app_password && site.wp_username) {
-    try {
-      const password  = decryptToken(site.wp_app_password);
-      if (!password) { console.warn(`[plugin] wp_app_password vazio após decrypt — imagem não será enviada`); }
-      const wpAuth    = Buffer.from(`${site.wp_username}:${password}`).toString('base64');
-      const wpHeaders = { Authorization: `Basic ${wpAuth}` };
-
-      let mediaId = article.image_media_id || null;
-
-      if (!mediaId && article.image_url) {
-        console.log(`[plugin] fazendo upload da imagem: ${article.image_url}`);
-        const img = await resolveImageBuffer(article);
-        if (img) mediaId = (await uploadImageToWP(baseUrl, wpHeaders, img).catch((e) => { console.warn('[plugin] upload falhou:', e.message); return {}; }))?.id || null;
-        console.log(`[plugin] upload resultado: mediaId=${mediaId || 'null'}`);
-      } else if (!article.image_url) {
-        console.log(`[plugin] sem image_url — post sem imagem destacada`);
-      }
-
-      if (mediaId) {
-        await axios.post(`${baseUrl}/wp-json/wp/v2/posts/${postId}`, { featured_media: mediaId }, {
-          timeout: 10000, httpsAgent: HTTPS_AGENT,
-          headers: { ...wpHeaders, 'Content-Type': 'application/json' },
-        });
-        console.log(`[plugin] featured_media ${mediaId} definida no post ${postId} (${site.name})`);
-      }
-    } catch (imgErr) {
-      console.warn('[plugin] Falha ao definir featured_media:', imgErr.message);
-    }
-  }
 
   return { post_id: postId, post_url: postUrl };
 }

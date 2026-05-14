@@ -144,6 +144,44 @@ router.get('/:id/wp-categories', async (req, res) => {
   }
 });
 
+// ── GET /api/admin/sites-catalog/:id/autopub ─────────────────────────────────
+router.get('/:id/autopub', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT source_id AS "sourceId", default_category_id AS "categoryId"
+       FROM autopub_rules WHERE catalog_id = $1`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[sites-catalog/autopub/get]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PUT /api/admin/sites-catalog/:id/autopub — substitui todas as regras ──────
+router.put('/:id/autopub', async (req, res) => {
+  const { sources } = req.body || {};
+  try {
+    await pool.query('DELETE FROM autopub_rules WHERE catalog_id = $1', [req.params.id]);
+    if (Array.isArray(sources) && sources.length) {
+      for (const item of sources) {
+        const srcId = (typeof item === 'object' && item !== null) ? item.sourceId : item;
+        const catId = (typeof item === 'object' && item !== null) ? (item.categoryId || null) : null;
+        if (!srcId) continue;
+        await pool.query(
+          `INSERT INTO autopub_rules (catalog_id, source_id, default_category_id) VALUES ($1, $2, $3)`,
+          [req.params.id, srcId, catId]
+        );
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[sites-catalog/autopub/put]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/admin/sites-catalog/test-wp ────────────────────────────────────
 router.post('/test-wp', async (req, res) => {
   const axios  = require('axios');

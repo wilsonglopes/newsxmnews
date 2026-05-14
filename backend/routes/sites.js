@@ -24,9 +24,12 @@ router.get('/', async (req, res) => {
               COALESCE(sc.site_url, ss.site_url)           AS site_url,
               COALESCE(sc.wp_username, ss.wp_username)     AS wp_username,
               COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
-              COALESCE(sc.xixo_api_key, ss.xixo_api_key)  AS xixo_api_key,
               COALESCE(sc.webhook_url, ss.webhook_url)     AS webhook_url,
-              COALESCE(sc.post_format, ss.post_format)     AS post_format
+              COALESCE(sc.post_format, ss.post_format)     AS post_format,
+              CASE WHEN COALESCE(sc.platform, ss.platform) = 'wordpress' THEN
+                (COALESCE(sc.xixo_api_key, ss.xixo_api_key) IS NOT NULL OR
+                 COALESCE(sc.wp_app_password, ss.wp_app_password) IS NOT NULL)
+              ELSE true END AS activated
        FROM subscriber_sites ss
        LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
        WHERE ss.subscriber_id = $1
@@ -275,6 +278,25 @@ router.post('/:id/upload-image', async (req, res) => {
     const msg    = wpMsg || err.message;
     console.error(`[sites/upload-image] status=${status}`, msg);
     res.status(500).json({ error: `Falha no upload da imagem (${status || 'rede'}): ${msg}` });
+  }
+});
+
+// ── PATCH /api/sites/:id/activate — cliente cola chave do plugin XMNews ───────
+router.patch('/:id/activate', async (req, res) => {
+  const { xixo_api_key } = req.body || {};
+  if (!xixo_api_key?.trim()) return res.status(400).json({ error: 'Chave inválida.' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE subscriber_sites SET xixo_api_key = $1
+       WHERE id = $2 AND subscriber_id = $3
+       RETURNING id`,
+      [xixo_api_key.trim(), req.params.id, req.subscriber.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Site não encontrado.' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[sites/activate]', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

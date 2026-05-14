@@ -2,50 +2,164 @@
 /**
  * Plugin Name: Portal Publisher
  * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     2.0.0
+ * Version:     2.1.0
  * Author:      XMNews Publisher
  * Text Domain: portal-publisher
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// ── Admin: página de configuração da chave API ────────────────────────────────
+// ── Ativação: gera chave automaticamente se ainda não existir ─────────────────
+register_activation_hook( __FILE__, 'xmn_activate' );
+function xmn_activate() {
+    if ( ! get_option( 'xixo_api_key' ) ) {
+        update_option( 'xixo_api_key', wp_generate_password( 40, false ) );
+    }
+}
+
+// ── Garante que sites já com o plugin instalado também tenham chave gerada ────
+add_action( 'admin_init', function () {
+    if ( ! get_option( 'xixo_api_key' ) ) {
+        update_option( 'xixo_api_key', wp_generate_password( 40, false ) );
+    }
+
+    // Trata regeneração de chave
+    if ( isset( $_POST['xmn_regenerate'] ) && check_admin_referer( 'xmn_regenerate_nonce' ) ) {
+        if ( current_user_can( 'manage_options' ) ) {
+            update_option( 'xixo_api_key', wp_generate_password( 40, false ) );
+            wp_redirect( admin_url( 'admin.php?page=portal-publisher&xmn_regenerated=1' ) );
+            exit;
+        }
+    }
+} );
+
+// ── Menu de nível superior na sidebar do WP Admin ────────────────────────────
 add_action( 'admin_menu', function () {
-    add_options_page(
-        'Portal Publisher',
-        'Portal Publisher',
-        'manage_options',
-        'portal-publisher',
-        'xmn_settings_page'
+    add_menu_page(
+        'Portal Publisher',           // título da página
+        'Portal Publisher',           // texto no menu
+        'manage_options',             // capability
+        'portal-publisher',           // slug
+        'xmn_settings_page',          // callback
+        'dashicons-rss',              // ícone
+        3                             // posição: logo abaixo de "Painel"
     );
 } );
 
-add_action( 'admin_init', function () {
-    register_setting( 'xmn_settings_group', 'xixo_api_key', [
-        'sanitize_callback' => 'sanitize_text_field',
-    ] );
-} );
-
 function xmn_settings_page() {
+    $api_key     = get_option( 'xixo_api_key', '' );
+    $regenerated = isset( $_GET['xmn_regenerated'] );
     ?>
     <div class="wrap">
-        <h1>Portal Publisher — Configurações</h1>
-        <form method="post" action="options.php">
-            <?php settings_fields( 'xmn_settings_group' ); ?>
-            <table class="form-table">
-                <tr>
-                    <th scope="row"><label for="xixo_api_key">Chave API (X-XMNews-Key)</label></th>
-                    <td>
-                        <input type="text" id="xixo_api_key" name="xixo_api_key"
-                               value="<?php echo esc_attr( get_option( 'xixo_api_key', '' ) ); ?>"
-                               class="regular-text" />
-                        <p class="description">Deve coincidir com a chave configurada no sistema de agregação.</p>
-                    </td>
-                </tr>
-            </table>
-            <?php submit_button(); ?>
-        </form>
+        <h1 style="display:flex;align-items:center;gap:10px;">
+            <span class="dashicons dashicons-rss" style="font-size:1.6rem;color:#d63638;margin-top:3px;"></span>
+            Portal Publisher
+        </h1>
+
+        <?php if ( $regenerated ) : ?>
+            <div class="notice notice-warning is-dismissible">
+                <p><strong>Chave regenerada.</strong> Copie a nova chave e atualize no painel do sistema XMNews.</p>
+            </div>
+        <?php endif; ?>
+
+        <!-- ── Chave de integração ── -->
+        <div style="background:#fff;border:1px solid #c3c4c7;border-radius:6px;padding:24px 28px;max-width:640px;margin-top:20px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <h2 style="margin-top:0;font-size:1.05rem;color:#1d2327;">🔑 Sua chave de integração</h2>
+            <p style="color:#555;margin:0 0 14px;font-size:.92rem;">
+                Esta chave identifica o seu site no sistema XMNews. Copie-a e cole no painel do sistema para ativar a conexão.
+            </p>
+
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <input type="text" id="xmn-api-key-display" readonly
+                       value="<?php echo esc_attr( $api_key ); ?>"
+                       style="flex:1;font-family:monospace;font-size:.9rem;padding:9px 12px;border:2px solid #d63638;border-radius:5px;background:#fff8f8;color:#1d2327;letter-spacing:.04em;" />
+                <button type="button" id="xmn-copy-btn" onclick="xmnCopyKey()"
+                        style="padding:9px 18px;background:#d63638;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:.88rem;font-weight:600;white-space:nowrap;transition:background .15s;">
+                    📋 Copiar chave
+                </button>
+            </div>
+            <p id="xmn-copy-msg" style="display:none;color:#00a32a;font-size:.82rem;font-weight:600;margin:0 0 16px;">
+                ✅ Chave copiada! Agora cole no painel do sistema XMNews.
+            </p>
+
+            <form method="post" style="margin-top:16px;padding-top:14px;border-top:1px solid #f0f0f1;"
+                  onsubmit="return confirm('Atenção: regenerar a chave vai desconectar o sistema XMNews até você colar a nova chave lá. Confirmar?');">
+                <?php wp_nonce_field( 'xmn_regenerate_nonce' ); ?>
+                <input type="submit" name="xmn_regenerate" class="button button-secondary"
+                       value="🔄 Regenerar chave" />
+                <span style="color:#888;font-size:.8rem;margin-left:8px;">Use apenas se a chave atual foi comprometida.</span>
+            </form>
+        </div>
+
+        <!-- ── Passo a passo ── -->
+        <div style="background:#fff;border:1px solid #c3c4c7;border-radius:6px;padding:24px 28px;max-width:640px;margin-top:20px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <h2 style="margin-top:0;font-size:1.05rem;color:#1d2327;">📋 Como ativar a conexão com o sistema XMNews</h2>
+
+            <ol style="margin:0;padding-left:20px;color:#444;font-size:.92rem;line-height:1.9;">
+                <li>
+                    <strong>Instale este plugin</strong> no seu WordPress
+                    (Plugins → Adicionar novo → envie o arquivo <code>portal-publisher.zip</code>).
+                </li>
+                <li>
+                    <strong>Ative o plugin</strong> — a chave de integração é gerada automaticamente.
+                </li>
+                <li>
+                    <strong>Copie a chave</strong> clicando em <em>📋 Copiar chave</em> acima.
+                </li>
+                <li>
+                    Acesse o <strong>painel do sistema XMNews</strong> e faça login com seu usuário.
+                </li>
+                <li>
+                    Clique na aba <strong>Meus Portais</strong> no menu superior.
+                </li>
+                <li>
+                    Localize o seu site na lista — ele estará com o status
+                    <em style="background:#fef9c3;color:#854d0e;padding:1px 7px;border-radius:20px;font-size:.82rem;font-style:normal;">Aguardando ativação</em>.
+                </li>
+                <li>
+                    Cole a chave no campo indicado e clique em <strong>Ativar</strong>.
+                </li>
+                <li>
+                    Pronto! O status muda para
+                    <em style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:20px;font-size:.82rem;font-style:normal;">Ativo ✓</em>
+                    e o sistema já pode publicar artigos automaticamente no seu site.
+                </li>
+            </ol>
+
+            <div style="margin-top:18px;background:#f0f6fc;border-left:4px solid #2271b1;padding:10px 14px;border-radius:0 4px 4px 0;font-size:.85rem;color:#1d2327;">
+                <strong>Dúvidas?</strong> Entre em contato com o administrador do sistema XMNews.
+            </div>
+        </div>
     </div>
+
+    <script>
+    function xmnCopyKey() {
+        var input = document.getElementById('xmn-api-key-display');
+        var msg   = document.getElementById('xmn-copy-msg');
+        var btn   = document.getElementById('xmn-copy-btn');
+        input.select();
+        input.setSelectionRange(0, 99999);
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch(e) {}
+        if (!ok && navigator.clipboard) {
+            navigator.clipboard.writeText(input.value).then(function() {
+                xmnShowCopied(btn, msg);
+            });
+            return;
+        }
+        if (ok) xmnShowCopied(btn, msg);
+    }
+    function xmnShowCopied(btn, msg) {
+        btn.textContent = '✅ Copiado!';
+        btn.style.background = '#00a32a';
+        msg.style.display = 'block';
+        setTimeout(function() {
+            btn.innerHTML = '📋 Copiar chave';
+            btn.style.background = '#d63638';
+            msg.style.display = 'none';
+        }, 3000);
+    }
+    </script>
     <?php
 }
 

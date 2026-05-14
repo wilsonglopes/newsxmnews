@@ -296,6 +296,23 @@ async function criarIndicesBanco() {
     await pool.query(`
       ALTER TABLE subscriber_sites ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES sites_catalog(id)
     `);
+    await pool.query(`ALTER TABLE autopub_rules ADD COLUMN IF NOT EXISTS default_category_id INTEGER`);
+    // Remove PK que exigia site_id NOT NULL — regras passam a existir no nível do catálogo
+    await pool.query(`ALTER TABLE autopub_rules DROP CONSTRAINT IF EXISTS autopub_rules_pkey`);
+    await pool.query(`ALTER TABLE autopub_rules ALTER COLUMN site_id DROP NOT NULL`);
+    // Migra autopub_rules para referenciar sites_catalog diretamente (catalog_id)
+    await pool.query(`ALTER TABLE autopub_rules ADD COLUMN IF NOT EXISTS catalog_id UUID REFERENCES sites_catalog(id)`);
+    await pool.query(`
+      UPDATE autopub_rules ar
+      SET catalog_id = ss.site_id
+      FROM subscriber_sites ss
+      WHERE ar.site_id = ss.id AND ar.catalog_id IS NULL AND ss.site_id IS NOT NULL
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_autopub_catalog_source
+      ON autopub_rules(catalog_id, source_id)
+      WHERE catalog_id IS NOT NULL
+    `);
   } catch (err) {
     console.error('[DB] Erro ao criar índices:', err.message);
   }

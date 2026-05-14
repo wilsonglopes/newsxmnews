@@ -1153,24 +1153,8 @@ Portal<span class="logo-news">News</span>
         <label>Identidade Editorial <small style="color:var(--muted);font-weight:400">(instrução enviada à IA ao reescrever para este portal)</small></label>
         <textarea id="msc-ai-prompt" rows="4" placeholder="Ex: Escreva em tom informal e direto, priorizando o leitor local. Use frases curtas. Destaque sempre o impacto para a região. Evite jargão político."></textarea>
       </div>
-      <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden">
-        <div style="padding:12px 14px;background:#f0fdf4;display:flex;align-items:center;gap:12px">
-          <input type="checkbox" id="msc-auto-publish" onchange="toggleAutopubFontes()" style="width:18px;height:18px;cursor:pointer;flex-shrink:0" />
-          <div>
-            <label for="msc-auto-publish" style="font-weight:600;cursor:pointer;color:#166534;display:block;margin:0">Publicação automática</label>
-            <span style="font-size:.78rem;color:#4b7c5f">Selecione as fontes cujos artigos serão reescritos e publicados automaticamente neste site.</span>
-          </div>
-        </div>
-        <div id="msc-autopub-fontes" style="display:none;padding:12px 14px;background:#fff;border-top:1px solid #86efac">
-          <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">
-            <input type="text" id="msc-fontes-filtro" placeholder="Filtrar fontes…" oninput="filtrarFontesAutopub()" style="flex:1;padding:5px 9px;border:1px solid var(--border);border-radius:5px;font-size:.83rem" />
-            <button type="button" onclick="selecionarTodasFontesAutopub(true)" style="font-size:.75rem;padding:4px 8px;border:1px solid #86efac;border-radius:5px;background:#f0fdf4;color:#166534;cursor:pointer">Todas</button>
-            <button type="button" onclick="selecionarTodasFontesAutopub(false)" style="font-size:.75rem;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:#f8fafc;cursor:pointer">Nenhuma</button>
-          </div>
-          <div id="msc-fontes-lista" style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:2px">
-            <span style="font-size:.82rem;color:var(--muted)">Carregando fontes…</span>
-          </div>
-        </div>
+      <div style="border:1px solid #86efac;border-radius:8px;padding:12px 14px;background:#f0fdf4">
+        <span style="font-size:.85rem;color:#166534">A publicação automática é controlada pelo catálogo do site. Configure as fontes e categorias em <strong>Sites → Editar</strong>.</span>
       </div>
     </div>
     <div class="modal-footer">
@@ -1207,20 +1191,9 @@ Portal<span class="logo-news">News</span>
 
       <!-- WordPress -->
       <div id="mcat-wp-fields">
-        <div class="form-group" style="margin-bottom:10px">
-          <label>🔑 Chave XMNews Plugin <small style="color:var(--muted);font-weight:400">(recomendado)</small></label>
-          <input type="text" id="mcat-xixo-key" placeholder="Cole a chave gerada em WP Admin → Portal Publisher" style="font-family:monospace;font-size:.85rem" />
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Usuário WP <small style="color:var(--muted)">(fallback)</small></label><input type="text" id="mcat-wp-user" /></div>
-          <div class="form-group">
-            <label>App Password WP <small style="color:var(--muted)">(fallback)</small></label>
-            <input type="password" id="mcat-wp-pass" placeholder="xxxx xxxx xxxx…" />
-          </div>
-        </div>
-        <div style="margin-bottom:12px">
-          <button type="button" class="btn btn-ghost btn-sm" id="btn-test-wp-cat" onclick="testarWpCatalog()">🔌 Testar conexão</button>
-          <span id="mcat-test-result" style="font-size:.82rem;margin-left:8px"></span>
+        <div class="form-group">
+          <label>Chave do Plugin XMNews <small style="color:var(--muted);font-weight:400">(WP Admin → Portal Publisher → Copiar chave)</small></label>
+          <input type="text" id="mcat-xixo-key" placeholder="Cole a chave gerada pelo plugin" style="font-family:monospace;font-size:.85rem" />
         </div>
       </div>
 
@@ -1251,6 +1224,24 @@ Portal<span class="logo-news">News</span>
             <option value="true">Sim</option>
             <option value="false">Não</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Publicação Automática — fontes e categorias por fonte -->
+      <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden;margin-top:4px">
+        <div style="padding:12px 14px;background:#f0fdf4">
+          <div style="font-weight:600;color:#166534">Publicação automática</div>
+          <div style="font-size:.78rem;color:#4b7c5f;margin-top:2px">Selecione as fontes e, opcionalmente, a categoria fixa de destino para cada uma. Sem categoria = IA categoriza.</div>
+        </div>
+        <div style="padding:12px 14px;background:#fff;border-top:1px solid #86efac">
+          <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">
+            <input type="text" id="mcat-fontes-filtro" placeholder="Filtrar fontes…" oninput="filtrarFontesCatalog()" style="flex:1;padding:5px 9px;border:1px solid var(--border);border-radius:5px;font-size:.83rem" />
+            <button type="button" onclick="selecionarTodasFontesCatalog(true)" style="font-size:.75rem;padding:4px 8px;border:1px solid #86efac;border-radius:5px;background:#f0fdf4;color:#166534;cursor:pointer">Todas</button>
+            <button type="button" onclick="selecionarTodasFontesCatalog(false)" style="font-size:.75rem;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:#f8fafc;cursor:pointer">Nenhuma</button>
+          </div>
+          <div id="mcat-fontes-lista" style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:2px">
+            <span style="font-size:.82rem;color:var(--muted)">Abrindo o site para carregar as fontes…</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1627,6 +1618,9 @@ async function salvarProviderIA(valor) {
 // ── Autopub: seleção de fontes por site ───────────────────────────────────────
 
 let _fontesDoCliente = []; // fontes habilitadas para o cliente atual
+let _catsSiteAtual   = []; // categorias WP do site sendo editado no modal (subscriber)
+let _todasFontes     = []; // todas as fontes ativas (para modal do catálogo)
+let _catsCatalogSite = []; // categorias WP do site do catálogo sendo editado
 
 async function carregarFontesDoCliente() {
   const subId = document.getElementById('mc-id').value;
@@ -1638,14 +1632,7 @@ async function carregarFontesDoCliente() {
   } catch { _fontesDoCliente = []; }
 }
 
-function toggleAutopubFontes() {
-  const checked = document.getElementById('msc-auto-publish').checked;
-  document.getElementById('msc-autopub-fontes').style.display = checked ? '' : 'none';
-  if (checked) {
-    document.getElementById('msc-fontes-lista').innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Carregando…</span>';
-    carregarFontesDoCliente().then(() => renderFontesAutopub([]));
-  }
-}
+function toggleAutopubFontes() { /* fontes agora configuradas no catálogo do site */ }
 
 function renderFontesAutopub(selecionados) {
   const filtro = (document.getElementById('msc-fontes-filtro')?.value || '').toLowerCase();
@@ -1659,7 +1646,33 @@ function renderFontesAutopub(selecionados) {
     return;
   }
 
-  // Agrupa por categoria
+  // Mapa sourceId → categoryId (selecionados é array de {sourceId, categoryId})
+  const selMap = {};
+  for (const item of (selecionados || [])) {
+    if (typeof item === 'object' && item !== null) selMap[String(item.sourceId)] = item.categoryId || '';
+    else selMap[String(item)] = '';
+  }
+
+  // Select de categorias WP (vazio quando não disponíveis)
+  const temCats = _catsSiteAtual.length > 0;
+  const paisCats   = temCats ? _catsSiteAtual.filter(c => !c.parent) : [];
+  const filhosCats = temCats ? _catsSiteAtual.filter(c =>  c.parent) : [];
+
+  function catSelector(fId) {
+    const catId = selMap.hasOwnProperty(String(fId)) ? selMap[String(fId)] : '';
+    if (temCats) {
+      let opts = '<option value="">— IA categoriza —</option>';
+      for (const pai of paisCats) {
+        opts += `<option value="${pai.id}" ${String(catId) === String(pai.id) ? 'selected' : ''}>${pai.name}</option>`;
+        for (const filho of filhosCats.filter(f => f.parent === pai.id))
+          opts += `<option value="${filho.id}" ${String(catId) === String(filho.id) ? 'selected' : ''}>&nbsp;&nbsp;↳ ${filho.name}</option>`;
+      }
+      return `<select class="autopub-fonte-cat" data-fid="${fId}" title="Categoria fixa para esta fonte" style="font-size:.76rem;border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);max-width:160px">${opts}</select>`;
+    }
+    return `<input type="number" class="autopub-fonte-cat" data-fid="${fId}" value="${catId}" placeholder="ID cat" title="ID da categoria WP (vazio = IA)" style="width:72px;font-size:.76rem;border:1px solid var(--border);border-radius:4px;padding:2px 5px;text-align:center" />`;
+  }
+
+  // Agrupa por categoria da fonte
   const grupos = {};
   for (const f of fontes) {
     const cat = f.category || 'Geral';
@@ -1671,10 +1684,11 @@ function renderFontesAutopub(selecionados) {
     <div style="margin-bottom:8px">
       <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px">${cat}</div>
       ${itens.map(f => `
-        <label style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:.84rem;user-select:none" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-          <input type="checkbox" class="autopub-fonte-cb" value="${f.id}" ${selecionados.includes(String(f.id)) ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer;flex-shrink:0" />
-          ${f.name}
-        </label>
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:5px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+          <input type="checkbox" class="autopub-fonte-cb" value="${f.id}" ${selMap.hasOwnProperty(String(f.id)) ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer;flex-shrink:0" />
+          <span style="font-size:.84rem;flex:1;cursor:pointer" onclick="this.previousElementSibling.click()">${f.name}</span>
+          ${catSelector(f.id)}
+        </div>
       `).join('')}
     </div>
   `).join('');
@@ -1689,7 +1703,88 @@ function selecionarTodasFontesAutopub(marcar) {
 }
 
 function getAutopubSourceIds() {
-  return [...document.querySelectorAll('.autopub-fonte-cb:checked')].map(cb => cb.value);
+  return [...document.querySelectorAll('.autopub-fonte-cb:checked')].map(cb => {
+    const catEl = document.querySelector(`.autopub-fonte-cat[data-fid="${cb.value}"]`);
+    const catId = catEl ? (parseInt(catEl.value) || null) : null;
+    return { sourceId: cb.value, categoryId: catId };
+  });
+}
+
+// ── Autopub do catálogo ───────────────────────────────────────────────────────
+
+function renderFontesCatalog(selecionados) {
+  const filtro = (document.getElementById('mcat-fontes-filtro')?.value || '').toLowerCase();
+  const lista  = document.getElementById('mcat-fontes-lista');
+  const fontes = _todasFontes.filter(f =>
+    !filtro || f.name.toLowerCase().includes(filtro) || (f.category || '').toLowerCase().includes(filtro)
+  );
+
+  if (!fontes.length) {
+    lista.innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Nenhuma fonte ativa no sistema.</span>';
+    return;
+  }
+
+  // Mapa sourceId → categoryId
+  const selMap = {};
+  for (const item of (selecionados || [])) {
+    if (typeof item === 'object' && item !== null) selMap[String(item.sourceId)] = item.categoryId || item.categoryId === 0 ? item.categoryId : '';
+    else selMap[String(item)] = '';
+  }
+
+  const temCats    = _catsCatalogSite.length > 0;
+  const paisCats   = temCats ? _catsCatalogSite.filter(c => !c.parent) : [];
+  const filhosCats = temCats ? _catsCatalogSite.filter(c =>  c.parent) : [];
+
+  function catSelectorCatalog(fId) {
+    const catId = selMap.hasOwnProperty(String(fId)) ? selMap[String(fId)] : '';
+    if (temCats) {
+      let opts = '<option value="">— IA categoriza —</option>';
+      for (const pai of paisCats) {
+        opts += `<option value="${pai.id}" ${String(catId) === String(pai.id) ? 'selected' : ''}>${pai.name}</option>`;
+        for (const filho of filhosCats.filter(f => f.parent === pai.id))
+          opts += `<option value="${filho.id}" ${String(catId) === String(filho.id) ? 'selected' : ''}>&nbsp;&nbsp;↳ ${filho.name}</option>`;
+      }
+      return `<select class="catalog-fonte-cat" data-fid="${fId}" title="Categoria fixa para esta fonte" style="font-size:.76rem;border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);max-width:160px">${opts}</select>`;
+    }
+    return `<input type="number" class="catalog-fonte-cat" data-fid="${fId}" value="${catId}" placeholder="ID cat" title="ID da categoria WP (vazio = IA)" style="width:72px;font-size:.76rem;border:1px solid var(--border);border-radius:4px;padding:2px 5px;text-align:center" />`;
+  }
+
+  // Agrupa por categoria da fonte
+  const grupos = {};
+  for (const f of fontes) {
+    const cat = f.category || 'Geral';
+    if (!grupos[cat]) grupos[cat] = [];
+    grupos[cat].push(f);
+  }
+
+  lista.innerHTML = Object.entries(grupos).map(([cat, itens]) => `
+    <div style="margin-bottom:8px">
+      <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px">${cat}</div>
+      ${itens.map(f => `
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:5px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+          <input type="checkbox" class="catalog-fonte-cb" value="${f.id}" ${selMap.hasOwnProperty(String(f.id)) ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer;flex-shrink:0" />
+          <span style="font-size:.84rem;flex:1;cursor:pointer" onclick="this.previousElementSibling.click()">${f.name}</span>
+          ${catSelectorCatalog(f.id)}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function filtrarFontesCatalog() {
+  renderFontesCatalog(getFontesCatalogIds());
+}
+
+function selecionarTodasFontesCatalog(marcar) {
+  document.querySelectorAll('.catalog-fonte-cb').forEach(cb => { cb.checked = marcar; });
+}
+
+function getFontesCatalogIds() {
+  return [...document.querySelectorAll('.catalog-fonte-cb:checked')].map(cb => {
+    const catEl = document.querySelector(`.catalog-fonte-cat[data-fid="${cb.value}"]`);
+    const catId = catEl ? (parseInt(catEl.value) || null) : null;
+    return { sourceId: cb.value, categoryId: catId };
+  });
 }
 
 async function carregarConfiguracoes() {
@@ -2944,11 +3039,8 @@ async function abrirModalSite(siteId) {
   document.getElementById('msc-catalog-id').value  = '';
   document.getElementById('msc-cat-id').value      = '';
   document.getElementById('msc-ai-prompt').value   = '';
-  document.getElementById('msc-auto-publish').checked = false;
-  document.getElementById('msc-autopub-fontes').style.display = 'none';
-  document.getElementById('msc-fontes-lista').innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Carregando fontes…</span>';
-  if (document.getElementById('msc-fontes-filtro')) document.getElementById('msc-fontes-filtro').value = '';
   _fontesDoCliente = [];
+  _catsSiteAtual   = [];
 
   await carregarCatalogSelect();
 
@@ -2959,22 +3051,17 @@ async function abrirModalSite(siteId) {
     document.getElementById('msc-catalog-select').disabled = true;
     fetch(`${BACKEND}/api/admin/subscribers/${subId}/sites`, { headers: authHeader() })
       .then(r => r.json())
-      .then(sites => {
+      .then(async sites => {
         const s = sites.find(x => x.id === siteId);
         if (!s) return;
         document.getElementById('msc-cat-id').value      = s.default_category_id || '';
         document.getElementById('msc-ai-prompt').value   = s.ai_prompt || '';
-        document.getElementById('msc-auto-publish').checked = s.auto_publish || false;
         if (s.catalog_id) {
           document.getElementById('msc-catalog-id').value = s.catalog_id;
           document.getElementById('msc-catalog-select').value = s.catalog_id;
           onMscCatalogChange();
         }
-        if (s.auto_publish) {
-          document.getElementById('msc-autopub-fontes').style.display = '';
-          const sel = Array.isArray(s.autopub_source_ids) ? s.autopub_source_ids.map(String) : [];
-          carregarFontesDoCliente().then(() => renderFontesAutopub(sel));
-        }
+        // (fontes e categorias de autopub são configuradas no catálogo do site)
       }).catch(() => {});
   } else {
     picker.style.opacity = '';
@@ -2998,8 +3085,6 @@ async function salvarSiteCli() {
     site_id:             siteIdCatalog || undefined,
     default_category_id: document.getElementById('msc-cat-id').value.trim() || null,
     ai_prompt:           document.getElementById('msc-ai-prompt').value.trim() || null,
-    auto_publish:        document.getElementById('msc-auto-publish').checked,
-    autopub_source_ids:  getAutopubSourceIds(),
   };
   if (siteId) delete body.site_id; // PUT não altera o vínculo de catálogo
 
@@ -3077,16 +3162,16 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-name').value         = '';
   document.getElementById('mcat-url').value          = '';
   document.getElementById('mcat-xixo-key').value     = '';
-  document.getElementById('mcat-wp-user').value      = '';
-  document.getElementById('mcat-wp-pass').value      = '';
   document.getElementById('mcat-blog-id').value      = '';
   document.getElementById('mcat-webhook-url').value  = '';
   document.getElementById('mcat-webhook-secret').value = '';
   document.getElementById('mcat-post-format').value  = 'editorial';
   document.getElementById('mcat-active').value       = 'true';
-  document.getElementById('mcat-test-result').textContent = '';
   document.getElementById('mcat-platform').value     = 'wordpress';
   toggleCatalogPlatformFields();
+  _todasFontes     = [];
+  _catsCatalogSite = [];
+  document.getElementById('mcat-fontes-lista').innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Carregando…</span>';
 
   if (siteId) {
     const s = _catalogList.find(x => x.id === siteId);
@@ -3094,7 +3179,6 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-name').value         = s.name || '';
       document.getElementById('mcat-url').value          = s.site_url || '';
       document.getElementById('mcat-xixo-key').value     = s.xixo_api_key || '';
-      document.getElementById('mcat-wp-user').value      = s.wp_username || '';
       document.getElementById('mcat-blog-id').value      = s.blogger_blog_id || '';
       document.getElementById('mcat-webhook-url').value  = s.webhook_url || '';
       document.getElementById('mcat-webhook-secret').value = s.webhook_secret || '';
@@ -3103,6 +3187,27 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-platform').value     = s.platform || 'wordpress';
       toggleCatalogPlatformFields();
     }
+
+    // Carrega em paralelo: todas as fontes, regras autopub e categorias WP
+    try {
+      const [fontes, regras, cats] = await Promise.all([
+        fetch(`${BACKEND}/api/admin/sources-list`, { headers: authHeader() }).then(r => r.json()).catch(() => []),
+        fetch(`${BACKEND}/api/admin/sites-catalog/${siteId}/autopub`, { headers: authHeader() }).then(r => r.json()).catch(() => []),
+        fetch(`${BACKEND}/api/admin/sites-catalog/${siteId}/wp-categories`, { headers: authHeader() }).then(r => r.json()).catch(() => []),
+      ]);
+      _todasFontes     = Array.isArray(fontes) ? fontes : [];
+      _catsCatalogSite = Array.isArray(cats)   ? cats   : [];
+      renderFontesCatalog(regras);
+    } catch {
+      document.getElementById('mcat-fontes-lista').innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Erro ao carregar fontes.</span>';
+    }
+  } else {
+    // Novo site — apenas lista as fontes sem seleção prévia
+    try {
+      const fontes = await fetch(`${BACKEND}/api/admin/sources-list`, { headers: authHeader() }).then(r => r.json());
+      _todasFontes = Array.isArray(fontes) ? fontes : [];
+    } catch { _todasFontes = []; }
+    renderFontesCatalog([]);
   }
 
   document.getElementById('modal-catalog').classList.remove('hidden');
@@ -3115,9 +3220,7 @@ async function salvarCatalog() {
     name:        document.getElementById('mcat-name').value.trim(),
     platform,
     site_url:    document.getElementById('mcat-url').value.trim() || null,
-    xixo_api_key: platform === 'wordpress' ? document.getElementById('mcat-xixo-key').value.trim() || null : null,
-    wp_username:  platform === 'wordpress' ? document.getElementById('mcat-wp-user').value.trim() || null : null,
-    wp_app_password: platform === 'wordpress' ? document.getElementById('mcat-wp-pass').value.trim() || null : null,
+    xixo_api_key:    platform === 'wordpress' ? document.getElementById('mcat-xixo-key').value.trim() || null : null,
     blogger_blog_id: platform === 'blogger'  ? document.getElementById('mcat-blog-id').value.trim() || null : null,
     webhook_url:  platform === 'webhook' ? document.getElementById('mcat-webhook-url').value.trim() || null : null,
     webhook_secret: platform === 'webhook' ? document.getElementById('mcat-webhook-secret').value.trim() || null : null,
@@ -3134,6 +3237,12 @@ async function salvarCatalog() {
     const r = await fetch(url, { method: id ? 'PUT' : 'POST', headers: authHeader(), body: JSON.stringify(body) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Erro');
+    const catalogId = id || d.id;
+    // Salva regras de autopub (fontes + categorias)
+    await fetch(`${BACKEND}/api/admin/sites-catalog/${catalogId}/autopub`, {
+      method: 'PUT', headers: authHeader(),
+      body: JSON.stringify({ sources: getFontesCatalogIds() }),
+    });
     fecharModal('modal-catalog');
     await carregarCatalog();
     toast(id ? 'Site atualizado!' : 'Site criado no catálogo!', 'sucesso');
@@ -3150,29 +3259,6 @@ async function excluirCatalog(id, nome) {
     await carregarCatalog();
     toast(`"${nome}" removido do catálogo.`, 'sucesso');
   } catch(e) { toast(e.message, 'erro'); }
-}
-
-async function testarWpCatalog() {
-  const btn = document.getElementById('btn-test-wp-cat');
-  const result = document.getElementById('mcat-test-result');
-  const site_url = document.getElementById('mcat-url').value.trim();
-  const wp_username = document.getElementById('mcat-wp-user').value.trim();
-  const wp_app_password = document.getElementById('mcat-wp-pass').value.trim();
-  if (!site_url || !wp_username || !wp_app_password) {
-    result.textContent = '⚠️ Preencha URL, usuário e senha para testar.';
-    result.style.color = '#c2410c';
-    return;
-  }
-  btn.disabled = true; result.textContent = 'Testando…'; result.style.color = 'var(--muted)';
-  try {
-    const r = await fetch(`${BACKEND}/api/admin/sites-catalog/test-wp`, {
-      method: 'POST', headers: authHeader(), body: JSON.stringify({ site_url, wp_username, wp_app_password })
-    });
-    const d = await r.json();
-    if (r.ok) { result.textContent = '✅ Conexão OK!'; result.style.color = '#15803d'; }
-    else { result.textContent = `❌ ${d.error}`; result.style.color = '#b91c1c'; }
-  } catch(e) { result.textContent = `❌ ${e.message}`; result.style.color = '#b91c1c'; }
-  finally { btn.disabled = false; }
 }
 
 // ══ FONTES DO CLIENTE (tab Fontes no modal cliente) ══════════════════════════

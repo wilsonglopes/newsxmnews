@@ -243,8 +243,9 @@ async function rodarAutopub() {
   _rodando = true;
   try {
     const { rows: sites } = await pool.query(`
-      SELECT ss.id, ss.auto_publish, ss.ai_prompt, ss.default_category_id,
+      SELECT DISTINCT ON (sc.id) ss.id, ss.ai_prompt, ss.default_category_id,
              s.id AS subscriber_id,
+             sc.id AS catalog_id,
              COALESCE(sc.name, ss.name)                       AS name,
              COALESCE(sc.platform, ss.platform)               AS platform,
              COALESCE(sc.site_url, ss.site_url)               AS site_url,
@@ -258,9 +259,11 @@ async function rodarAutopub() {
              COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
              COALESCE(sc.post_format, ss.post_format)         AS post_format
       FROM subscriber_sites ss
-      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
-      JOIN subscribers        s  ON s.id  = ss.subscriber_id
-      WHERE ss.auto_publish = true AND ss.active = true AND s.active = true
+      JOIN sites_catalog sc ON sc.id = ss.site_id
+      JOIN subscribers   s  ON s.id  = ss.subscriber_id
+      WHERE ss.active = true AND s.active = true
+        AND EXISTS (SELECT 1 FROM autopub_rules ar WHERE ar.catalog_id = sc.id)
+      ORDER BY sc.id, ss.created_at
     `);
 
     if (!sites.length) return;
@@ -268,14 +271,20 @@ async function rodarAutopub() {
 
     for (const site of sites) {
       try {
-        // Fontes configuradas nas regras de autopub deste site
+        // Fontes configuradas nas regras de autopub — buscadas pelo catálogo do site
+        const catalogId = site.catalog_id;
+        if (!catalogId) continue; // site legado sem vínculo ao catálogo, pula
         const { rows: regras } = await pool.query(
-          `SELECT source_id FROM autopub_rules WHERE site_id = $1`,
-          [site.id]
+          `SELECT source_id, default_category_id FROM autopub_rules WHERE catalog_id = $1`,
+          [catalogId]
         );
 
-        if (!regras.length) continue; // site ativo mas sem fontes configuradas
+        if (!regras.length) continue; // site sem fontes configuradas
         const sourceIds = regras.map(r => r.source_id);
+        // Mapa sourceId → categoryId fixo (null = usar IA)
+        const catPorFonte = Object.fromEntries(
+          regras.map(r => [String(r.source_id), r.default_category_id || null])
+        );
 
         // Artigos novos não processados para este site
         // Só processa artigos coletados nas últimas N horas (padrão 2h) — evita publicar notícias antigas
@@ -291,7 +300,7 @@ async function rodarAutopub() {
           FROM articles a
           JOIN sources so ON so.id = a.source_id
           WHERE a.source_id = ANY($1::uuid[])
-            AND a.fetched_at >= NOW() - ($4 || ' hours')::interval
+            AND a.fetched_at >= NOW() - make_interval(hours => $4::int)
             AND a.id NOT IN (
               SELECT article_id FROM autopub_log WHERE site_id = $2
             )
@@ -356,8 +365,14 @@ async function rodarAutopub() {
             // 1. Reescreve
             const reescrito = await reescreverArtigo(artigo, site.ai_prompt, provider);
 
-            // 2. Categoriza
-            reescrito.category_ids = await categorizarComIA(reescrito, cats, provider);
+            // 2. Categoriza — usa categoria fixa da regra ou delega à IA
+            const catFixa = catPorFonte[String(artigo.source_id)];
+            if (catFixa) {
+              reescrito.category_ids = [catFixa];
+              console.log(`[AUTOPUB] categoria fixa (fonte ${artigo.source_name}): [${catFixa}]`);
+            } else {
+              reescrito.category_ids = await categorizarComIA(reescrito, cats, provider);
+            }
 
             // 3. Publica
             let resultado;

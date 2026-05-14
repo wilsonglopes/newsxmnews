@@ -413,6 +413,7 @@
   <div class="tab" data-tab="historico">📋 Histórico</div>
   <div class="tab" data-tab="criar">✍️ Criar Post</div>
   <div class="tab" data-tab="fontes">📡 Minhas Fontes</div>
+  <div class="tab" data-tab="portais">Meus Portais</div>
   <div class="tab" data-tab="config">Configurações</div>
 </div>
 
@@ -608,6 +609,11 @@
   <div id="fontes-grid">
     <div class="loading-wrap"><div class="spinner"></div>Carregando catálogo…</div>
   </div>
+</div>
+
+<!-- Tela: Meus Portais -->
+<div class="tela" id="tela-portais">
+  <div id="portais-lista-config" style="max-width:520px"></div>
 </div>
 
 <!-- Tela: Configurações -->
@@ -823,6 +829,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'historico') carregarHistorico();
     if (tab.dataset.tab === 'fontes')   carregarTellaFontes();
     if (tab.dataset.tab === 'criar')    criarPopularSites();
+    if (tab.dataset.tab === 'portais')  renderMeusPortais();
   });
 });
 
@@ -1750,6 +1757,67 @@ async function carregarSites() {
     sitesData = await res.json();
     renderPortaisCheckboxes();
   } catch {}
+}
+
+// ── Meus Portais ─────────────────────────────────────────────────────────────
+
+function renderMeusPortais() {
+  const container = document.getElementById('portais-lista-config');
+  if (!container) return;
+  if (!sitesData.length) {
+    container.innerHTML = '<p style="color:var(--grafite-lt);font-size:.88rem;margin-top:4px">Nenhum portal configurado. Fale com o administrador.</p>';
+    return;
+  }
+  container.innerHTML = sitesData.map(s => {
+    const statusBadge = s.activated
+      ? `<span style="background:#dcfce7;color:#166534;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:600">Ativo ✓</span>`
+      : `<span style="background:#fef9c3;color:#854d0e;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:600">Aguardando ativação</span>`;
+    const formAtivacao = (!s.activated && s.platform === 'wordpress') ? `
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--borda)">
+        <p style="font-size:.82rem;color:var(--grafite-lt);margin:0 0 8px">
+          Instale o plugin <strong>XMNews</strong> no seu WordPress, acesse
+          <strong>WP Admin → Portal Publisher</strong>, copie a chave gerada e cole abaixo:
+        </p>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="key-${s.id}" placeholder="Cole a chave aqui…"
+            style="flex:1;padding:7px 10px;border:1px solid var(--borda);border-radius:6px;font-size:.85rem;font-family:monospace" />
+          <button onclick="ativarSite('${s.id}')"
+            style="padding:7px 16px;background:var(--vermelho);color:#fff;border:none;border-radius:6px;font-size:.83rem;font-weight:600;cursor:pointer">
+            Ativar
+          </button>
+        </div>
+      </div>` : '';
+    return `
+      <div class="config-secao">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <span style="font-weight:600;font-size:.95rem">${s.name}</span>
+          ${statusBadge}
+        </div>
+        <div style="font-size:.78rem;color:var(--grafite-lt);margin-top:3px">${s.platform}${s.site_url ? ' · ' + s.site_url : ''}</div>
+        ${formAtivacao}
+      </div>`;
+  }).join('');
+}
+
+async function ativarSite(siteId) {
+  const input = document.getElementById('key-' + siteId);
+  const chave = input?.value.trim();
+  if (!chave) return toast('Cole a chave do plugin antes de ativar.', 'aviso');
+  const btn = input.nextElementSibling;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch(`${BACKEND}/api/sites/${siteId}/activate`, {
+      method: 'PATCH', headers: authHeader(), body: JSON.stringify({ xixo_api_key: chave })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro');
+    toast('Portal ativado com sucesso!', 'sucesso');
+    await carregarSites();
+    renderMeusPortais();
+  } catch (e) {
+    toast(e.message, 'erro');
+    btn.disabled = false; btn.textContent = 'Ativar';
+  }
 }
 
 function renderPortaisCheckboxes() {
