@@ -313,6 +313,8 @@ async function criarIndicesBanco() {
       ON autopub_rules(catalog_id, source_id)
       WHERE catalog_id IS NOT NULL
     `);
+    // Corrige slug incorreto "www2" gerado a partir do domínio da URL
+    await pool.query(`UPDATE sources SET slug = 'pref-de-praia-grande' WHERE slug = 'www2'`);
   } catch (err) {
     console.error('[DB] Erro ao criar índices:', err.message);
   }

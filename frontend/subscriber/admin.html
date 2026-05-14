@@ -3455,11 +3455,13 @@ async function refreshFonte(slug, btn) {
 async function deletarFonte(slug, nome) {
   if (!confirm(`Remover a fonte "${nome}"?`)) return;
   try {
-    await fetch(`${BACKEND}/api/admin/sources/${slug}`, { method:'DELETE', headers: authHeader() });
+    const r = await fetch(`${BACKEND}/api/admin/sources/${slug}`, { method:'DELETE', headers: authHeader() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `Erro ${r.status}`);
     fontesList = fontesList.filter(f => f.slug !== slug);
     renderFontes();
     toast(`"${nome}" removida`, 'sucesso');
-  } catch { toast('Erro ao remover','erro'); }
+  } catch(e) { toast('Erro ao remover: ' + e.message, 'erro'); }
 }
 
 async function analisarFonte() {

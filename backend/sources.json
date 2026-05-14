@@ -536,7 +536,7 @@
   },
   {
     "name": "Pref. de Praia Grande",
-    "slug": "www2",
+    "slug": "pref-de-praia-grande",
     "type": "scraping",
     "url": "https://www2.praiagrande.sp.gov.br/noticias",
     "active": true,
