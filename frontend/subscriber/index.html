@@ -699,14 +699,8 @@
       <div class="publicar-bar">
         <div class="publicar-bar-selects">
           <div class="publicar-sel-grupo">
-            <label>🌐 Canal de destino</label>
-            <select id="sel-site-dest">
-              <option value="">Selecione o canal…</option>
-            </select>
-          </div>
-          <div class="publicar-sel-grupo">
             <label>🗂 Categorias</label>
-            <div id="sel-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o canal primeiro…</span></div>
+            <div id="sel-categoria" class="cat-checkboxes"><span class="cat-placeholder">Aguardando geração…</span></div>
           </div>
           <div class="publicar-sel-grupo" id="sel-grupo-cats-sel" style="display:none">
             <label>✓ Selecionadas</label>
@@ -1158,8 +1152,7 @@ function fecharModal() {
   document.getElementById('overlay-leitura').classList.add('hidden');
   document.body.style.overflow = '';
   artigoAtual = null;
-  document.getElementById('sel-site-dest').value = '';
-  document.getElementById('sel-categoria').innerHTML = '<span class="cat-placeholder">Selecione o canal primeiro…</span>';
+  document.getElementById('sel-categoria').innerHTML = '<span class="cat-placeholder">Aguardando geração…</span>';
   document.getElementById('sel-grupo-cats-sel').style.display = 'none';
   document.getElementById('sel-cats-chips').innerHTML = '<span class="cat-chips-empty">Nenhuma selecionada</span>';
 }
@@ -1440,8 +1433,7 @@ function loadTabContent(idx) {
 async function publicarPortal(idx) {
   const portal = portaisResultados[idx];
   if (!portal || !artigoAtual) return;
-  // Canal de destino: dropdown tem prioridade sobre o portal original
-  const destSiteId = document.getElementById('sel-site-dest').value || portal.siteId;
+  const destSiteId = portal.siteId;
   const rewritten = {
     chapeu:       portal.chapeu,
     title:        portal.titulo,
@@ -1758,25 +1750,8 @@ async function carregarSites() {
     const res = await fetch(`${BACKEND}/api/sites`, { headers: authHeader() });
     sitesData = await res.json();
     renderPortaisCheckboxes();
-    popularSitesDest();
   } catch {}
 }
-
-function popularSitesDest() {
-  const sel = document.getElementById('sel-site-dest');
-  const val = sel.value;
-  sel.innerHTML = '<option value="">Selecione o canal…</option>';
-  (sitesData || []).forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.id; opt.textContent = s.name;
-    sel.appendChild(opt);
-  });
-  if (val) sel.value = val;
-}
-
-document.getElementById('sel-site-dest').addEventListener('change', function () {
-  carregarCategoriasWP(this.value || null);
-});
 
 function renderPortaisCheckboxes() {
   const container = document.getElementById('portais-checkboxes');
