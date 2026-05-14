@@ -39,6 +39,23 @@
     "featured_image_selector": null
   },
   {
+    "name": "Sport Club Internacional",
+    "slug": "internacional",
+    "type": "scraping",
+    "url": "https://internacional.com.br/noticias",
+    "active": true,
+    "category": "esporte",
+    "featured_image_selector": "img[src*=\"static.internacional.com.br\"]",
+    "content_selector": null,
+    "scraping": {
+      "itemSelector": "a[href*=\"/noticias/\"]",
+      "titleSelector": "h2, h3, h4, p",
+      "linkSelector": "a",
+      "imageSelector": "img",
+      "linkFilter": "internacional\\.com\\.br\\/noticias\\/[^\\/]+\\/[^\\/]+"
+    }
+  },
+  {
     "name": "Lance",
     "slug": "lance",
     "type": "scraping",

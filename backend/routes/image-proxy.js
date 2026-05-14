@@ -45,6 +45,8 @@ const ALLOWED_HOSTS = [
   'al.ac.leg.br', // Assembleia Legislativa do Acre
   'sp.gov.br',   // Prefeituras SP e governo do estado (Praia Grande, etc.)
   'atende.net',
+  // Clubes de futebol
+  'static.internacional.com.br',
   // WordPress CDNs
   'static.wixstatic.com',
   'wp.com', 'i0.wp.com', 'i1.wp.com', 'i2.wp.com',
