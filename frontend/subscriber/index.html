@@ -409,7 +409,7 @@
 
 <!-- Tabs -->
 <div class="tabs">
-  <div class="tab ativa" data-tab="artigos">Artigos</div>
+  <div class="tab ativa" data-tab="artigos">Publicar</div>
   <div class="tab" data-tab="historico">📋 Histórico</div>
   <div class="tab" data-tab="criar">✍️ Criar Post</div>
   <div class="tab" data-tab="fontes">📡 Minhas Fontes</div>
@@ -1220,7 +1220,6 @@ function carregarRascunho(artId) {
 
     document.getElementById('ia-resultado').classList.remove('hidden');
     document.getElementById('btn-publicar-agora').disabled = false;
-    sugerirCategoria();
     return true;
   } catch { return false; }
 }
@@ -1682,7 +1681,7 @@ async function carregarCategoriasWP(siteId) {
       });
       atualizarCatChips();
     } else {
-      autoCategorizar(cats);
+      atualizarCatChips();
     }
   } catch (e) {
     sel.innerHTML = '<span class="cat-placeholder">Erro ao buscar categorias</span>';
@@ -1961,8 +1960,6 @@ function usarDraft(d) {
 
   document.getElementById('overlay-leitura').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
-
-  sugerirCategoria();
 }
 
 document.getElementById('btn-atualizar-historico').addEventListener('click', carregarHistorico);
