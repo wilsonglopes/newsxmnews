@@ -641,6 +641,32 @@
 
     <button class="btn btn-primario" id="btn-salvar-perfil">Salvar alterações</button>
   </div>
+
+  <div class="config-secao" style="max-width:520px;margin-top:16px">
+    <div class="config-secao-titulo">📱 Telegram</div>
+    <div id="tg-status-wrap">
+      <p style="font-size:.85rem;color:var(--grafite-lt);margin:0 0 12px">
+        Vincule sua conta do Telegram para enviar coberturas de campo diretamente pelo bot <strong>@PortalNewsBot</strong>.
+      </p>
+      <div id="tg-vinculado" class="hidden" style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span style="background:#dcfce7;color:#166534;border-radius:20px;padding:3px 12px;font-size:.8rem;font-weight:600">✓ Telegram vinculado</span>
+        <button class="btn btn-ghost btn-sm" onclick="desvincularTelegram()">Desvincular</button>
+      </div>
+      <div id="tg-nao-vinculado">
+        <button class="btn btn-primario btn-sm" id="btn-gerar-codigo-tg" onclick="gerarCodigoTelegram()">Gerar código de vinculação</button>
+      </div>
+      <div id="tg-codigo-wrap" class="hidden" style="margin-top:14px;padding:14px;background:#f8fafc;border:1px solid var(--borda);border-radius:8px">
+        <p style="font-size:.82rem;color:var(--texto);margin:0 0 8px">Envie este comando para <strong>@PortalNewsBot</strong> no Telegram:</p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <code id="tg-codigo-text" style="flex:1;font-size:1.1rem;letter-spacing:.15em;font-weight:700;padding:8px 12px;background:#fff;border:1px solid var(--borda);border-radius:6px"></code>
+          <button class="btn btn-ghost btn-sm" onclick="copiarCodigoTg()">Copiar</button>
+        </div>
+        <p style="font-size:.78rem;color:var(--grafite-lt);margin:0">
+          ⏱ Expira em <span id="tg-countdown" style="font-weight:600;color:var(--vermelho)">10:00</span>
+        </p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal de leitura -->
@@ -825,7 +851,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
     tab.classList.add('ativa');
     document.getElementById('tela-' + tab.dataset.tab).classList.add('visivel');
-    if (tab.dataset.tab === 'config')    preencherPerfil(subscriber || {});
+    if (tab.dataset.tab === 'config')    { preencherPerfil(subscriber || {}); verificarStatusTelegram(); }
     if (tab.dataset.tab === 'historico') carregarHistorico();
     if (tab.dataset.tab === 'fontes')   carregarTellaFontes();
     if (tab.dataset.tab === 'criar')    criarPopularSites();
@@ -839,6 +865,7 @@ document.getElementById('btn-config-hd').addEventListener('click', () => {
   document.querySelector('[data-tab="config"]').classList.add('ativa');
   document.getElementById('tela-config').classList.add('visivel');
   preencherPerfil(subscriber || {});
+  verificarStatusTelegram();
 });
 
 document.getElementById('btn-sair').addEventListener('click', logout);
@@ -1896,6 +1923,88 @@ document.getElementById('btn-salvar-perfil').addEventListener('click', async () 
   }
 });
 
+// ── Telegram — vinculação por código ─────────────────────────────────────────
+let _tgCountdownTimer = null;
+
+async function verificarStatusTelegram() {
+  try {
+    const r = await fetch(`${BACKEND}/api/subscriber/telegram-link`, { headers: authHeader() });
+    const d = await r.json();
+    document.getElementById('tg-vinculado').classList.toggle('hidden', !d.linked);
+    document.getElementById('tg-nao-vinculado').classList.toggle('hidden', d.linked);
+    if (d.linked) document.getElementById('tg-codigo-wrap').classList.add('hidden');
+  } catch {}
+}
+
+async function gerarCodigoTelegram() {
+  const btn = document.getElementById('btn-gerar-codigo-tg');
+  btn.disabled = true; btn.textContent = 'Gerando…';
+  try {
+    const r = await fetch(`${BACKEND}/api/subscriber/telegram-link`, {
+      method: 'POST', headers: authHeader()
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro');
+
+    document.getElementById('tg-codigo-text').textContent = `/vincular ${d.code}`;
+    document.getElementById('tg-codigo-wrap').classList.remove('hidden');
+
+    // Countdown
+    if (_tgCountdownTimer) clearInterval(_tgCountdownTimer);
+    const fim = new Date(d.expires_at).getTime();
+    function atualizarContagem() {
+      const resto = Math.max(0, fim - Date.now());
+      const m = String(Math.floor(resto / 60000)).padStart(2, '0');
+      const s = String(Math.floor((resto % 60000) / 1000)).padStart(2, '0');
+      document.getElementById('tg-countdown').textContent = `${m}:${s}`;
+      if (resto === 0) {
+        clearInterval(_tgCountdownTimer);
+        document.getElementById('tg-codigo-wrap').classList.add('hidden');
+      }
+    }
+    atualizarContagem();
+    _tgCountdownTimer = setInterval(atualizarContagem, 1000);
+
+    // Polling: detecta quando o reporter vinculou
+    let tentativas = 0;
+    const poll = setInterval(async () => {
+      tentativas++;
+      if (tentativas > 60) return clearInterval(poll); // para após 10 min
+      try {
+        const pr = await fetch(`${BACKEND}/api/subscriber/telegram-link`, { headers: authHeader() });
+        const pd = await pr.json();
+        if (pd.linked) {
+          clearInterval(poll);
+          clearInterval(_tgCountdownTimer);
+          document.getElementById('tg-codigo-wrap').classList.add('hidden');
+          await verificarStatusTelegram();
+          toast('Telegram vinculado com sucesso!', 'sucesso');
+        }
+      } catch {}
+    }, 10000);
+
+  } catch(e) {
+    toast('Erro: ' + e.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Gerar código de vinculação';
+  }
+}
+
+function copiarCodigoTg() {
+  const txt = document.getElementById('tg-codigo-text').textContent;
+  navigator.clipboard?.writeText(txt).then(() => toast('Copiado!', 'sucesso'));
+}
+
+async function desvincularTelegram() {
+  if (!confirm('Desvincular o Telegram desta conta?')) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/subscriber/telegram-link`, { method: 'DELETE', headers: authHeader() });
+    if (!r.ok) throw new Error((await r.json()).error);
+    await verificarStatusTelegram();
+    toast('Telegram desvinculado.', 'sucesso');
+  } catch(e) { toast('Erro: ' + e.message, 'erro'); }
+}
+
 // ── Histórico (drafts no banco) ───────────────────────────────────────────────
 
 async function saveDraftDB(artigo, resultado) {
@@ -1958,15 +2067,22 @@ function renderDraftCard(d) {
   const data = new Date(d.updated_at).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
-  const draftJson = JSON.stringify(d).replace(/'/g, '&#39;');
-  const artTitle  = (d.article_title || '').slice(0, 90) + ((d.article_title||'').length > 90 ? '…' : '');
-  const resumo    = (d.summary || '').slice(0, 130) + ((d.summary||'').length > 130 ? '…' : '');
+  const draftJson   = JSON.stringify(d).replace(/'/g, '&#39;');
+  const artTitle    = (d.article_title || '').slice(0, 90) + ((d.article_title||'').length > 90 ? '…' : '');
+  const resumo      = (d.summary || '').slice(0, 130) + ((d.summary||'').length > 130 ? '…' : '');
+  const isTelegram  = d.article_source === '📱 Telegram';
+  const fonteBadge  = isTelegram
+    ? `<span style="background:#e0f2fe;color:#0369a1;border-radius:20px;padding:1px 8px;font-size:.75rem;font-weight:600">📱 Telegram</span>`
+    : `<div class="draft-card-fonte">${d.article_source || ''}</div>`;
+  const verLink     = d.external_post_url
+    ? `<a href="${d.external_post_url}" target="_blank" rel="noopener" class="btn-usar-draft" style="text-decoration:none">🔗 Ver publicação</a>`
+    : '';
   return `
     <div class="draft-card">
       <div class="draft-card-header">
         <div class="draft-card-info">
-          <div class="draft-card-fonte">${d.article_source || ''}</div>
-          <div class="draft-card-artigo">${artTitle}</div>
+          ${fonteBadge}
+          ${!isTelegram ? `<div class="draft-card-artigo">${artTitle}</div>` : ''}
         </div>
         <div class="draft-card-data">${data}</div>
       </div>
@@ -1974,8 +2090,9 @@ function renderDraftCard(d) {
       <div class="draft-titulo">${d.title || ''}</div>
       ${resumo ? `<div class="draft-resumo">${resumo}</div>` : ''}
       <div class="draft-acoes">
-        <button class="btn-usar-draft" data-draft='${draftJson}'>✎ Usar este artigo</button>
-        <button class="btn-del-draft"  data-id="${d.id}">🗑 Remover</button>
+        ${!isTelegram ? `<button class="btn-usar-draft" data-draft='${draftJson}'>✎ Usar este artigo</button>` : ''}
+        ${verLink}
+        <button class="btn-del-draft" data-id="${d.id}">🗑 Remover</button>
       </div>
     </div>`;
 }

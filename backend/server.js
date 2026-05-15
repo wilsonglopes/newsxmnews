@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const express   = require('express');
 const cors      = require('cors');
@@ -113,6 +113,39 @@ function resolverUrl(href, base) {
   try { return new URL(href, base).href; } catch { return null; }
 }
 
+// ─── Helpers de feed ──────────────────────────────────────────────────────────
+function mapearItensFeed(items, source) {
+  return items.map(item => {
+    const imagem =
+      item.mediaContent?.$?.url         ||
+      item.mediaThumbnail?.$?.url        ||
+      item.enclosure?.url                ||
+      item['media:content']?.$?.url      ||
+      extrairImagemDoConteudo(item['content:encoded'] || item.content || '') ||
+      null;
+    const conteudo = item['content:encoded'] || item.content || item.contentSnippet || '';
+    return {
+      id:           md5(item.link || item.guid || item.title || ''),
+      source:       source.name,
+      source_slug:  source.slug,
+      category:     source.category,
+      title:        (item.title || '').trim(),
+      summary:      (item.contentSnippet || item.summary || '').replace(/<[^>]*>/g, '').trim(),
+      url:          item.link || item.guid || '',
+      image:        imagem,
+      published_at: normalizarData(item.isoDate || item.pubDate),
+      content:      conteudo
+    };
+  });
+}
+
+function normalizarXml(xml) {
+  return xml
+    .replace(/^﻿/, '')
+    .replace(/^[\s\S]*?(<\?xml|<rss|<feed|<channel)/i, '$1')
+    .replace(/&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/g, '&amp;');
+}
+
 // ─── Busca RSS ────────────────────────────────────────────────────────────────
 async function buscarRSS(source) {
   // Para fontes que bloqueiam ou têm BOM/encoding: baixar primeiro e depois parsear
@@ -132,49 +165,33 @@ async function buscarRSS(source) {
       },
       responseType: 'text'
     });
-    // Remover BOM (UTF-8: EF BB BF) e whitespace antes da tag XML
-    let xml = respAxios.data;
-    xml = xml.replace(/^\uFEFF/, '').replace(/^[\s\S]*?(<\?xml|<rss|<feed|<channel)/i, '$1');
-    // Corrige & solto (entidade XML inv\u00E1lida) \u2014 substitui por &amp; quando n\u00E3o \u00E9 &name;/&#n;/&#xn;
-    xml = xml.replace(/&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/g, '&amp;');
-    feed = await rss.parseString(xml);
+    feed = await rss.parseString(normalizarXml(respAxios.data));
   }
 
-  return feed.items.map(item => {
-    // Tentar obter imagem de várias fontes comuns
-    const imagem =
-      item.mediaContent?.$?.url         ||
-      item.mediaThumbnail?.$?.url        ||
-      item.enclosure?.url                ||
-      item['media:content']?.$?.url      ||
-      extrairImagemDoConteudo(item['content:encoded'] || item.content || '') ||
-      null;
+  return mapearItensFeed(feed.items, source);
+}
 
-    const conteudo = item['content:encoded'] || item.content || item.contentSnippet || '';
-
-    return {
-      id:           md5(item.link || item.guid || item.title || ''),
-      source:       source.name,
-      source_slug:  source.slug,
-      category:     source.category,
-      title:        (item.title || '').trim(),
-      summary:      (item.contentSnippet || item.summary || '').replace(/<[^>]*>/g, '').trim(),
-      url:          item.link || item.guid || '',
-      image:        imagem,
-      published_at: normalizarData(item.isoDate || item.pubDate),
-      content:      conteudo
-    };
-  });
+async function buscarRSSHeadless(source) {
+  let browser;
+  try {
+    const puppeteer = require('puppeteer');
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+    const page     = await browser.newPage();
+    const response = await page.goto(source.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    const buffer   = await response.buffer();
+    const feed     = await rss.parseString(normalizarXml(buffer.toString('utf8')));
+    return mapearItensFeed(feed.items, source);
+  } finally {
+    if (browser) await browser.close().catch(() => {});
+  }
 }
 
 // ─── Busca por Scraping (prefeituras e outros sem RSS) ─────────────────────────
-async function buscarScraping(source) {
-  const resp = await axios.get(source.url, {
-    timeout: 15000,
-    headers: { 'User-Agent': 'Mozilla/5.0 RB24Horas-Aggregator/1.0' },
-    httpsAgent: agenteSemSSL  // ignora erros de cert em sites de prefeitura
-  });
-  const $ = cheerio.load(resp.data);
+function extrairArtigosDeHTML(html, source) {
+  const $ = cheerio.load(html);
 
   // Seletores de item configuráveis ou auto-detecção
   const cfg = source.scraping || {};
@@ -260,6 +277,32 @@ async function buscarScraping(source) {
   return artigos;
 }
 
+async function buscarScraping(source) {
+  const resp = await axios.get(source.url, {
+    timeout: 15000,
+    headers: { 'User-Agent': 'Mozilla/5.0 RB24Horas-Aggregator/1.0' },
+    httpsAgent: agenteSemSSL,
+  });
+  return extrairArtigosDeHTML(resp.data, source);
+}
+
+async function buscarScrapingHeadless(source) {
+  let browser;
+  try {
+    const puppeteer = require('puppeteer');
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+    const page = await browser.newPage();
+    await page.goto(source.url, { waitUntil: 'networkidle2', timeout: 30000 });
+    const html = await page.content();
+    return extrairArtigosDeHTML(html, source);
+  } finally {
+    if (browser) await browser.close().catch(() => {});
+  }
+}
+
 // ─── Criar índices no banco (executado uma vez na inicialização) ─────────────
 async function criarIndicesBanco() {
   if (!pool) return;
@@ -315,6 +358,13 @@ async function criarIndicesBanco() {
     `);
     // Corrige slug incorreto "www2" gerado a partir do domínio da URL
     await pool.query(`UPDATE sources SET slug = 'pref-de-praia-grande' WHERE slug = 'www2'`);
+    // Telegram: chat_id do reporter + código temporário de vinculação
+    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT UNIQUE`);
+    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_link_code VARCHAR(8)`);
+    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_link_expires_at TIMESTAMPTZ`);
+    // article_drafts: article_id opcional (para posts originados do Telegram) + URL do post publicado
+    await pool.query(`ALTER TABLE article_drafts ALTER COLUMN article_id DROP NOT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE article_drafts ADD COLUMN IF NOT EXISTS external_post_url TEXT`);
   } catch (err) {
     console.error('[DB] Erro ao criar índices:', err.message);
   }
@@ -540,7 +590,11 @@ async function atualizarLogFonte(slug, erro) {
 async function atualizarFonte(source) {
   try {
     let itens;
-    if (source.type === 'rss') {
+    if (source.headless) {
+      // Fonte conhecida por bloquear Node.js (TLS fingerprinting) — vai direto ao Puppeteer
+      console.log(`[${source.name}] headless=true — usando Puppeteer diretamente`);
+      itens = await (source.type === 'rss' ? buscarRSSHeadless(source) : buscarScrapingHeadless(source));
+    } else if (source.type === 'rss') {
       itens = await buscarRSS(source);
     } else {
       itens = await buscarScraping(source);
@@ -558,6 +612,22 @@ async function atualizarFonte(source) {
     atualizarLogFonte(source.slug, null).catch(() => {});
 
   } catch (err) {
+    const is403 = err.response?.status === 403 || /\b403\b/.test(err.message || '');
+    if (is403) {
+      try {
+        console.log(`[${source.name}] Bloqueio 403 — tentando Puppeteer`);
+        const itens = await (source.type === 'rss'
+          ? buscarRSSHeadless(source)
+          : buscarScrapingHeadless(source));
+        cache[source.slug] = { data: itens, lastUpdated: new Date(), error: null };
+        console.log(`[OK] Fonte "${source.name}" (headless): ${itens.length} itens`);
+        persistirArtigos(itens, source.slug, source).catch(() => {});
+        atualizarLogFonte(source.slug, null).catch(() => {});
+        return;
+      } catch (e2) {
+        console.error(`[ERRO] "${source.name}" — headless também falhou: ${e2.message}`);
+      }
+    }
     cache[source.slug] = {
       ...cache[source.slug],
       lastUpdated: new Date(),
@@ -610,6 +680,9 @@ cron.schedule('0 * * * *', limparArtigosAntigos); // limpeza a cada hora
 const { verificarERotar } = require('./autopub');
 cron.schedule('* * * * *', () => verificarERotar().catch(e => console.error('[AUTOPUB]', e.message)));
 
+const { iniciarBot } = require('./telegram');
+iniciarBot();
+
 // ─── ROTAS ────────────────────────────────────────────────────────────────────
 
 // Auth (login / logout / me)
@@ -620,7 +693,8 @@ app.use('/api/articles',           require('./routes/articles'));
 app.use('/api/publish',            require('./routes/publish'));
 app.use('/api/sites',              require('./routes/sites'));
 app.use('/api/drafts',             require('./routes/drafts'));
-app.use('/api/subscriber/sources', require('./routes/subscriber-sources'));
+app.use('/api/subscriber/sources',  require('./routes/subscriber-sources'));
+app.use('/api/subscriber',          require('./routes/subscriber-telegram'));
 
 // IA — reescrita de artigos (usa GEMINI_KEY do servidor)
 app.use('/api/ia', require('./routes/ia'));

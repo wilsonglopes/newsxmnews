@@ -1,6 +1,6 @@
 {
   "ia_provider": "deepseek",
-  "autopub_enabled": true,
+  "autopub_enabled": false,
   "autopub_max_por_rodada": 4,
   "autopub_interval_minutos": 5,
   "autopub_max_horas": 2

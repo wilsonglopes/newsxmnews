@@ -470,6 +470,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       const { rows } = await pool.query(`
         SELECT s.id, s.name, s.email, s.active, s.is_admin,
                s.created_at, s.plan_expires_at, s.plan_value, s.gemini_key,
+               s.telegram_chat_id,
                p.name AS plan_name, p.id AS plan_id
         FROM subscribers s
         LEFT JOIN plans p ON p.id = s.plan_id
@@ -516,8 +517,9 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       if (is_admin !== undefined) { sets.push(`is_admin = $${p++}`);        vals.push(is_admin); }
       if (plan_expires_at !== undefined) { sets.push(`plan_expires_at = $${p++}`); vals.push(plan_expires_at); }
       if (req.body.plan_value  !== undefined) { sets.push(`plan_value = $${p++}`);  vals.push(req.body.plan_value); }
-      if (req.body.gemini_key  !== undefined) { sets.push(`gemini_key = $${p++}`);  vals.push(req.body.gemini_key || null); }
-      if (req.body.ai_prompt   !== undefined) { sets.push(`ai_prompt = $${p++}`);   vals.push(req.body.ai_prompt || null); }
+      if (req.body.gemini_key       !== undefined) { sets.push(`gemini_key = $${p++}`);        vals.push(req.body.gemini_key || null); }
+      if (req.body.ai_prompt        !== undefined) { sets.push(`ai_prompt = $${p++}`);         vals.push(req.body.ai_prompt || null); }
+      if (req.body.telegram_chat_id !== undefined) { sets.push(`telegram_chat_id = $${p++}`); vals.push(req.body.telegram_chat_id ? String(req.body.telegram_chat_id) : null); }
       if (password) {
         const hash = await bcrypt.hash(password, 10);
         sets.push(`password_hash = $${p++}`);

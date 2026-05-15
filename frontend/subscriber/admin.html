@@ -551,7 +551,7 @@ Portal<span class="logo-news">News</span>
         <div class="panel-body">
           <table class="data-table" id="tbl-clientes">
             <thead>
-              <tr><th>Nome</th><th>Email</th><th>Plano</th><th>Valor</th><th>Vencimento</th><th>Admin</th><th>Status</th><th>Ações</th></tr>
+              <tr><th>Nome</th><th>Email</th><th>Plano</th><th>Valor</th><th>Vencimento</th><th>Admin</th><th>Telegram</th><th>Status</th><th>Ações</th></tr>
             </thead>
             <tbody><tr><td colspan="8" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
           </table>
@@ -1061,6 +1061,17 @@ Portal<span class="logo-news">News</span>
           <div class="form-group" style="display:flex;align-items:flex-end;gap:16px;padding-bottom:4px">
             <div class="form-check"><input type="checkbox" id="mc-active" checked /><label for="mc-active">Ativo</label></div>
             <div class="form-check"><input type="checkbox" id="mc-admin" /><label for="mc-admin">Administrador</label></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>ID Telegram <small style="font-weight:400;text-transform:none;font-size:.75rem">(reporter envia /start ao bot para obter)</small></label>
+            <input type="text" id="mc-telegram" placeholder="ex: 5441337960" style="font-family:monospace" />
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:8px">
+            <div style="font-size:.8rem;color:var(--muted);background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;line-height:1.5">
+              📱 Reporter envia <strong>/start</strong> para <strong>@PortalNewsBot</strong> e informa o ID aqui.
+            </div>
           </div>
         </div>
       </div>
@@ -2851,6 +2862,7 @@ async function carregarClientes() {
         <td style="font-size:.82rem">${valorLabel}</td>
         <td style="font-size:.8rem" class="${vencLabel.cls}">${vencLabel.txt}</td>
         <td>${c.is_admin ? '<span class="badge badge-blue">Admin</span>' : '—'}</td>
+        <td>${c.telegram_chat_id ? '<span class="badge badge-green" title="ID: ' + c.telegram_chat_id + '">📱 Telegram</span>' : '<span style="color:var(--muted);font-size:.8rem">—</span>'}</td>
         <td><span class="badge ${c.active ? 'badge-green' : 'badge-red'}">${c.active ? 'Ativo' : 'Inativo'}</span></td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick='abrirModalCliente(${JSON.stringify(c)})'>Editar</button>
@@ -2902,7 +2914,8 @@ async function abrirModalCliente(c) {
   document.getElementById('mc-active').checked   = c?.active !== false;
   document.getElementById('mc-admin').checked    = c?.is_admin || false;
   document.getElementById('mc-expires').value    = c?.plan_expires_at?.slice(0,10) || '';
-  document.getElementById('mc-plan-value').value = c?.plan_value || '';
+  document.getElementById('mc-plan-value').value  = c?.plan_value || '';
+  document.getElementById('mc-telegram').value    = c?.telegram_chat_id || '';
   document.getElementById('mc-hint').style.display = c ? 'inline' : 'none';
 
   // Planos
@@ -2939,6 +2952,8 @@ async function salvarCliente() {
   if (pwd) body.password = pwd;
   const exp = document.getElementById('mc-expires').value;
   if (exp) body.plan_expires_at = exp;
+  const tg = document.getElementById('mc-telegram').value.trim();
+  body.telegram_chat_id = tg || null;
 
   const btn = document.getElementById('btn-salvar-cliente');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
