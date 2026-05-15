@@ -77,16 +77,34 @@ async function resolveImageBuffer(article) {
     return resizeImageIfNeeded(buffer, contentType, fileName);
   }
   if (article.image_url) {
-    const imgRes = await axios.get(article.image_url, {
-      responseType: 'arraybuffer', timeout: 15000, httpsAgent: HTTPS_AGENT,
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-        'Referer': (() => { try { return new URL(article.image_url).origin + '/'; } catch { return article.image_url; } })(),
-      },
-    });
-    const buffer      = Buffer.from(imgRes.data);
-    const contentType = imgRes.headers['content-type']?.split(';')[0].trim() || 'image/jpeg';
+    let buffer, contentType;
+
+    try {
+      const imgRes = await axios.get(article.image_url, {
+        responseType: 'arraybuffer', timeout: 15000, httpsAgent: HTTPS_AGENT,
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+          'Referer': (() => { try { return new URL(article.image_url).origin + '/'; } catch { return article.image_url; } })(),
+        },
+      });
+      buffer      = Buffer.from(imgRes.data);
+      contentType = imgRes.headers['content-type']?.split(';')[0].trim() || 'image/jpeg';
+    } catch (e) {
+      // Fallback Puppeteer para WAFs (sc.gov.br etc) que bloqueiam axios via TLS fingerprinting
+      const status = e.response?.status;
+      if (status === 403 || status === 406 || /403|406/.test(e.message) || e.code === 'ECONNRESET') {
+        console.log(`[img-fetch] axios falhou (${e.message}), tentando Puppeteer: ${article.image_url}`);
+        const { downloadImageHeadless } = require('../utils/headless-fetch');
+        const result = await downloadImageHeadless(article.image_url);
+        buffer      = result.buffer;
+        contentType = result.contentType;
+        console.log(`[img-fetch] Puppeteer OK: ${buffer.length} bytes (${contentType})`);
+      } else {
+        throw e;
+      }
+    }
+
     const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
                      'image/gif': 'gif', 'image/avif': 'avif', 'image/svg+xml': 'svg' };
     const extFromCt = extMap[contentType] || 'jpg';

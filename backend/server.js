@@ -748,9 +748,22 @@ app.get('/api/proxy-image', async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     response.data.pipe(res);
   } catch (e) {
-    // 403 = WAF bloqueia o VPS mas a imagem é pública — redireciona para o browser buscar diretamente
-    if (e.response?.status === 403 || /403/.test(e.message)) {
-      return res.redirect(url);
+    // 403 = WAF bloqueia o VPS via TLS fingerprinting (sc.gov.br etc).
+    // Hotlink protection no servidor de origem impede redirect direto;
+    // fallback usa Puppeteer/Chromium que passa pelo WAF.
+    const status = e.response?.status;
+    if (status === 403 || status === 406 || /403|406/.test(e.message)) {
+      try {
+        const { downloadImageHeadless } = require('./utils/headless-fetch');
+        const { buffer, contentType } = await downloadImageHeadless(url, { timeout: 25000 });
+        res.set('Content-Type',  contentType);
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.set('Access-Control-Allow-Origin', '*');
+        return res.send(buffer);
+      } catch (e2) {
+        console.warn(`[proxy-image] Puppeteer fallback falhou: ${e2.message} para ${url}`);
+        return res.status(502).end();
+      }
     }
     res.status(404).end();
   }
