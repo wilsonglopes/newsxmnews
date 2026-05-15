@@ -226,29 +226,37 @@ const SLOW_DOMAINS = ['al.rs.gov.br', 'al.sc.gov.br', 'alesc.sc.gov.br', '.gov.b
 
 async function fetchFullContent(url, source) {
   try {
-    // Timeout maior para domínios governamentais reconhecidamente lentos
-    const isSlowDomain = SLOW_DOMAINS.some(d => url.includes(d));
-    const timeout = isSlowDomain ? 30000 : 15000;
+    let htmlDecoded;
 
-    const resp = await axios.get(url, {
-      timeout,
-      responseType: 'arraybuffer', // necessário para decodificar charset corretamente
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,*/*',
-        'Accept-Language': 'pt-BR,pt;q=0.9',
-        // Envia Referer como sendo o próprio domínio — evita bloqueio de hotlink
-        'Referer': (() => { try { return new URL(url).origin + '/'; } catch { return url; } })(),
-      },
-      httpsAgent: HTTPS_AGENT,
-    });
+    // sc.gov.br é bloqueado na Oracle Cloud — usa CF Worker para buscar a página do artigo
+    const cfProxy = require('../utils/cf-proxy');
+    if (cfProxy.needsCFProxy(url) && cfProxy.isAvailable()) {
+      console.log(`[full-content] sc.gov.br detectado, usando CF Worker: ${url}`);
+      const cfResp = await cfProxy.fetchViaCFProxy(url, { responseType: 'text', timeout: 25000 });
+      htmlDecoded = cfResp.data;
+    } else {
+      // Timeout maior para domínios governamentais reconhecidamente lentos
+      const isSlowDomain = SLOW_DOMAINS.some(d => url.includes(d));
+      const timeout = isSlowDomain ? 30000 : 15000;
 
-    // Detecta charset a partir do Content-Type e decodifica corretamente
-    // Sites de prefeitura (atende.net, etc.) usam iso-8859-1
-    const contentType = resp.headers['content-type'] || '';
-    const charsetMatch = contentType.match(/charset=([^\s;]+)/i);
-    const charset = charsetMatch ? charsetMatch[1].toLowerCase().replace('iso8859', 'iso-8859') : 'utf-8';
-    const htmlDecoded = iconv.decode(Buffer.from(resp.data), charset);
+      const resp = await axios.get(url, {
+        timeout,
+        responseType: 'arraybuffer', // necessário para decodificar charset corretamente
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml,*/*',
+          'Accept-Language': 'pt-BR,pt;q=0.9',
+          'Referer': (() => { try { return new URL(url).origin + '/'; } catch { return url; } })(),
+        },
+        httpsAgent: HTTPS_AGENT,
+      });
+
+      // Detecta charset a partir do Content-Type e decodifica corretamente
+      const contentType = resp.headers['content-type'] || '';
+      const charsetMatch = contentType.match(/charset=([^\s;]+)/i);
+      const charset = charsetMatch ? charsetMatch[1].toLowerCase().replace('iso8859', 'iso-8859') : 'utf-8';
+      htmlDecoded = iconv.decode(Buffer.from(resp.data), charset);
+    }
 
     // Usa HTML decodificado com charset correto
     const $ = cheerio.load(htmlDecoded);
