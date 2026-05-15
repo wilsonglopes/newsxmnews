@@ -111,6 +111,25 @@ router.get('/', async (req, res) => {
     res.send(buf);
 
   } catch (err) {
+    // Fallback CF Worker para sc.gov.br bloqueados na Oracle Cloud
+    const cfProxy = require('../utils/cf-proxy');
+    if (cfProxy.needsCFProxy(url) && cfProxy.isAvailable()) {
+      try {
+        const resp2 = await cfProxy.fetchViaCFProxy(url, {
+          responseType: 'arraybuffer', timeout: 20000,
+        });
+        const ct2 = resp2.headers['content-type'] || 'image/jpeg';
+        const buf2 = Buffer.from(resp2.data);
+        res.set('Content-Type', ct2);
+        res.set('Content-Length', buf2.length);
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.set('Access-Control-Allow-Origin', '*');
+        return res.send(buf2);
+      } catch (e2) {
+        console.error('[proxy-image] CF Worker falhou:', e2.message);
+        return res.status(502).send('erro ao buscar imagem');
+      }
+    }
     console.error('[proxy-image]', err.message);
     const status = err.response?.status || 502;
     res.status(status >= 400 && status < 600 ? status : 502).send('erro ao buscar imagem');
