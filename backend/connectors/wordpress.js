@@ -163,13 +163,16 @@ async function publishViaPlugin(site, rewritten, article) {
       }
     } catch (e) {
       console.warn(`[plugin] pré-upload falhou (${e.message}), tentando URL original`);
-      // Se URL original também não for acessível pelo plugin, limpa
-      try {
-        await axios.head(imageUrlParaPlugin, { timeout: 4000, httpsAgent: HTTPS_AGENT,
-          headers: { 'User-Agent': 'Mozilla/5.0' } });
-      } catch {
-        console.warn(`[plugin] URL original inacessível, publicando sem imagem`);
-        imageUrlParaPlugin = '';
+      // 403 = WAF bloqueia o VPS mas a URL é pública (browsers acessam normalmente)
+      // Só limpa a imagem se o erro não foi 403 e a URL também falha no HEAD
+      if (e.response?.status !== 403 && !/403/.test(e.message)) {
+        try {
+          await axios.head(imageUrlParaPlugin, { timeout: 4000, httpsAgent: HTTPS_AGENT,
+            headers: { 'User-Agent': 'Mozilla/5.0' } });
+        } catch {
+          console.warn(`[plugin] URL original inacessível, publicando sem imagem`);
+          imageUrlParaPlugin = '';
+        }
       }
     }
   } else if (imageUrlParaPlugin || article.image_base64) {

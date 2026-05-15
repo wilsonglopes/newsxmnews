@@ -747,7 +747,11 @@ app.get('/api/proxy-image', async (req, res) => {
     res.set('Cache-Control', 'public, max-age=86400');
     res.set('Access-Control-Allow-Origin', '*');
     response.data.pipe(res);
-  } catch {
+  } catch (e) {
+    // 403 = WAF bloqueia o VPS mas a imagem é pública — redireciona para o browser buscar diretamente
+    if (e.response?.status === 403 || /403/.test(e.message)) {
+      return res.redirect(url);
+    }
     res.status(404).end();
   }
 });
