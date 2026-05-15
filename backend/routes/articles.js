@@ -205,8 +205,13 @@ router.get('/:id/full-content', async (req, res) => {
     };
     const { body, image_url } = await fetchFullContent(article.external_url, source);
 
-    // Persiste body e/ou image_url no banco conforme o que foi encontrado
-    const novoBody   = body      || article.body      || null;
+    // Persiste body e/ou image_url no banco conforme o que foi encontrado.
+    // Se o body existente já é substancial (600+ chars) e o novo é menor, preserva o existente.
+    // Isso evita substituir um body limpo do RSS por conteúdo pior do scraping da página.
+    const newBodyLen = (body || '').replace(/<[^>]*>/g, '').trim().length;
+    const novoBody = (bodyText.length >= 600 && newBodyLen < bodyText.length * 0.7)
+      ? article.body
+      : (body || article.body || null);
     const novaImagem = image_url || article.image_url || null;
 
     if (body || image_url) {

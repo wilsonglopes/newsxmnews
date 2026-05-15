@@ -731,7 +731,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -743,7 +743,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -755,7 +755,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -767,7 +767,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -779,7 +779,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -791,7 +791,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -803,7 +803,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -815,7 +815,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -827,7 +827,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -839,7 +839,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -851,7 +851,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -863,7 +863,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   },
   {
@@ -875,7 +875,7 @@
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
-    "content_selector": null,
+    "content_selector": ".entry-content",
     "featured_image_selector": null
   }
 ]
