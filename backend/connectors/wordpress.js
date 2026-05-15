@@ -91,15 +91,14 @@ async function resolveImageBuffer(article) {
       buffer      = Buffer.from(imgRes.data);
       contentType = imgRes.headers['content-type']?.split(';')[0].trim() || 'image/jpeg';
     } catch (e) {
-      // Fallback Puppeteer para WAFs (sc.gov.br etc) que bloqueiam axios via TLS fingerprinting
-      const status = e.response?.status;
-      if (status === 403 || status === 406 || /403|406/.test(e.message) || e.code === 'ECONNRESET') {
-        console.log(`[img-fetch] axios falhou (${e.message}), tentando Puppeteer: ${article.image_url}`);
-        const { downloadImageHeadless } = require('../utils/headless-fetch');
-        const result = await downloadImageHeadless(article.image_url);
-        buffer      = result.buffer;
-        contentType = result.contentType;
-        console.log(`[img-fetch] Puppeteer OK: ${buffer.length} bytes (${contentType})`);
+      // Fallback CF Worker para domínios bloqueados na Oracle Cloud (sc.gov.br etc)
+      const cfProxy = require('../utils/cf-proxy');
+      if (cfProxy.needsCFProxy(article.image_url) && cfProxy.isAvailable()) {
+        console.log(`[img-fetch] axios falhou (${e.message}), tentando CF Worker: ${article.image_url}`);
+        const resp = await cfProxy.fetchViaCFProxy(article.image_url, { responseType: 'arraybuffer', timeout: 20000 });
+        buffer      = Buffer.from(resp.data);
+        contentType = resp.headers['content-type']?.split(';')[0].trim() || 'image/jpeg';
+        console.log(`[img-fetch] CF Worker OK: ${buffer.length} bytes (${contentType})`);
       } else {
         throw e;
       }

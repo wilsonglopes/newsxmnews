@@ -586,14 +586,30 @@ async function atualizarLogFonte(slug, erro) {
   } catch { /* não bloqueia */ }
 }
 
+// ─── Busca RSS via Cloudflare Worker (para fontes bloqueadas na Oracle Cloud) ──
+async function buscarRSSViaProxy(source, cfProxy) {
+  const resp = await cfProxy.fetchViaCFProxy(source.url, {
+    responseType: 'text',
+    timeout: 20000,
+  });
+  const feed = await rss.parseString(normalizarXml(resp.data));
+  return mapearItensFeed(feed.items, source);
+}
+
 // ─── Atualizar uma fonte ──────────────────────────────────────────────────────
 async function atualizarFonte(source) {
   try {
     let itens;
     if (source.headless) {
-      // Fonte conhecida por bloquear Node.js (TLS fingerprinting) — vai direto ao Puppeteer
-      console.log(`[${source.name}] headless=true — usando Puppeteer diretamente`);
-      itens = await (source.type === 'rss' ? buscarRSSHeadless(source) : buscarScrapingHeadless(source));
+      // Fonte bloqueada na Oracle Cloud — usa CF Worker se disponível, senão Puppeteer
+      const cfProxy = require('./utils/cf-proxy');
+      if (cfProxy.isAvailable() && source.type === 'rss') {
+        console.log(`[${source.name}] headless=true — usando CF Worker`);
+        itens = await buscarRSSViaProxy(source, cfProxy);
+      } else {
+        console.log(`[${source.name}] headless=true — usando Puppeteer diretamente`);
+        itens = await (source.type === 'rss' ? buscarRSSHeadless(source) : buscarScrapingHeadless(source));
+      }
     } else if (source.type === 'rss') {
       itens = await buscarRSS(source);
     } else {
@@ -748,23 +764,22 @@ app.get('/api/proxy-image', async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     response.data.pipe(res);
   } catch (e) {
-    // 403 = WAF bloqueia o VPS via TLS fingerprinting (sc.gov.br etc).
-    // Hotlink protection no servidor de origem impede redirect direto;
-    // fallback usa Puppeteer/Chromium que passa pelo WAF.
-    const status = e.response?.status;
-    if (status === 403 || status === 406 || /403|406/.test(e.message)) {
+    // Fallback CF Worker para domínios bloqueados na Oracle Cloud (sc.gov.br etc)
+    const cfProxy = require('./utils/cf-proxy');
+    if (cfProxy.needsCFProxy(url) && cfProxy.isAvailable()) {
       try {
-        const { downloadImageHeadless } = require('./utils/headless-fetch');
-        const { buffer, contentType } = await downloadImageHeadless(url, { timeout: 25000 });
+        const resp = await cfProxy.fetchViaCFProxy(url, { responseType: 'arraybuffer', timeout: 20000 });
+        const contentType = resp.headers['content-type'] || 'image/jpeg';
         res.set('Content-Type',  contentType);
         res.set('Cache-Control', 'public, max-age=86400');
         res.set('Access-Control-Allow-Origin', '*');
-        return res.send(buffer);
+        return res.send(Buffer.from(resp.data));
       } catch (e2) {
-        console.warn(`[proxy-image] Puppeteer fallback falhou: ${e2.message} para ${url}`);
+        console.warn(`[proxy-image] CF Worker falhou: ${e2.message} para ${url}`);
         return res.status(502).end();
       }
     }
+    console.warn(`[proxy-image] ${e.message}`);
     res.status(404).end();
   }
 });
