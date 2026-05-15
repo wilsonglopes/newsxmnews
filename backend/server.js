@@ -171,14 +171,17 @@ async function buscarRSS(source) {
   return mapearItensFeed(feed.items, source);
 }
 
+const PUPPETEER_OPTS = {
+  headless: 'new',
+  args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  ...(process.env.PUPPETEER_EXECUTABLE_PATH && { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }),
+};
+
 async function buscarRSSHeadless(source) {
   let browser;
   try {
     const puppeteer = require('puppeteer');
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    });
+    browser = await puppeteer.launch(PUPPETEER_OPTS);
     const page     = await browser.newPage();
     const response = await page.goto(source.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
     const buffer   = await response.buffer();
@@ -290,10 +293,7 @@ async function buscarScrapingHeadless(source) {
   let browser;
   try {
     const puppeteer = require('puppeteer');
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    });
+    browser = await puppeteer.launch(PUPPETEER_OPTS);
     const page = await browser.newPage();
     await page.goto(source.url, { waitUntil: 'networkidle2', timeout: 30000 });
     const html = await page.content();
