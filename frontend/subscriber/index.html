@@ -450,47 +450,77 @@
 
   <!-- FASE 1: Briefing -->
   <div id="criar-fase1">
-    <div style="max-width:680px;margin:0 auto">
-      <h2 style="font-family:var(--font-titulo);font-size:1.3rem;margin-bottom:.3rem">Criar artigo com IA</h2>
-      <p style="font-size:.84rem;color:var(--grafite-lt);margin-bottom:1.5rem">Descreva o tema e a IA escreve o artigo completo — chapéu, título, resumo e corpo.</p>
+    <div style="max-width:620px;margin:0 auto">
 
-      <div class="campo-grupo">
-        <label>Sobre o que é o artigo? <span style="color:var(--vermelho)">*</span></label>
-        <textarea id="criar-tema" rows="5"
-          placeholder="Ex: Falar sobre a chegada do inverno no Sul do Brasil e o impacto na agricultura regional. Mencionar as regiões mais afetadas e as culturas em risco."
-          style="resize:vertical;font-size:.88rem;line-height:1.6"></textarea>
-      </div>
-
-      <div class="campo-grupo">
-        <label>Imagem de capa <span style="font-size:.78rem;color:var(--grafite-lt)">(opcional)</span></label>
-        <div id="criar-drop-area"
-          onclick="document.getElementById('criar-img-input').click()"
-          ondragover="event.preventDefault();this.style.borderColor='var(--vermelho)'"
-          ondragleave="this.style.borderColor=''"
-          ondrop="criarHandleDrop(event)"
-          style="border:2px dashed var(--borda);border-radius:var(--radius);padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--branco)">
-          <div id="criar-drop-placeholder">
-            <div style="font-size:1.6rem;margin-bottom:.4rem">📷</div>
-            <div style="font-size:.85rem;color:var(--grafite-lt)">Clique ou arraste a imagem aqui</div>
-            <div style="font-size:.75rem;color:var(--grafite-lt);margin-top:.2rem">JPG, PNG, WEBP — máx. 5 MB</div>
-          </div>
-          <img id="criar-img-preview" src="" alt="" style="display:none;max-height:180px;max-width:100%;border-radius:4px;object-fit:cover">
+      <!-- Cabeçalho -->
+      <div style="text-align:center;margin-bottom:2rem">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:#fef2f2;margin-bottom:.9rem">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
         </div>
-        <input type="file" id="criar-img-input" accept="image/jpeg,image/png,image/webp" style="display:none">
-        <button id="criar-img-remover" style="display:none;margin-top:.4rem;background:none;border:none;color:var(--vermelho-lt);font-size:.8rem;cursor:pointer">✕ Remover imagem</button>
+        <h2 style="font-family:var(--font-titulo);font-size:1.5rem;margin:0 0 .4rem;color:var(--grafite)">Criar artigo com IA</h2>
+        <p style="font-size:.84rem;color:var(--grafite-lt);margin:0">Descreva o tema e a IA escreve chapéu, título, resumo e corpo completo.</p>
       </div>
 
-      <div class="campo-grupo" style="margin-top:.75rem">
-        <label>Fonte <span style="font-size:.78rem;color:var(--grafite-lt)">(opcional)</span></label>
-        <input type="url" id="criar-fonte-url" placeholder="https://exemplo.com/materia-original"
-          style="width:100%;margin-bottom:.45rem">
-        <input type="text" id="criar-fonte-nome" placeholder="Nome da fonte (ex: G1, Prefeitura Municipal…)"
-          style="width:100%;font-size:.84rem">
-      </div>
+      <!-- Card do formulário -->
+      <div style="background:var(--branco);border:1px solid var(--borda);border-radius:12px;padding:2rem;box-shadow:var(--sombra-md)">
 
-      <div style="display:flex;gap:.75rem;align-items:center;margin-top:.5rem">
-        <button class="btn btn-primario" id="btn-criar-gerar" style="padding:.65rem 1.5rem;font-size:.9rem">✦ Gerar artigo com IA</button>
-        <span id="criar-status" style="font-size:.82rem;color:var(--grafite-lt)"></span>
+        <!-- Tema -->
+        <div class="campo-grupo" style="margin-bottom:1.4rem">
+          <label>Sobre o que é o artigo? <span style="color:var(--vermelho)">*</span></label>
+          <textarea id="criar-tema" rows="4"
+            placeholder="Ex: Chegada do inverno no Sul do Brasil e o impacto na agricultura regional. Mencionar as regiões mais afetadas e as culturas em risco."
+            style="resize:vertical;font-size:.88rem;line-height:1.65;min-height:100px"></textarea>
+        </div>
+
+        <!-- Imagem de capa -->
+        <div class="campo-grupo" style="margin-bottom:1.4rem">
+          <label>Imagem de capa <span style="font-size:.75rem;font-weight:400;text-transform:none;letter-spacing:0;color:var(--grafite-lt)">(opcional)</span></label>
+          <div id="criar-drop-area"
+            onclick="document.getElementById('criar-img-input').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--vermelho)';this.style.background='#fef2f2'"
+            ondragleave="this.style.borderColor='var(--borda)';this.style.background='var(--papel)'"
+            ondrop="criarHandleDrop(event);this.style.borderColor='var(--borda)';this.style.background='var(--papel)'"
+            style="border:2px dashed var(--borda);border-radius:10px;padding:1.75rem 1.5rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--papel)">
+            <div id="criar-drop-placeholder">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto .75rem">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <div style="font-size:.88rem;font-weight:600;color:var(--grafite-md);margin-bottom:.3rem">Arraste uma imagem aqui</div>
+              <div style="font-size:.8rem;color:var(--grafite-lt)">ou <span style="color:var(--vermelho);text-decoration:underline;text-underline-offset:2px">clique para escolher</span> um arquivo</div>
+              <div style="font-size:.72rem;color:var(--grafite-lt);margin-top:.6rem;opacity:.8">JPG, PNG, WEBP — máx. 5 MB &nbsp;·&nbsp; Aceita arrastar do browser</div>
+            </div>
+            <img id="criar-img-preview" src="" alt="" style="display:none;max-height:200px;max-width:100%;border-radius:6px;object-fit:cover">
+          </div>
+          <input type="file" id="criar-img-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+          <button id="criar-img-remover" style="display:none;margin-top:.5rem;background:none;border:none;color:var(--vermelho-lt);font-size:.8rem;cursor:pointer;padding:0">✕ Remover imagem</button>
+        </div>
+
+        <!-- Fonte (seção discreta) -->
+        <div style="border-top:1px solid var(--borda);padding-top:1.25rem">
+          <div style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--grafite-lt);margin-bottom:.75rem">Fonte (opcional)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+            <input type="url" id="criar-fonte-url" placeholder="https://exemplo.com/materia"
+              style="font-size:.83rem;padding:.5rem .65rem;border:1px solid var(--borda);border-radius:var(--radius);font-family:var(--font-corpo);color:var(--grafite);outline:none;transition:border-color .15s"
+              onfocus="this.style.borderColor='var(--vermelho)'" onblur="this.style.borderColor='var(--borda)'">
+            <input type="text" id="criar-fonte-nome" placeholder="Nome (ex: G1, Prefeitura…)"
+              style="font-size:.83rem;padding:.5rem .65rem;border:1px solid var(--borda);border-radius:var(--radius);font-family:var(--font-corpo);color:var(--grafite);outline:none;transition:border-color .15s"
+              onfocus="this.style.borderColor='var(--vermelho)'" onblur="this.style.borderColor='var(--borda)'">
+          </div>
+        </div>
+
+        <!-- Botão -->
+        <div style="margin-top:1.75rem;display:flex;align-items:center;gap:1rem">
+          <button class="btn btn-primario" id="btn-criar-gerar"
+            style="padding:.75rem 2rem;font-size:.9rem;border-radius:8px;letter-spacing:.2px;flex-shrink:0">
+            ✦ Gerar artigo com IA
+          </button>
+          <span id="criar-status" style="font-size:.82rem;color:var(--grafite-lt)"></span>
+        </div>
+
       </div>
     </div>
   </div>
@@ -2196,11 +2226,54 @@ document.getElementById('criar-img-remover').addEventListener('click', () => {
   document.getElementById('criar-img-result-wrap').style.display = 'none';
 });
 
-function criarHandleDrop(event) {
+async function criarHandleDrop(event) {
   event.preventDefault();
   document.getElementById('criar-drop-area').style.borderColor = '';
+  document.getElementById('criar-drop-area').style.background = 'var(--papel)';
   const file = event.dataTransfer?.files?.[0];
-  if (file) criarSetImagem(file);
+  if (file) { criarSetImagem(file); return; }
+
+  let imgUrl = null;
+  const uriList = event.dataTransfer?.getData('text/uri-list') || '';
+  if (uriList) {
+    imgUrl = uriList.split('\n').map(s => s.trim()).find(s => s && !s.startsWith('#')) || null;
+  }
+  if (!imgUrl) {
+    const html = event.dataTransfer?.getData('text/html') || '';
+    const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (m) imgUrl = m[1];
+  }
+  if (!imgUrl) return;
+
+  const placeholder = document.getElementById('criar-drop-placeholder');
+  const originalHTML = placeholder.innerHTML;
+  const restorePlaceholder = () => { placeholder.innerHTML = originalHTML; placeholder.style.display = ''; };
+  placeholder.innerHTML = `<div style="font-size:.84rem;color:var(--grafite-lt)">Carregando imagem…</div>`;
+
+  try {
+    const proxyUrl = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(imgUrl)}`;
+    const resp = await fetch(proxyUrl);
+    if (!resp.ok) throw new Error(resp.status === 403 ? 'domínio não permitido' : `HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+      const name = (imgUrl.split('/').pop().split('?')[0] || `imagem.${ext}`).slice(0, 80);
+      _pmImageData = { base64: dataUrl.split(',')[1], mime: blob.type, name };
+      const prev = document.getElementById('criar-img-preview');
+      prev.src = dataUrl; prev.style.display = 'block';
+      placeholder.style.display = 'none';
+      document.getElementById('criar-img-remover').style.display = 'block';
+      const wrap = document.getElementById('criar-img-result-wrap');
+      document.getElementById('criar-img-result').src = dataUrl;
+      wrap.style.display = '';
+    };
+    reader.readAsDataURL(blob);
+  } catch (e) {
+    restorePlaceholder();
+    toast(`Não foi possível carregar a imagem (${e.message}). Tente baixar e arrastar o arquivo.`, 'aviso');
+  }
 }
 
 document.getElementById('btn-criar-gerar').addEventListener('click', async () => {
