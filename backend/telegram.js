@@ -108,7 +108,7 @@ async function gerarArtigo(briefing, aiPrompt, { temFotoEnviada = false } = {}) 
   const provider = process.env.AI_PROVIDER || 'gemini';
   const instrucaoImagem = temFotoEnviada
     ? '"image_query": null (já existe foto enviada pelo reporter)'
-    : '"image_query": string com 2-4 palavras buscáveis em banco de imagens — APENAS nomes próprios (pessoas, locais, instituições, eventos). NUNCA inclua palavras genéricas como reunião, encontro, debate, crise, comércio, economia. Ex: "Donald Trump Xi Jinping", "Lula Brasília", "Copa do Mundo Catar". Se não houver nome próprio óbvio, use null.';
+    : '"image_query": string com 3-6 palavras-chave em português para buscar uma foto ilustrativa na internet (nomes próprios, locais, evento). Se não fizer sentido buscar foto, use null.';
 
   const sys = aiPrompt ||
     `Você é um jornalista profissional. Com base no briefing (textos, transcrições de áudio, descrições de fotos), escreva um artigo jornalístico completo.
