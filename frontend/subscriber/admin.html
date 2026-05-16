@@ -516,18 +516,18 @@ Portal<span class="logo-news">News</span>
         <!-- Dropdown customizado com busca + grupos -->
         <div id="pub-fonte-picker" style="position:relative;min-width:190px">
           <button id="pub-fonte-btn" type="button"
-            style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:.84rem;cursor:pointer;white-space:nowrap;overflow:hidden"
+            style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-size:.84rem;cursor:pointer;white-space:nowrap;overflow:hidden"
             onclick="pubFonteToggle()">
             <span id="pub-fonte-label" style="overflow:hidden;text-overflow:ellipsis">Todas as fontes</span>
             <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;opacity:.5"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <div id="pub-fonte-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:240px;max-width:300px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;overflow:hidden">
-            <div style="padding:8px 8px 4px">
+          <div id="pub-fonte-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:240px;max-width:300px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;overflow:hidden">
+            <div style="padding:8px 8px 4px;background:#fff">
               <input id="pub-fonte-search" type="text" placeholder="Buscar fonte…" autocomplete="off"
-                style="width:100%;box-sizing:border-box;padding:6px 9px;border:1px solid var(--border);border-radius:5px;font-size:.83rem;outline:none;background:var(--bg)"
+                style="width:100%;box-sizing:border-box;padding:6px 9px;border:1px solid #e2e8f0;border-radius:5px;font-size:.83rem;outline:none;background:#f8fafc"
                 oninput="pubFonteFilter(this.value)">
             </div>
-            <div id="pub-fonte-list" style="max-height:320px;overflow-y:auto;padding:4px 0"></div>
+            <div id="pub-fonte-list" style="max-height:320px;overflow-y:auto;padding:4px 0;background:#fff"></div>
           </div>
         </div>
         <select id="pub-filtro-periodo">
@@ -2106,7 +2106,7 @@ function pubFonteRender(filtro) {
 
   // "Todas as fontes" sempre no topo
   let html = `<div class="pff-item" data-value="" data-label="Todas as fontes"
-    style="padding:7px 12px;cursor:pointer;font-size:.83rem;font-style:italic;color:var(--muted)"
+    style="padding:7px 12px;cursor:pointer;font-size:.83rem;font-style:italic;color:#64748b;background:#fff"
     onmousedown="pubFonteSelect('','Todas as fontes')">Todas as fontes</div>`;
 
   const filtered = q
@@ -2117,10 +2117,10 @@ function pubFonteRender(filtro) {
     // Sem grupos ao filtrar — lista plana
     filtered.forEach(f => {
       html += `<div class="pff-item" data-value="${f.slug}"
-        style="padding:7px 12px;cursor:pointer;font-size:.83rem"
+        style="padding:7px 12px;cursor:pointer;font-size:.83rem;background:#fff;color:#1e293b"
         onmousedown="pubFonteSelect('${f.slug}',${JSON.stringify(f.name)})">${f.name}</div>`;
     });
-    if (!filtered.length) html += `<div style="padding:10px 12px;font-size:.82rem;color:var(--muted);font-style:italic">Nenhuma fonte encontrada</div>`;
+    if (!filtered.length) html += `<div style="padding:10px 12px;font-size:.82rem;color:#64748b;font-style:italic;background:#fff">Nenhuma fonte encontrada</div>`;
   } else {
     // Agrupado por categoria
     const catOrder = Object.keys(FONTE_GRUPOS);
@@ -2136,16 +2136,16 @@ function pubFonteRender(filtro) {
     });
     catOrder.forEach(cat => {
       if (!grupos[cat]?.length) return;
-      html += `<div style="padding:5px 12px 3px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:var(--bg);position:sticky;top:0">${FONTE_GRUPOS[cat]}</div>`;
+      html += `<div style="padding:5px 12px 3px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;background:#f8fafc;position:sticky;top:0">${FONTE_GRUPOS[cat]}</div>`;
       grupos[cat].forEach(f => {
         html += `<div class="pff-item" data-value="${f.slug}"
-          style="padding:6px 12px 6px 18px;cursor:pointer;font-size:.83rem"
+          style="padding:6px 12px 6px 18px;cursor:pointer;font-size:.83rem;background:#fff;color:#1e293b"
           onmousedown="pubFonteSelect('${f.slug}',${JSON.stringify(f.name)})">${f.name}</div>`;
       });
     });
     semGrupo.forEach(f => {
       html += `<div class="pff-item" data-value="${f.slug}"
-        style="padding:6px 12px;cursor:pointer;font-size:.83rem"
+        style="padding:6px 12px;cursor:pointer;font-size:.83rem;background:#fff;color:#1e293b"
         onmousedown="pubFonteSelect('${f.slug}',${JSON.stringify(f.name)})">${f.name}</div>`;
     });
   }
@@ -2154,7 +2154,7 @@ function pubFonteRender(filtro) {
   // Destaque no item selecionado atual
   const cur = document.getElementById('pub-filtro-fonte').value;
   list.querySelectorAll('.pff-item').forEach(el => {
-    el.style.background = el.dataset.value === cur ? 'var(--primary-light, #fef2f2)' : '';
+    el.style.background = el.dataset.value === cur ? '#fef2f2' : '#fff';
     el.style.fontWeight = el.dataset.value === cur ? '600' : '';
   });
 }
@@ -2194,13 +2194,13 @@ document.addEventListener('mousedown', e => {
 // Hover nos itens
 document.getElementById('pub-fonte-list').addEventListener('mouseover', e => {
   const item = e.target.closest('.pff-item');
-  if (item) item.style.background = 'var(--primary-light, #fef2f2)';
+  if (item) item.style.background = '#fef2f2';
 });
 document.getElementById('pub-fonte-list').addEventListener('mouseout', e => {
   const item = e.target.closest('.pff-item');
   if (!item) return;
   const cur = document.getElementById('pub-filtro-fonte').value;
-  item.style.background = item.dataset.value === cur ? 'var(--primary-light, #fef2f2)' : '';
+  item.style.background = item.dataset.value === cur ? '#fef2f2' : '#fff';
 });
 
 // Remove <img> e <figure> do corpo antes de exibir no modal de leitura.
