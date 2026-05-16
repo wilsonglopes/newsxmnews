@@ -420,7 +420,25 @@
 <!-- Tela: Artigos -->
 <div class="tela visivel" id="tela-artigos">
   <div class="filtros">
-    <select id="filtro-fonte"><option value="">Todas as fontes</option></select>
+    <!-- Select oculto mantido para compatibilidade com JS existente -->
+    <select id="filtro-fonte" style="display:none"><option value="">Todas as fontes</option></select>
+    <!-- Dropdown customizado com busca + grupos -->
+    <div id="sub-fonte-picker" style="position:relative;min-width:190px">
+      <button id="sub-fonte-btn" type="button"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px;border:1px solid var(--borda);border-radius:6px;background:#fff;color:var(--grafite);font-size:.84rem;cursor:pointer;white-space:nowrap;overflow:hidden"
+        onclick="subFonteToggle()">
+        <span id="sub-fonte-label" style="overflow:hidden;text-overflow:ellipsis">Todas as fontes</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;opacity:.5"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div id="sub-fonte-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:240px;max-width:300px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;overflow:hidden">
+        <div style="padding:8px 8px 4px;background:#fff">
+          <input id="sub-fonte-search" type="text" placeholder="Buscar fonte…" autocomplete="off"
+            style="width:100%;box-sizing:border-box;padding:6px 9px;border:1px solid #e2e8f0;border-radius:5px;font-size:.83rem;outline:none;background:#f8fafc"
+            oninput="subFonteFilter(this.value)">
+        </div>
+        <div id="sub-fonte-list" style="max-height:320px;overflow-y:auto;padding:4px 0;background:#fff"></div>
+      </div>
+    </div>
     <select id="filtro-periodo">
       <option value="">Qualquer período</option>
       <option value="today">Hoje</option>
@@ -921,12 +939,14 @@ async function carregarFontes() {
     const sel  = document.getElementById('filtro-fonte');
     // Limpa opções exceto a primeira ("Todas as fontes")
     while (sel.options.length > 1) sel.remove(1);
-    catalogoFontes.filter(f => f.selected).forEach(f => {
+    const ativas = catalogoFontes.filter(f => f.selected);
+    ativas.forEach(f => {
       const opt = document.createElement('option');
       opt.value       = f.slug;
       opt.textContent = f.name;
       sel.appendChild(opt);
     });
+    subFonteBuild(ativas.map(f => ({ slug: f.slug, name: f.name, category: f.category || '' })));
   } catch {}
 }
 
@@ -1137,6 +1157,117 @@ document.getElementById('pg-proximo').addEventListener('click',  () => carregarA
 document.getElementById('btn-atualizar').addEventListener('click', () => carregarArtigos(1));
 document.getElementById('filtro-fonte').addEventListener('change',  () => carregarArtigos(1));
 document.getElementById('filtro-periodo').addEventListener('change', () => carregarArtigos(1));
+
+// ─── Dropdown de fontes com busca + grupos ────────────────────────────────────
+const SUB_FONTE_GRUPOS = {
+  nacional:   'Nacional',
+  regional:   'Regional',
+  governo:    'Governo',
+  esporte:    'Esportes',
+  agro:       'Agronegócio',
+  geral:      'Geral',
+  prefeitura: 'Prefeituras',
+};
+let _subFontesAll = [];
+
+function subFonteBuild(fontes) {
+  _subFontesAll = fontes;
+  subFonteRender('');
+}
+
+function subFonteRender(filtro) {
+  const q = filtro.toLowerCase().trim();
+  const list = document.getElementById('sub-fonte-list');
+  const grupos = {};
+
+  let html = `<div class="sff-item" data-value="" data-label="Todas as fontes"
+    style="padding:7px 12px;cursor:pointer;font-size:.83rem;font-style:italic;color:#64748b;background:#fff"
+    onmousedown="subFonteSelect('','Todas as fontes')">Todas as fontes</div>`;
+
+  const filtered = q
+    ? _subFontesAll.filter(f => f.name.toLowerCase().includes(q) || (f.category||'').toLowerCase().includes(q))
+    : _subFontesAll;
+
+  const itemHtml = (f, indent) => {
+    const pad = indent ? '6px 12px 6px 18px' : '7px 12px';
+    const safe = f.name.replace(/"/g, '&quot;');
+    return `<div class="sff-item" data-value="${f.slug}" data-label="${safe}"
+      style="padding:${pad};cursor:pointer;font-size:.83rem;background:#fff;color:#1e293b"
+      onmousedown="subFonteSelect(this.dataset.value,this.dataset.label)">${f.name}</div>`;
+  };
+
+  if (q) {
+    filtered.forEach(f => { html += itemHtml(f, false); });
+    if (!filtered.length) html += `<div style="padding:10px 12px;font-size:.82rem;color:#64748b;font-style:italic;background:#fff">Nenhuma fonte encontrada</div>`;
+  } else {
+    const catOrder = Object.keys(SUB_FONTE_GRUPOS);
+    const semGrupo = [];
+    filtered.forEach(f => {
+      const cat = (f.category || '').toLowerCase();
+      if (SUB_FONTE_GRUPOS[cat]) {
+        if (!grupos[cat]) grupos[cat] = [];
+        grupos[cat].push(f);
+      } else {
+        semGrupo.push(f);
+      }
+    });
+    catOrder.forEach(cat => {
+      if (!grupos[cat]?.length) return;
+      html += `<div style="padding:5px 12px 3px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;background:#f8fafc;position:sticky;top:0">${SUB_FONTE_GRUPOS[cat]}</div>`;
+      grupos[cat].forEach(f => { html += itemHtml(f, true); });
+    });
+    semGrupo.forEach(f => { html += itemHtml(f, false); });
+  }
+
+  list.innerHTML = html;
+  const cur = document.getElementById('filtro-fonte').value;
+  list.querySelectorAll('.sff-item').forEach(el => {
+    el.style.background = el.dataset.value === cur ? '#fef2f2' : '#fff';
+    el.style.fontWeight = el.dataset.value === cur ? '600' : '';
+  });
+}
+
+function subFonteSelect(slug, label) {
+  const sel = document.getElementById('filtro-fonte');
+  sel.value = slug;
+  sel.dispatchEvent(new Event('change'));
+  document.getElementById('sub-fonte-label').textContent = label || 'Todas as fontes';
+  subFonteClose();
+}
+
+function subFonteToggle() {
+  const dd = document.getElementById('sub-fonte-dropdown');
+  if (dd.style.display === 'none') {
+    dd.style.display = 'block';
+    const inp = document.getElementById('sub-fonte-search');
+    inp.value = '';
+    subFonteRender('');
+    inp.focus();
+  } else {
+    subFonteClose();
+  }
+}
+
+function subFonteClose() {
+  document.getElementById('sub-fonte-dropdown').style.display = 'none';
+}
+
+function subFonteFilter(v) { subFonteRender(v); }
+
+document.addEventListener('mousedown', e => {
+  if (!document.getElementById('sub-fonte-picker')?.contains(e.target)) subFonteClose();
+});
+
+document.getElementById('sub-fonte-list').addEventListener('mouseover', e => {
+  const item = e.target.closest('.sff-item');
+  if (item) item.style.background = '#fef2f2';
+});
+document.getElementById('sub-fonte-list').addEventListener('mouseout', e => {
+  const item = e.target.closest('.sff-item');
+  if (!item) return;
+  const cur = document.getElementById('filtro-fonte').value;
+  item.style.background = item.dataset.value === cur ? '#fef2f2' : '#fff';
+});
 document.getElementById('filtro-busca').addEventListener('input', () => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => carregarArtigos(1), 300);
