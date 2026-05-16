@@ -111,16 +111,34 @@ async function buscarGoogle(query) {
   }
 }
 
+// Extrai só palavras com inicial maiúscula (nomes próprios) — fallback
+function extrairNomesProprios(q) {
+  const palavras = q.split(/\s+/).filter(p => /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(p));
+  return palavras.join(' ').trim();
+}
+
 // ─── Estratégia principal: Wikimedia primeiro, Google fallback ─────────────
 async function buscarImagem(query) {
   if (!query || query.trim().length < 3) return null;
 
-  const wm = await buscarWikimedia(query);
+  // 1) Wikimedia com query completa
+  let wm = await buscarWikimedia(query);
   if (wm) {
     console.log(`[image-search] Wikimedia OK: "${query}" → ${wm.sourcePage}`);
     return wm;
   }
 
+  // 2) Wikimedia só com nomes próprios (se diferente)
+  const propios = extrairNomesProprios(query);
+  if (propios && propios !== query.trim() && propios.split(/\s+/).length >= 1) {
+    wm = await buscarWikimedia(propios);
+    if (wm) {
+      console.log(`[image-search] Wikimedia OK (fallback nomes): "${propios}" → ${wm.sourcePage}`);
+      return wm;
+    }
+  }
+
+  // 3) Google CSE (se configurado)
   const gg = await buscarGoogle(query);
   if (gg) {
     console.log(`[image-search] Google OK: "${query}" → ${gg.sourcePage}`);
