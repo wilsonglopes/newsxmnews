@@ -850,7 +850,7 @@ Portal<span class="logo-news">News</span>
               style="border:2px dashed var(--border);border-radius:var(--radius);padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--white)">
               <div id="acp-drop-placeholder">
                 <div style="font-size:1.6rem;margin-bottom:.4rem">📷</div>
-                <div style="font-size:.85rem;color:var(--muted)">Clique ou arraste a imagem aqui</div>
+                <div style="font-size:.85rem;color:var(--muted)">Clique, arraste um arquivo ou arraste uma imagem do browser</div>
                 <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">JPG, PNG, WEBP — máx. 5 MB</div>
               </div>
               <img id="acp-img-preview" src="" alt="" style="display:none;max-height:180px;max-width:100%;border-radius:4px;object-fit:cover">
@@ -2648,11 +2648,71 @@ document.getElementById('acp-img-remover').addEventListener('click', () => {
   document.getElementById('acp-img-result-wrap').style.display = 'none';
 });
 
-function acpHandleDrop(event) {
+async function acpHandleDrop(event) {
   event.preventDefault();
   document.getElementById('acp-drop-area').style.borderColor = '';
+
+  // 1. Arquivo local (drag do explorador de arquivos ou desktop)
   const file = event.dataTransfer?.files?.[0];
-  if (file) acpSetImagem(file);
+  if (file) { acpSetImagem(file); return; }
+
+  // 2. Imagem arrastada diretamente de uma página do browser
+  let imgUrl = null;
+
+  // Tenta text/uri-list (URL da imagem, padrão em todos os browsers)
+  const uriList = event.dataTransfer?.getData('text/uri-list') || '';
+  if (uriList) {
+    imgUrl = uriList.split('\n').map(s => s.trim()).find(s => s && !s.startsWith('#')) || null;
+  }
+
+  // Fallback: extrai src do fragmento HTML copiado pelo browser
+  if (!imgUrl) {
+    const html = event.dataTransfer?.getData('text/html') || '';
+    const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (m) imgUrl = m[1];
+  }
+
+  if (!imgUrl) return;
+
+  // Mostra loading
+  const placeholder = document.getElementById('acp-drop-placeholder');
+  const prev = document.getElementById('acp-img-preview');
+  placeholder.innerHTML = '<div style="font-size:.85rem;color:var(--muted)">⟳ Carregando imagem…</div>';
+
+  const restorePlaceholder = () => {
+    placeholder.innerHTML = `
+      <div style="font-size:1.6rem;margin-bottom:.4rem">📷</div>
+      <div style="font-size:.85rem;color:var(--muted)">Clique, arraste um arquivo ou arraste uma imagem do browser</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">JPG, PNG, WEBP — máx. 5 MB</div>`;
+    placeholder.style.display = '';
+  };
+
+  try {
+    // Busca via proxy do backend (contorna CORS e hotlink protection)
+    const proxyUrl = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(imgUrl)}`;
+    const resp = await fetch(proxyUrl);
+    if (!resp.ok) throw new Error(resp.status === 403 ? 'domínio não permitido' : `HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    if (!blob.type.startsWith('image/')) throw new Error('não é imagem');
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      const ext  = blob.type.split('/')[1]?.replace('jpeg','jpg') || 'jpg';
+      const name = (imgUrl.split('/').pop().split('?')[0] || `imagem.${ext}`).slice(0, 80);
+      _acpImageData = { base64: dataUrl.split(',')[1], mime: blob.type, name };
+      prev.src = dataUrl; prev.style.display = 'block';
+      placeholder.style.display = 'none';
+      document.getElementById('acp-img-remover').style.display = 'block';
+      document.getElementById('acp-img-result').src = dataUrl;
+      document.getElementById('acp-img-result-wrap').style.display = '';
+    };
+    reader.readAsDataURL(blob);
+
+  } catch (e) {
+    restorePlaceholder();
+    toast(`Não foi possível carregar a imagem (${e.message}). Tente baixar e arrastar o arquivo.`);
+  }
 }
 
 document.getElementById('acp-btn-gerar').addEventListener('click', async () => {
