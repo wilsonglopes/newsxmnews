@@ -764,7 +764,7 @@ app.use('/api/admin/sites-catalog', require('./routes/sites-catalog'));
 app.use('/api/admin', require('./routes/admin')({ sources, cache, atualizarFonte }));
 
 // Página HTML com lista de matérias recentes pra testar geração de card
-app.get('/test-card', async (req, res) => {
+app.get('/api/test-card', async (req, res) => {
   const { gerarCard } = require('./utils/card-generator');
   const pool = require('./db/connection');
 
@@ -783,7 +783,7 @@ app.get('/test-card', async (req, res) => {
           <div style="font-size:12px;color:#666">${r.chapeu || '—'}</div>
           <div style="font-weight:600;margin:4px 0">${r.title || ''}</div>
           <div style="font-size:13px;color:#444;margin-bottom:8px">${(r.summary || '').substring(0, 200)}</div>
-          <a href="/test-card?article_id=${r.id}" target="_blank"
+          <a href="/api/test-card?article_id=${r.id}" target="_blank"
              style="display:inline-block;background:#2563eb;color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px">
             🎨 Gerar card
           </a>
