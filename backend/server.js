@@ -764,7 +764,7 @@ app.use('/api/admin/sites-catalog', require('./routes/sites-catalog'));
 app.use('/api/admin', require('./routes/admin')({ sources, cache, atualizarFonte }));
 
 // Página HTML com lista de matérias recentes pra testar geração de card
-app.get('/api/admin/test-card', async (req, res) => {
+app.get('/test-card', async (req, res) => {
   const { gerarCard } = require('./utils/card-generator');
   const pool = require('./db/connection');
 
@@ -783,7 +783,7 @@ app.get('/api/admin/test-card', async (req, res) => {
           <div style="font-size:12px;color:#666">${r.chapeu || '—'}</div>
           <div style="font-weight:600;margin:4px 0">${r.title || ''}</div>
           <div style="font-size:13px;color:#444;margin-bottom:8px">${(r.summary || '').substring(0, 200)}</div>
-          <a href="/api/admin/test-card/render?article_id=${r.id}" target="_blank"
+          <a href="/test-card?article_id=${r.id}" target="_blank"
              style="display:inline-block;background:#2563eb;color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px">
             🎨 Gerar card
           </a>
@@ -829,11 +829,6 @@ app.get('/api/admin/test-card', async (req, res) => {
   }
 });
 
-// Alias usado pelos botões "Gerar card" da página de lista
-app.get('/api/admin/test-card/render', (req, res) => {
-  req.url = '/api/admin/test-card?' + new URLSearchParams(req.query).toString();
-  app._router.handle(req, res, () => {});
-});
 
 // GET /api/proxy-image?url=... → proxy de imagens para contornar hotlink protection
 app.get('/api/proxy-image', async (req, res) => {
