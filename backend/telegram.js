@@ -143,7 +143,7 @@ async function buscarReporter(chatId) {
 
 async function buscarSites(subscriberId) {
   const { rows } = await pool.query(
-    `SELECT ss.id, ss.ai_prompt, ss.default_category_id,
+    `SELECT ss.id, COALESCE(ss.ai_prompt, sc.ai_prompt) AS ai_prompt, ss.default_category_id,
             COALESCE(sc.name,            ss.name)             AS site_name,
             COALESCE(sc.site_url,        ss.site_url)         AS site_url,
             COALESCE(sc.platform,        ss.platform)         AS platform,

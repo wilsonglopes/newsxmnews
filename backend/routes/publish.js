@@ -33,7 +33,7 @@ router.post('/', async (req, res) => {
 
     // Busca o site — admin pode publicar em qualquer site, assinante só nos seus
     const siteBase = `
-      SELECT ss.id, ss.subscriber_id, ss.ai_prompt, ss.default_category_id, ss.auto_publish,
+      SELECT ss.id, ss.subscriber_id, COALESCE(ss.ai_prompt, sc.ai_prompt) AS ai_prompt, ss.default_category_id, ss.auto_publish,
              COALESCE(sc.name, ss.name)                       AS name,
              COALESCE(sc.platform, ss.platform)               AS platform,
              COALESCE(sc.site_url, ss.site_url)               AS site_url,
@@ -142,7 +142,7 @@ router.post('/manual', async (req, res) => {
   try {
     // Busca o site
     const siteBase = `
-      SELECT ss.id, ss.subscriber_id, ss.ai_prompt, ss.default_category_id,
+      SELECT ss.id, ss.subscriber_id, COALESCE(ss.ai_prompt, sc.ai_prompt) AS ai_prompt, ss.default_category_id,
              COALESCE(sc.name, ss.name)                       AS name,
              COALESCE(sc.platform, ss.platform)               AS platform,
              COALESCE(sc.site_url, ss.site_url)               AS site_url,

@@ -361,6 +361,7 @@ async function criarIndicesBanco() {
     // Telegram: chat_id do reporter + código temporário de vinculação
     await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT UNIQUE`);
     await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_link_code VARCHAR(8)`);
+    await pool.query(`ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS ai_prompt TEXT`);
     await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_link_expires_at TIMESTAMPTZ`);
     // article_drafts: article_id opcional (para posts originados do Telegram) + URL do post publicado
     await pool.query(`ALTER TABLE article_drafts ALTER COLUMN article_id DROP NOT NULL`).catch(() => {});

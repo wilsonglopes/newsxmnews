@@ -36,20 +36,20 @@ router.get('/', async (req, res) => {
 // ── POST /api/admin/sites-catalog ─────────────────────────────────────────────
 router.post('/', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
-          blogger_blog_id, webhook_url, webhook_secret, post_format } = req.body || {};
+          blogger_blog_id, webhook_url, webhook_secret, post_format, ai_prompt } = req.body || {};
   if (!name || !platform) return res.status(400).json({ error: 'name e platform são obrigatórios.' });
   try {
     const { rows } = await pool.query(
       `INSERT INTO sites_catalog
          (name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
-          blogger_blog_id, webhook_url, webhook_secret, post_format)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+          blogger_blog_id, webhook_url, webhook_secret, post_format, ai_prompt)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING id, name, platform, site_url, post_format, active, created_at`,
       [
         name, platform, site_url || null, xixo_api_key || null, wp_username || null,
         wp_app_password ? encryptToken(wp_app_password) : null,
         blogger_blog_id || null, webhook_url || null, webhook_secret || null,
-        post_format || 'editorial',
+        post_format || 'editorial', ai_prompt || null,
       ]
     );
     res.status(201).json(rows[0]);
@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
 // ── PUT /api/admin/sites-catalog/:id ─────────────────────────────────────────
 router.put('/:id', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
-          blogger_blog_id, webhook_url, webhook_secret, post_format, active } = req.body || {};
+          blogger_blog_id, webhook_url, webhook_secret, post_format, active, ai_prompt } = req.body || {};
   try {
     const sets = []; const vals = []; let p = 1;
     if (name        !== undefined) { sets.push(`name = $${p++}`);        vals.push(name); }
@@ -79,6 +79,7 @@ router.put('/:id', async (req, res) => {
     if (webhook_secret  !== undefined) { sets.push(`webhook_secret = $${p++}`);  vals.push(webhook_secret || null); }
     if (post_format     !== undefined) { sets.push(`post_format = $${p++}`);     vals.push(post_format || 'editorial'); }
     if (active          !== undefined) { sets.push(`active = $${p++}`);          vals.push(active === true || active === 'true'); }
+    if (ai_prompt       !== undefined) { sets.push(`ai_prompt = $${p++}`);       vals.push(ai_prompt || null); }
     if (!sets.length) return res.status(400).json({ error: 'Nada para atualizar.' });
     vals.push(req.params.id);
     const { rows } = await pool.query(

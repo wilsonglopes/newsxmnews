@@ -1256,6 +1256,12 @@ Portal<span class="logo-news">News</span>
         </div>
       </div>
 
+      <!-- Prompt de IA padrão do site -->
+      <div class="form-group" style="margin-top:4px">
+        <label>Prompt de IA padrão <small style="color:var(--muted);font-weight:400">(deixe em branco para usar o padrão do sistema)</small></label>
+        <textarea id="mcat-ai-prompt" rows="5" placeholder="Você é um editor jornalístico especializado em…&#10;&#10;Reescreva o artigo seguindo estas diretrizes e retorne JSON com os campos: chapeu, titulo, resumo, corpo, tags." style="width:100%;font-size:.83rem;font-family:monospace;resize:vertical;padding:8px 10px;border:1px solid var(--border);border-radius:6px;line-height:1.5"></textarea>
+      </div>
+
       <!-- Publicação Automática — fontes e categorias por fonte -->
       <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden;margin-top:4px">
         <div style="padding:12px 14px;background:#f0fdf4">
@@ -3379,6 +3385,7 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-post-format').value  = 'editorial';
   document.getElementById('mcat-active').value       = 'true';
   document.getElementById('mcat-platform').value     = 'wordpress';
+  document.getElementById('mcat-ai-prompt').value    = '';
   toggleCatalogPlatformFields();
   _todasFontes     = [];
   _catsCatalogSite = [];
@@ -3396,6 +3403,7 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-post-format').value  = s.post_format || 'editorial';
       document.getElementById('mcat-active').value       = s.active ? 'true' : 'false';
       document.getElementById('mcat-platform').value     = s.platform || 'wordpress';
+      document.getElementById('mcat-ai-prompt').value    = s.ai_prompt || '';
       toggleCatalogPlatformFields();
     }
 
@@ -3437,6 +3445,7 @@ async function salvarCatalog() {
     webhook_secret: platform === 'webhook' ? document.getElementById('mcat-webhook-secret').value.trim() || null : null,
     post_format: document.getElementById('mcat-post-format').value || 'editorial',
     active:      document.getElementById('mcat-active').value === 'true',
+    ai_prompt:   document.getElementById('mcat-ai-prompt').value.trim() || null,
   };
   if (!body.name)     return toast('Nome é obrigatório.', 'erro');
   if (!body.platform) return toast('Plataforma é obrigatória.', 'erro');

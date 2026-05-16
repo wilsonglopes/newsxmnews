@@ -243,7 +243,7 @@ async function rodarAutopub() {
   _rodando = true;
   try {
     const { rows: sites } = await pool.query(`
-      SELECT DISTINCT ON (sc.id) ss.id, ss.ai_prompt, ss.default_category_id,
+      SELECT DISTINCT ON (sc.id) ss.id, COALESCE(ss.ai_prompt, sc.ai_prompt) AS ai_prompt, ss.default_category_id,
              s.id AS subscriber_id,
              sc.id AS catalog_id,
              COALESCE(sc.name, ss.name)                       AS name,
