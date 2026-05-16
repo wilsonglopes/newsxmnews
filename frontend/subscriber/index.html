@@ -717,6 +717,57 @@
   </div>
 </div>
 
+<!-- Modal: Identidade Editorial do Portal -->
+<div class="overlay hidden" id="overlay-ia-portal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-header-info">
+        <div class="modal-fonte-nome">Configurações de IA</div>
+        <h2 id="mip-titulo" style="font-size:1.05rem">Identidade Editorial</h2>
+      </div>
+      <button class="modal-fechar" onclick="fecharConfigIA()">✕</button>
+    </div>
+    <div class="modal-corpo" style="padding:1.25rem">
+
+      <div class="campo-grupo" style="margin-bottom:1.25rem">
+        <label style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--grafite-lt);display:block;margin-bottom:.5rem">
+          Prompt da IA <span style="font-weight:400;text-transform:none;letter-spacing:0">(identidade editorial)</span>
+        </label>
+        <textarea id="mip-ai-prompt" rows="8"
+          placeholder="Descreva a personalidade editorial do portal. Exemplos:&#10;&#10;• Escreva com linguagem simples e direta, voltada para o público do interior do SC.&#10;• Priorize notícias sobre a cidade de Criciúma e região carbonífera.&#10;• Tom informativo e neutro. Evite sensacionalismo.&#10;• Sempre mencione o impacto local das notícias nacionais."
+          style="resize:vertical;font-size:.86rem;line-height:1.65;min-height:160px"></textarea>
+        <div style="font-size:.75rem;color:var(--grafite-lt);margin-top:.4rem">
+          Este texto guia a IA ao reescrever e gerar artigos para este portal. Deixe em branco para usar o padrão do sistema.
+        </div>
+      </div>
+
+      <div id="mip-cat-wrap" style="display:none;margin-bottom:1.25rem">
+        <label style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--grafite-lt);display:block;margin-bottom:.5rem">
+          Categoria padrão <span style="font-weight:400;text-transform:none;letter-spacing:0">(autopublicação)</span>
+        </label>
+        <select id="mip-categoria"
+          style="width:100%;padding:.5rem .65rem;border:1px solid var(--borda);border-radius:var(--radius);font-size:.85rem;font-family:var(--font-corpo);color:var(--grafite)">
+          <option value="">— Deixar a IA escolher —</option>
+        </select>
+        <div style="font-size:.75rem;color:var(--grafite-lt);margin-top:.4rem">
+          Se definida, todos os artigos autopublicados neste portal usam esta categoria.
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer" style="padding:1rem 1.25rem;border-top:1px solid var(--borda);display:flex;justify-content:flex-end;gap:.75rem">
+      <button onclick="fecharConfigIA()"
+        style="padding:.55rem 1.25rem;border:1px solid var(--borda);border-radius:6px;background:#fff;color:var(--grafite);font-size:.85rem;cursor:pointer">
+        Cancelar
+      </button>
+      <button id="mip-btn-salvar" onclick="salvarConfigIA()"
+        style="padding:.55rem 1.5rem;border:none;border-radius:6px;background:var(--vermelho);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer">
+        Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal de leitura -->
 <div class="overlay hidden" id="overlay-leitura">
   <div class="modal" id="modal-leitura">
@@ -1975,13 +2026,25 @@ function renderMeusPortais() {
           </button>
         </div>
       </div>` : '';
+    const promptBadge = s.ai_prompt
+      ? `<span style="font-size:.72rem;color:#166534;background:#dcfce7;border-radius:4px;padding:1px 7px;font-weight:500">IA configurada</span>`
+      : `<span style="font-size:.72rem;color:#92400e;background:#fef3c7;border-radius:4px;padding:1px 7px;font-weight:500">IA padrão</span>`;
     return `
       <div class="config-secao">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
           <span style="font-weight:600;font-size:.95rem">${s.name}</span>
-          ${statusBadge}
+          <div style="display:flex;align-items:center;gap:6px">
+            ${statusBadge}
+            <button onclick="abrirConfigIA('${s.id}')"
+              style="padding:3px 12px;border:1px solid var(--borda);border-radius:5px;background:#fff;color:var(--grafite);font-size:.78rem;cursor:pointer;font-weight:500">
+              ✦ Identidade Editorial
+            </button>
+          </div>
         </div>
-        <div style="font-size:.78rem;color:var(--grafite-lt);margin-top:3px">${s.platform}${s.site_url ? ' · ' + s.site_url : ''}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+          <span style="font-size:.78rem;color:var(--grafite-lt)">${s.platform}${s.site_url ? ' · ' + s.site_url : ''}</span>
+          ${promptBadge}
+        </div>
         ${formAtivacao}
       </div>`;
   }).join('');
@@ -2007,6 +2070,83 @@ async function ativarSite(siteId) {
     btn.disabled = false; btn.textContent = 'Ativar';
   }
 }
+
+// ── Identidade Editorial por portal ──────────────────────────────────────────
+let _mipSiteId = null;
+
+async function abrirConfigIA(siteId) {
+  _mipSiteId = siteId;
+  const site = sitesData.find(s => s.id === siteId);
+  if (!site) return;
+
+  document.getElementById('mip-titulo').textContent = site.name;
+  document.getElementById('mip-ai-prompt').value = site.ai_prompt || '';
+
+  // Categorias — só para WordPress ativo
+  const catWrap = document.getElementById('mip-cat-wrap');
+  const catSel  = document.getElementById('mip-categoria');
+  catWrap.style.display = 'none';
+  catSel.innerHTML = '<option value="">— Deixar a IA escolher —</option>';
+
+  if (site.platform === 'wordpress' && site.activated) {
+    catWrap.style.display = '';
+    try {
+      const r = await fetch(`${BACKEND}/api/sites/${siteId}/wp-categories`, { headers: authHeader() });
+      if (r.ok) {
+        const cats = await r.json();
+        cats.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id; opt.textContent = c.name;
+          if (String(c.id) === String(site.default_category_id)) opt.selected = true;
+          catSel.appendChild(opt);
+        });
+      }
+    } catch {}
+  }
+
+  document.getElementById('overlay-ia-portal').classList.remove('hidden');
+}
+
+function fecharConfigIA() {
+  document.getElementById('overlay-ia-portal').classList.add('hidden');
+  _mipSiteId = null;
+}
+
+async function salvarConfigIA() {
+  if (!_mipSiteId) return;
+  const btn = document.getElementById('mip-btn-salvar');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+
+  const ai_prompt          = document.getElementById('mip-ai-prompt').value.trim() || null;
+  const default_category_id = document.getElementById('mip-categoria').value || null;
+
+  try {
+    const r = await fetch(`${BACKEND}/api/sites/${_mipSiteId}`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: JSON.stringify({ ai_prompt, default_category_id })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro ao salvar');
+
+    // Atualiza sitesData local sem precisar recarregar tudo
+    const idx = sitesData.findIndex(s => s.id === _mipSiteId);
+    if (idx >= 0) { sitesData[idx].ai_prompt = ai_prompt; sitesData[idx].default_category_id = default_category_id; }
+
+    toast('Identidade editorial salva!', 'sucesso');
+    fecharConfigIA();
+    renderMeusPortais();
+  } catch (e) {
+    toast(e.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar';
+  }
+}
+
+// Fecha ao clicar fora do modal
+document.getElementById('overlay-ia-portal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) fecharConfigIA();
+});
 
 function renderPortaisCheckboxes() {
   const container = document.getElementById('portais-checkboxes');
