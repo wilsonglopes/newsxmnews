@@ -5,6 +5,7 @@ const axios                  = require('axios');
 const https                  = require('https');
 const pool                   = require('./db/connection');
 const { publishToWordPress } = require('./connectors/wordpress');
+const { buscarImagem, isAvailable: imgSearchAvailable } = require('./utils/image-search');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
@@ -13,8 +14,10 @@ const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
   Estrutura da sessão:
   {
     texts[], imageUrls[], createdAt,      ← acumulação
-    step,                                 ← 'acumulando' | 'escolhendo_site' | 'escolhendo_categoria' | 'confirmando'
+    step,                                 ← 'acumulando' | 'confirmando_imagem' | 'escolhendo_site' | 'escolhendo_categoria' | 'confirmando'
     pendingArticle,                       ← artigo gerado aguardando confirmação
+    pendingImage,                         ← imagem encontrada via busca aguardando confirmação { url, credit, sourcePage }
+    imageCredit,                          ← crédito da imagem aceita pelo reporter
     sites[],                              ← sites disponíveis do reporter
     selectedSite,                         ← site escolhido
     categorias[],                         ← categorias do WP
@@ -31,6 +34,7 @@ function getSessao(chatId) {
     sessoes.set(chatId, {
       texts: [], imageUrls: [], createdAt: Date.now(),
       step: 'acumulando', pendingArticle: null,
+      pendingImage: null, imageCredit: null,
       sites: [], selectedSite: null,
       categorias: [], catOffset: 0,
     });
@@ -100,12 +104,16 @@ async function transcreverAudio(buffer, mimeType) {
   return resp.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 }
 
-async function gerarArtigo(briefing, aiPrompt) {
+async function gerarArtigo(briefing, aiPrompt, { temFotoEnviada = false } = {}) {
   const provider = process.env.AI_PROVIDER || 'gemini';
+  const instrucaoImagem = temFotoEnviada
+    ? '"image_query": null (já existe foto enviada pelo reporter)'
+    : '"image_query": string com 3-6 palavras-chave em português para buscar uma foto ilustrativa na internet (nomes próprios, locais, evento). Se não fizer sentido buscar foto, use null.';
+
   const sys = aiPrompt ||
     `Você é um jornalista profissional. Com base no briefing (textos, transcrições de áudio, descrições de fotos), escreva um artigo jornalístico completo.
 Retorne SOMENTE um JSON:
-{ "chapeu": string(máx 2 palavras MAIÚSCULAS), "titulo": string(máx 90 chars), "resumo": string(máx 160 chars, termine com ponto), "corpo": string(HTML ≥4 parágrafos em <p>), "tags": string[] }`;
+{ "chapeu": string(máx 2 palavras MAIÚSCULAS), "titulo": string(máx 90 chars), "resumo": string(máx 160 chars, termine com ponto), "corpo": string(HTML ≥4 parágrafos em <p>), "tags": string[], ${instrucaoImagem} }`;
 
   let txt = '';
   if (provider === 'deepseek') {
@@ -128,6 +136,7 @@ Retorne SOMENTE um JSON:
     title: r.titulo || r.title || '', chapeu: r.chapeu || '',
     summary: r.resumo || r.summary || '', body: r.corpo || r.body || '',
     tags: r.tags || [], category_ids: [],
+    image_query: r.image_query || null,
   };
 }
 
@@ -187,6 +196,15 @@ function teclado_confirmacao() {
   };
 }
 
+function teclado_imagem() {
+  return {
+    inline_keyboard: [[
+      { text: '✅ Usar essa foto', callback_data: 'img_ok' },
+      { text: '🚫 Publicar sem foto', callback_data: 'img_skip' },
+    ]],
+  };
+}
+
 function textoPrevia(artigo) {
   const corpo = stripHtml(artigo.body).substring(0, 300);
   return `*${artigo.title}*\n\n_${artigo.summary}_\n\n${corpo}${corpo.length >= 300 ? '...' : ''}`;
@@ -215,7 +233,8 @@ async function processarMensagem(bot, msg) {
       await bot.sendMessage(chatId, 'Gerando artigo...');
 
       const aiPrompt     = reporter.ai_prompt || '';
-      s.pendingArticle   = await gerarArtigo(s.texts.join('\n\n'), aiPrompt);
+      const temFoto      = s.imageUrls.length > 0;
+      s.pendingArticle   = await gerarArtigo(s.texts.join('\n\n'), aiPrompt, { temFotoEnviada: temFoto });
       s.sites            = await buscarSites(reporter.id);
 
       if (!s.sites.length) {
@@ -225,14 +244,34 @@ async function processarMensagem(bot, msg) {
       // Envia prévia
       await bot.sendMessage(chatId, textoPrevia(s.pendingArticle), { parse_mode: 'Markdown' });
 
-      // Se só tem 1 site, pula seleção de site
-      if (s.sites.length === 1) {
-        s.selectedSite = s.sites[0];
-        return await passarParaCategorias(bot, chatId, s);
+      // ── Busca de imagem na internet (apenas se reporter NÃO enviou foto) ───
+      if (!temFoto && s.pendingArticle.image_query && imgSearchAvailable()) {
+        await bot.sendMessage(chatId, `Buscando foto para "${s.pendingArticle.image_query}"...`);
+        const img = await buscarImagem(s.pendingArticle.image_query);
+        if (img) {
+          s.pendingImage = img;
+          s.step = 'confirmando_imagem';
+          try {
+            await bot.sendPhoto(chatId, img.url, {
+              caption: `📷 *Foto encontrada*\n${img.credit}\nFonte: ${img.sourcePage || img.sourceSite}\n\nUsar essa foto na matéria?`,
+              parse_mode: 'Markdown',
+              reply_markup: teclado_imagem(),
+            });
+            return;
+          } catch (sendErr) {
+            console.warn('[TELEGRAM] Falha ao enviar prévia da imagem:', sendErr.message);
+            // Telegram não conseguiu carregar a URL — tenta enviar só a URL para o reporter ver
+            await bot.sendMessage(chatId,
+              `📷 Imagem encontrada (não pré-visualizável):\n${img.url}\n${img.credit}\n\nUsar essa foto?`,
+              { reply_markup: teclado_imagem() }
+            );
+            return;
+          }
+        }
+        await bot.sendMessage(chatId, 'Nenhuma foto licenciada encontrada — seguindo sem imagem.');
       }
 
-      s.step = 'escolhendo_site';
-      return bot.sendMessage(chatId, 'Onde deseja publicar?', { reply_markup: teclado_sites(s.sites) });
+      return await fluxoAposImagem(bot, chatId, s);
     }
 
     // ── Foto ──────────────────────────────────────────────────────────────────
@@ -270,6 +309,16 @@ async function processarMensagem(bot, msg) {
     console.error('[TELEGRAM] Erro:', err.message);
     bot.sendMessage(chatId, `Erro: ${err.message}`);
   }
+}
+
+async function fluxoAposImagem(bot, chatId, s) {
+  // Se só tem 1 site, pula seleção de site
+  if (s.sites.length === 1) {
+    s.selectedSite = s.sites[0];
+    return await passarParaCategorias(bot, chatId, s);
+  }
+  s.step = 'escolhendo_site';
+  return bot.sendMessage(chatId, 'Onde deseja publicar?', { reply_markup: teclado_sites(s.sites) });
 }
 
 async function passarParaCategorias(bot, chatId, s) {
@@ -314,6 +363,21 @@ async function processarCallback(bot, query) {
   const s = getSessao(chatId);
   if (!s.pendingArticle) return bot.sendMessage(chatId, 'Sessão expirada. Envie "gere" novamente.');
 
+  // ── Confirmação de imagem encontrada na busca ─────────────────────────────
+  if (data === 'img_ok') {
+    if (!s.pendingImage) return bot.sendMessage(chatId, 'Imagem expirada. Envie "gere" novamente.');
+    s.imageUrls.unshift(s.pendingImage.url);  // usa como imagem destacada
+    s.imageCredit  = s.pendingImage.credit;
+    s.pendingImage = null;
+    await bot.sendMessage(chatId, '📷 Foto aceita.');
+    return await fluxoAposImagem(bot, chatId, s);
+  }
+  if (data === 'img_skip') {
+    s.pendingImage = null;
+    await bot.sendMessage(chatId, '🚫 Publicando sem foto.');
+    return await fluxoAposImagem(bot, chatId, s);
+  }
+
   // ── Escolha de site ───────────────────────────────────────────────────────
   if (data.startsWith('s:')) {
     const siteId = data.slice(2);
@@ -342,6 +406,13 @@ async function processarCallback(bot, query) {
     await bot.sendMessage(chatId, 'Publicando...');
     try {
       const imageUrl  = s.imageUrls[0] || null;
+      // Se a imagem veio de busca na internet, anexa crédito ao final do corpo
+      if (s.imageCredit) {
+        const creditoHtml = `\n<p style="font-size:0.85em;color:#666;font-style:italic;text-align:center">${s.imageCredit}</p>`;
+        if (!s.pendingArticle.body.includes(s.imageCredit)) {
+          s.pendingArticle.body = (s.pendingArticle.body || '') + creditoHtml;
+        }
+      }
       const resultado = await publishToWordPress(s.selectedSite, s.pendingArticle, { external_url: null, image_url: imageUrl });
 
       // Grava no histórico de publicações do reporter
