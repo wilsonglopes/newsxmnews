@@ -50,6 +50,8 @@ const ALLOWED_HOSTS = [
   // WordPress CDNs
   'static.wixstatic.com',
   'wp.com', 'i0.wp.com', 'i1.wp.com', 'i2.wp.com',
+  // O Cruzeiro Notícias
+  'ocruzeironoticias.com.br',
 ];
 
 // GET /api/proxy-image?url=<encoded>

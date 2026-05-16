@@ -586,6 +586,34 @@ async function atualizarLogFonte(slug, erro) {
   } catch { /* não bloqueia */ }
 }
 
+// ─── Busca via JSON API própria ───────────────────────────────────────────────
+async function buscarAPI(source) {
+  const url = source.url;
+  const resp = await axios.get(url, {
+    timeout: 15000,
+    params: { limit: source.api_limit || 20 },
+    headers: { 'Accept': 'application/json', 'User-Agent': '' },
+  });
+  const items = resp.data?.data || resp.data?.items || resp.data || [];
+  const baseUrl = source.api_article_base || new URL(url).origin;
+  const slugPath = source.api_slug_path || '/materia/';
+
+  return items.filter(a => a.isPublished !== false).map(a => ({
+    id:           md5(a.slug || String(a.id) || a.title || ''),
+    source:       source.name,
+    source_slug:  source.slug,
+    category:     source.category,
+    title:        (a.title || '').trim(),
+    summary:      a.excerpt || a.metaDescription || '',
+    url:          `${baseUrl}${slugPath}${a.slug}`,
+    image:        a.coverImage || null,
+    published_at: normalizarData(a.publishedAt || a.published_at),
+    content:      a.body || '',
+    tags:         Array.isArray(a.tags) ? a.tags : [],
+    author:       a.author?.name || null,
+  }));
+}
+
 // ─── Busca RSS via Cloudflare Worker (para fontes bloqueadas na Oracle Cloud) ──
 async function buscarRSSViaProxy(source, cfProxy) {
   const resp = await cfProxy.fetchViaCFProxy(source.url, {
@@ -610,6 +638,8 @@ async function atualizarFonte(source) {
         console.log(`[${source.name}] headless=true — usando Puppeteer diretamente`);
         itens = await (source.type === 'rss' ? buscarRSSHeadless(source) : buscarScrapingHeadless(source));
       }
+    } else if (source.type === 'api') {
+      itens = await buscarAPI(source);
     } else if (source.type === 'rss') {
       itens = await buscarRSS(source);
     } else {
@@ -629,7 +659,7 @@ async function atualizarFonte(source) {
 
   } catch (err) {
     const is403 = err.response?.status === 403 || /\b403\b/.test(err.message || '');
-    if (is403) {
+    if (is403 && source.type !== 'api') {
       try {
         console.log(`[${source.name}] Bloqueio 403 — tentando Puppeteer`);
         const itens = await (source.type === 'rss'
