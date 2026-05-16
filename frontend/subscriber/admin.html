@@ -2113,13 +2113,17 @@ function pubFonteRender(filtro) {
     ? _pubFontesAll.filter(f => f.name.toLowerCase().includes(q) || (f.category||'').toLowerCase().includes(q))
     : _pubFontesAll;
 
+  const itemHtml = (f, indent) => {
+    const pad = indent ? '6px 12px 6px 18px' : '7px 12px';
+    const safe = f.name.replace(/"/g, '&quot;');
+    return `<div class="pff-item" data-value="${f.slug}" data-label="${safe}"
+      style="padding:${pad};cursor:pointer;font-size:.83rem;background:#fff;color:#1e293b"
+      onmousedown="pubFonteSelect(this.dataset.value,this.dataset.label)">${f.name}</div>`;
+  };
+
   if (q) {
     // Sem grupos ao filtrar — lista plana
-    filtered.forEach(f => {
-      html += `<div class="pff-item" data-value="${f.slug}"
-        style="padding:7px 12px;cursor:pointer;font-size:.83rem;background:#fff;color:#1e293b"
-        onmousedown="pubFonteSelect('${f.slug}',${JSON.stringify(f.name)})">${f.name}</div>`;
-    });
+    filtered.forEach(f => { html += itemHtml(f, false); });
     if (!filtered.length) html += `<div style="padding:10px 12px;font-size:.82rem;color:#64748b;font-style:italic;background:#fff">Nenhuma fonte encontrada</div>`;
   } else {
     // Agrupado por categoria
@@ -2137,16 +2141,9 @@ function pubFonteRender(filtro) {
     catOrder.forEach(cat => {
       if (!grupos[cat]?.length) return;
       html += `<div style="padding:5px 12px 3px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;background:#f8fafc;position:sticky;top:0">${FONTE_GRUPOS[cat]}</div>`;
-      grupos[cat].forEach(f => {
-        html += `<div class="pff-item" data-value="${f.slug}"
-          style="padding:6px 12px 6px 18px;cursor:pointer;font-size:.83rem;background:#fff;color:#1e293b"
-          onmousedown="pubFonteSelect('${f.slug}',${JSON.stringify(f.name)})">${f.name}</div>`;
-      });
+      grupos[cat].forEach(f => { html += itemHtml(f, true); });
     });
-    semGrupo.forEach(f => {
-      html += `<div class="pff-item" data-value="${f.slug}"
-        style="padding:6px 12px;cursor:pointer;font-size:.83rem;background:#fff;color:#1e293b"
-        onmousedown="pubFonteSelect('${f.slug}',${JSON.stringify(f.name)})">${f.name}</div>`;
+    semGrupo.forEach(f => { html += itemHtml(f, false); });
     });
   }
 
