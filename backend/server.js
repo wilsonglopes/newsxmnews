@@ -763,6 +763,78 @@ app.use('/api/admin/sites-catalog', require('./routes/sites-catalog'));
 // Admin (Fase 4) — injeta contexto mutável do servidor
 app.use('/api/admin', require('./routes/admin')({ sources, cache, atualizarFonte }));
 
+// Página HTML com lista de matérias recentes pra testar geração de card
+app.get('/api/admin/test-card', async (req, res) => {
+  const { gerarCard } = require('./utils/card-generator');
+  const pool = require('./db/connection');
+
+  // Modo lista: HTML com últimas matérias
+  if (!req.query.article_id && !req.query.chapeu && !req.query.image_url) {
+    try {
+      const { rows } = await pool.query(`
+        SELECT id, chapeu, title, summary, image_url, fetched_at
+        FROM articles
+        WHERE image_url IS NOT NULL AND summary IS NOT NULL AND length(summary) > 50
+        ORDER BY fetched_at DESC
+        LIMIT 20
+      `);
+      const cards = rows.map(r => `
+        <div style="border:1px solid #ddd;border-radius:8px;padding:12px;margin:8px 0;background:#fff">
+          <div style="font-size:12px;color:#666">${r.chapeu || '—'}</div>
+          <div style="font-weight:600;margin:4px 0">${r.title || ''}</div>
+          <div style="font-size:13px;color:#444;margin-bottom:8px">${(r.summary || '').substring(0, 200)}</div>
+          <a href="/api/admin/test-card/render?article_id=${r.id}" target="_blank"
+             style="display:inline-block;background:#2563eb;color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px">
+            🎨 Gerar card
+          </a>
+        </div>
+      `).join('');
+      return res.type('text/html').send(`
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Teste Card XMNews</title></head>
+<body style="font-family:sans-serif;background:#f5f5f5;padding:20px;max-width:900px;margin:0 auto">
+  <h2>Teste de geração de card — XMNews</h2>
+  <p>Últimas 20 matérias com imagem e resumo. Clique em "Gerar card" pra ver o resultado.</p>
+  ${cards}
+</body></html>`);
+    } catch (err) {
+      console.error('[test-card/list]', err);
+      return res.status(500).type('text/plain').send('Erro: ' + err.message);
+    }
+  }
+
+  // Modo render: gera e retorna o JPG
+  try {
+    const articleId = req.query.article_id;
+    let chapeu = req.query.chapeu || 'COPA DO MUNDO';
+    let resumo = req.query.resumo || 'Texto de exemplo do resumo.';
+    let imageUrl = req.query.image_url || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Luiz_In%C3%A1cio_Lula_da_Silva_and_George_W._Bush_20080709.jpg/1280px-Luiz_In%C3%A1cio_Lula_da_Silva_and_George_W._Bush_20080709.jpg';
+
+    if (articleId) {
+      const { rows } = await pool.query(
+        'SELECT chapeu, summary, image_url FROM articles WHERE id = $1',
+        [articleId]
+      );
+      if (rows[0]) {
+        chapeu   = rows[0].chapeu   || chapeu;
+        resumo   = rows[0].summary  || resumo;
+        imageUrl = rows[0].image_url || imageUrl;
+      }
+    }
+
+    const buffer = await gerarCard({ chapeu, resumo, imageUrl });
+    res.type('image/jpeg').send(buffer);
+  } catch (err) {
+    console.error('[test-card]', err);
+    res.status(500).type('text/plain').send('Erro: ' + err.message);
+  }
+});
+
+// Alias usado pelos botões "Gerar card" da página de lista
+app.get('/api/admin/test-card/render', (req, res) => {
+  req.url = '/api/admin/test-card?' + new URLSearchParams(req.query).toString();
+  app._router.handle(req, res, () => {});
+});
+
 // GET /api/proxy-image?url=... → proxy de imagens para contornar hotlink protection
 app.get('/api/proxy-image', async (req, res) => {
   const { url } = req.query;
