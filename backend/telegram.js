@@ -13,25 +13,18 @@ const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
 // ─── Sessões (em memória) ─────────────────────────────────────────────────────
 /*
-  Estrutura da sessão (multi-portal):
+  Estrutura da sessão (single-portal):
   {
-    texts[], imageUrls[], createdAt,        ← acumulação
-    step,                                   ← 'acumulando' | 'escolhendo_sites'
-                                            | 'config_categoria' | 'config_facebook'
-                                            | 'confirmando_tudo'
-    sites[],                                ← todos os sites do reporter (carregados ao "gere")
-    selectedSiteIds: Set,                   ← sites selecionados pelo reporter
-    pendingByPortal: {                      ← config gerada por portal
-      [siteId]: {
-        site,                               ← objeto do site (cache p/ publicar)
-        article,                            ← { chapeu, title, summary, body, tags, category_ids }
-        categoria,                          ← { id, name } | null
-        facebookEnabled,                    ← bool (default true se site.facebook_enabled)
-        categorias,                         ← cache das categorias WP do portal
-        catOffset,                          ← paginação de categorias
-      }
-    },
-    cursorPortal: siteId | null,            ← qual portal está sendo configurado
+    texts[], imageUrls[], createdAt,      ← acumulação
+    step,                                 ← 'acumulando' | 'escolhendo_site'
+                                          | 'escolhendo_categoria' | 'escolhendo_fb'
+                                          | 'confirmando'
+    sites[],                              ← sites disponíveis (carregados ao "gere")
+    selectedSite,                         ← site escolhido (objeto)
+    pendingArticle,                       ← artigo gerado aguardando confirmação
+    categorias[],                         ← cache categorias WP do site escolhido
+    catOffset,                            ← paginação
+    publishToFacebook,                    ← bool (definido após pergunta de FB)
   }
 */
 const sessoes = new Map();
@@ -44,9 +37,9 @@ function getSessao(chatId) {
     sessoes.set(chatId, {
       texts: [], imageUrls: [], createdAt: Date.now(),
       step: 'acumulando',
-      sites: [], selectedSiteIds: new Set(),
-      pendingByPortal: {},
-      cursorPortal: null,
+      sites: [], selectedSite: null, pendingArticle: null,
+      categorias: [], catOffset: 0,
+      publishToFacebook: false,
     });
   }
   return sessoes.get(chatId);
@@ -177,51 +170,51 @@ async function buscarSites(subscriberId) {
 
 // ─── Teclados inline ──────────────────────────────────────────────────────────
 
-function teclado_sites_multi(sites, selectedIds) {
-  // Cada site: ☑/☐ no início. Botão "Confirmar" no final
-  const buttons = sites.map(s => {
-    const marcado = selectedIds.has(s.id);
-    const marca   = marcado ? '☑' : '☐';
-    const fb      = s.facebook_enabled ? ' 📘' : '';
-    return [{ text: `${marca} ${s.site_name}${fb}`, callback_data: `toggle:${s.id}` }];
-  });
-  buttons.push([{ text: '✅ Confirmar seleção', callback_data: 'sites_done' }]);
+function teclado_sites(sites) {
+  const buttons = sites.map(s => ([{
+    text: `${s.site_name}${s.facebook_enabled ? ' 📘' : ''}`,
+    callback_data: `s:${s.id}`,
+  }]));
   buttons.push([{ text: '❌ Cancelar', callback_data: 'cancel' }]);
   return { inline_keyboard: buttons };
 }
 
-function teclado_categorias(cats, offset, siteId) {
+function teclado_categorias(cats, offset) {
   const pagina  = cats.slice(offset, offset + CATS_POR_PAG);
-  const buttons = pagina.map(c => [{ text: c.name, callback_data: `cat:${siteId}:${c.id}` }]);
+  const buttons = pagina.map(c => [{ text: c.name, callback_data: `c:${c.id}` }]);
   const nav = [];
-  if (offset > 0)                          nav.push({ text: '⬅ Anterior', callback_data: `catpg:${siteId}:${offset - CATS_POR_PAG}` });
-  if (offset + CATS_POR_PAG < cats.length) nav.push({ text: 'Próximas ➡', callback_data: `catpg:${siteId}:${offset + CATS_POR_PAG}` });
+  if (offset > 0)                          nav.push({ text: '⬅ Anterior', callback_data: `cm:${offset - CATS_POR_PAG}` });
+  if (offset + CATS_POR_PAG < cats.length) nav.push({ text: 'Próximas ➡', callback_data: `cm:${offset + CATS_POR_PAG}` });
   if (nav.length) buttons.push(nav);
-  buttons.push([{ text: '— Sem categoria —', callback_data: `cat:${siteId}:0` }]);
+  buttons.push([{ text: '— Sem categoria —', callback_data: 'c:0' }]);
+  buttons.push([{ text: '❌ Cancelar', callback_data: 'cancel' }]);
   return { inline_keyboard: buttons };
 }
 
-function teclado_facebook(siteId) {
+function teclado_facebook() {
   return {
-    inline_keyboard: [[
-      { text: '📘 Sim, postar no Facebook', callback_data: `fb:${siteId}:1` },
-      { text: '🚫 Não, só WordPress',        callback_data: `fb:${siteId}:0` },
-    ]],
+    inline_keyboard: [
+      [
+        { text: '📘 Sim, postar no Facebook', callback_data: 'fb:1' },
+        { text: '🚫 Não, só no site',          callback_data: 'fb:0' },
+      ],
+      [{ text: '❌ Cancelar', callback_data: 'cancel' }],
+    ],
   };
 }
 
-function teclado_confirmacao_final() {
+function teclado_confirmacao() {
   return {
     inline_keyboard: [[
-      { text: '✅ Publicar tudo', callback_data: 'pub_all' },
-      { text: '❌ Cancelar',      callback_data: 'cancel'  },
+      { text: '✅ Publicar', callback_data: 'pub' },
+      { text: '❌ Cancelar', callback_data: 'cancel' },
     ]],
   };
 }
 
 function textoPrevia(artigo) {
-  const corpo = stripHtml(artigo.body).substring(0, 250);
-  return `*${artigo.title}*\n\n_${artigo.summary}_\n\n${corpo}${corpo.length >= 250 ? '...' : ''}`;
+  const corpo = stripHtml(artigo.body).substring(0, 300);
+  return `*${artigo.title}*\n\n_${artigo.summary}_\n\n${corpo}${corpo.length >= 300 ? '...' : ''}`;
 }
 
 // ─── Fluxo principal ──────────────────────────────────────────────────────────
@@ -249,21 +242,17 @@ async function processarMensagem(bot, msg) {
         return bot.sendMessage(chatId, 'Você não tem nenhum site configurado. Contate o administrador.');
       }
       s.sites = sites;
-      s.pendingByPortal = {};
-      s.selectedSiteIds = new Set();
 
-      // Se só tem 1 site, pula a seleção e marca direto
+      // Se só tem 1 site, pula seleção
       if (sites.length === 1) {
-        s.selectedSiteIds.add(sites[0].id);
-        await bot.sendMessage(chatId, `📰 Portal: *${sites[0].site_name}*. Gerando...`, { parse_mode: 'Markdown' });
-        return await gerarParaTodosPortais(bot, chatId, s, reporter);
+        s.selectedSite = sites[0];
+        return await gerarEPedirCategoria(bot, chatId, s, reporter);
       }
 
-      s.step = 'escolhendo_sites';
-      return bot.sendMessage(chatId,
-        '📰 Em qual(is) portal(is) deseja publicar?\n_Marque os portais e clique em Confirmar. Portais com 📘 publicam também no Facebook._',
-        { parse_mode: 'Markdown', reply_markup: teclado_sites_multi(sites, s.selectedSiteIds) }
-      );
+      s.step = 'escolhendo_site';
+      return bot.sendMessage(chatId, '📰 Em qual portal deseja publicar?', {
+        reply_markup: teclado_sites(sites)
+      });
     }
 
     // ── Foto ──────────────────────────────────────────────────────────────────
@@ -303,184 +292,126 @@ async function processarMensagem(bot, msg) {
   }
 }
 
-// ─── Geração: roda IA pra cada portal selecionado ───────────────────────────
+// ─── Etapas do fluxo ────────────────────────────────────────────────────────
 
-async function gerarParaTodosPortais(bot, chatId, s, reporter) {
-  const briefing = s.texts.join('\n\n');
-  const selecionados = s.sites.filter(site => s.selectedSiteIds.has(site.id));
+async function gerarEPedirCategoria(bot, chatId, s, reporter) {
+  const site = s.selectedSite;
+  await bot.sendMessage(chatId, `⚙️ Gerando matéria para "${site.site_name}"...`);
 
-  for (const site of selecionados) {
-    try {
-      await bot.sendMessage(chatId, `⚙️ Gerando para "${site.site_name}"...`);
-      const aiPrompt = site.ai_prompt || reporter.ai_prompt || '';
-      const article  = await gerarArtigo(briefing, aiPrompt);
-      s.pendingByPortal[site.id] = {
-        site,
-        article,
-        categoria: null,
-        facebookEnabled: site.facebook_enabled === true, // default: postar se site permite
-        categorias: [],
-        catOffset: 0,
-      };
-      await bot.sendMessage(chatId, textoPrevia(article), { parse_mode: 'Markdown' });
-    } catch (err) {
-      console.error(`[TELEGRAM] Falha ao gerar para ${site.site_name}: ${err.message}`);
-      await bot.sendMessage(chatId, `❌ Falha ao gerar para *${site.site_name}*: ${err.message}\n\nEsse portal será removido da publicação.`, { parse_mode: 'Markdown' });
-      s.selectedSiteIds.delete(site.id);
-    }
+  try {
+    const aiPrompt = site.ai_prompt || reporter.ai_prompt || '';
+    s.pendingArticle = await gerarArtigo(s.texts.join('\n\n'), aiPrompt);
+  } catch (err) {
+    limparSessao(chatId);
+    return bot.sendMessage(chatId, `❌ Falha ao gerar: ${err.message}`);
   }
 
-  if (!s.selectedSiteIds.size) {
-    return bot.sendMessage(chatId, 'Nenhum portal pôde ser processado. Sessão encerrada.');
-  }
+  // Mostra prévia
+  await bot.sendMessage(chatId, textoPrevia(s.pendingArticle), { parse_mode: 'Markdown' });
 
-  // Pega o primeiro portal pra começar a configurar categoria
-  return await configurarProximoPortal(bot, chatId, s);
-}
+  // Carrega e pergunta categoria
+  s.categorias = await buscarCategorias(site);
+  s.catOffset  = 0;
+  s.step       = 'escolhendo_categoria';
 
-// ─── Loop de configuração por portal: categoria → facebook → próximo ────────
-
-async function configurarProximoPortal(bot, chatId, s) {
-  // Encontra o próximo portal SEM categoria definida
-  const portaisPendentesCat = [...s.selectedSiteIds].filter(id => !s.pendingByPortal[id]?.categoria);
-  if (portaisPendentesCat.length > 0) {
-    const siteId = portaisPendentesCat[0];
-    return await perguntarCategoria(bot, chatId, s, siteId);
-  }
-
-  // Todos têm categoria — verifica se algum portal com FB ainda precisa decidir
-  const portaisPendentesFB = [...s.selectedSiteIds].filter(id => {
-    const p = s.pendingByPortal[id];
-    return p?.site?.facebook_enabled && p?.facebookEnabled === undefined;
-  });
-  if (portaisPendentesFB.length > 0) {
-    const siteId = portaisPendentesFB[0];
-    return await perguntarFacebook(bot, chatId, s, siteId);
-  }
-
-  // Tudo configurado — mostra resumo final
-  return await mostrarResumoFinal(bot, chatId, s);
-}
-
-async function perguntarCategoria(bot, chatId, s, siteId) {
-  const p = s.pendingByPortal[siteId];
-  if (!p.categorias.length) {
-    p.categorias = await buscarCategorias(p.site);
-  }
-  s.cursorPortal = siteId;
-  s.step = 'config_categoria';
-
-  if (!p.categorias.length) {
-    // Sem categorias do WP — segue sem
-    p.categoria = { id: 0, name: 'Sem categoria' };
-    return await configurarProximoPortal(bot, chatId, s);
+  if (!s.categorias.length) {
+    // Sem categorias — segue direto pro Facebook ou confirmação
+    return await proximaEtapaAposCategoria(bot, chatId, s);
   }
 
   return bot.sendMessage(chatId,
-    `🗂 Categoria para *${p.site.site_name}*:`,
-    { parse_mode: 'Markdown', reply_markup: teclado_categorias(p.categorias, 0, siteId) }
+    `🗂 Escolha a categoria para "${site.site_name}":`,
+    { reply_markup: teclado_categorias(s.categorias, 0) }
   );
 }
 
-async function perguntarFacebook(bot, chatId, s, siteId) {
-  const p = s.pendingByPortal[siteId];
-  s.cursorPortal = siteId;
-  s.step = 'config_facebook';
-  return bot.sendMessage(chatId,
-    `📘 Publicar também no Facebook para *${p.site.site_name}*?`,
-    { parse_mode: 'Markdown', reply_markup: teclado_facebook(siteId) }
-  );
-}
-
-async function mostrarResumoFinal(bot, chatId, s) {
-  s.step = 'confirmando_tudo';
-  const linhas = ['📋 *Tudo pronto:*', ''];
-  for (const id of s.selectedSiteIds) {
-    const p = s.pendingByPortal[id];
-    const cat = p.categoria?.name || 'Sem categoria';
-    const fb  = (p.site.facebook_enabled && p.facebookEnabled) ? ' + 📘 Facebook' : '';
-    linhas.push(`• ${p.site.site_name} → ${cat}${fb}`);
+async function proximaEtapaAposCategoria(bot, chatId, s) {
+  // Se site tem Facebook, pergunta. Senão vai pra confirmação
+  if (s.selectedSite.facebook_enabled && s.selectedSite.facebook_page_id && s.selectedSite.facebook_page_token) {
+    s.step = 'escolhendo_fb';
+    return bot.sendMessage(chatId,
+      `📘 Publicar também no Facebook da página "${s.selectedSite.site_name}"?`,
+      { reply_markup: teclado_facebook() }
+    );
   }
-  linhas.push('', 'Confirma todas as publicações?');
-  return bot.sendMessage(chatId, linhas.join('\n'),
-    { parse_mode: 'Markdown', reply_markup: teclado_confirmacao_final() });
+  return await mostrarConfirmacao(bot, chatId, s);
+}
+
+async function mostrarConfirmacao(bot, chatId, s) {
+  s.step = 'confirmando';
+  const catNome = s.pendingArticle.category_ids?.length
+    ? (s.categorias.find(c => c.id === s.pendingArticle.category_ids[0])?.name || 'Categoria escolhida')
+    : 'Sem categoria';
+  const fbInfo = s.selectedSite.facebook_enabled
+    ? (s.publishToFacebook ? '✓ + Facebook 📘' : '(sem Facebook)')
+    : '';
+
+  return bot.sendMessage(chatId,
+    `📋 Tudo pronto!\n\n*${s.pendingArticle.title}*\n\nSite: ${s.selectedSite.site_name}\nCategoria: ${catNome}\n${fbInfo}\n\nConfirmar publicação?`,
+    { parse_mode: 'Markdown', reply_markup: teclado_confirmacao() }
+  );
 }
 
 // ─── Publicação ──────────────────────────────────────────────────────────────
 
-async function publicarTudo(bot, chatId, s, reporter) {
-  await bot.sendMessage(chatId, '⏳ Publicando em todos os portais...');
-  const resultados = [];
+async function publicar(bot, chatId, s, reporter) {
+  await bot.sendMessage(chatId, '⏳ Publicando...');
+  const site = s.selectedSite;
+  const article = s.pendingArticle;
+  const imageUrl  = s.imageUrls[0] || null;
 
-  for (const id of s.selectedSiteIds) {
-    const p = s.pendingByPortal[id];
-    const site = p.site;
+  let resultado;
+  try {
+    resultado = await publishToWordPress(site, article, { external_url: null, image_url: imageUrl });
+  } catch (err) {
+    console.error('[TELEGRAM] Erro ao publicar:', err.message);
+    return bot.sendMessage(chatId, `❌ Erro ao publicar: ${err.message}`);
+  }
+
+  // Grava no histórico
+  try {
+    const tagsStr = (article.tags || []).join(', ') || null;
+    await pool.query(
+      `INSERT INTO article_drafts
+         (subscriber_id, article_id, chapeu, title, summary, body, tags,
+          article_title, article_source, article_image_url, article_external_url, external_post_url)
+       VALUES ($1, NULL, $2, $3, $4, $5, $6, '', '📱 Telegram', $7, '', $8)`,
+      [
+        reporter.id,
+        article.chapeu || '', article.title || '', article.summary || '',
+        article.body || '', tagsStr || '', imageUrl || '', resultado.post_url || '',
+      ]
+    );
+  } catch (dbErr) { console.warn('[TELEGRAM] histórico:', dbErr.message); }
+
+  // Facebook (se reporter aceitou)
+  let fbInfo = '';
+  if (s.publishToFacebook && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
     try {
-      // Aplica categoria escolhida
-      if (p.categoria && p.categoria.id) p.article.category_ids = [p.categoria.id];
-
-      const imageUrl  = s.imageUrls[0] || null;
-      const resultado = await publishToWordPress(site, p.article, { external_url: null, image_url: imageUrl });
-      const linha = { site: site.site_name, ok: true, url: resultado.post_url };
-
-      // Grava histórico
-      try {
-        const tagsStr = (p.article.tags || []).join(', ') || null;
-        await pool.query(
-          `INSERT INTO article_drafts
-             (subscriber_id, article_id, chapeu, title, summary, body, tags,
-              article_title, article_source, article_image_url, article_external_url, external_post_url)
-           VALUES ($1, NULL, $2, $3, $4, $5, $6, '', '📱 Telegram', $7, '', $8)`,
-          [
-            reporter.id,
-            p.article.chapeu || '', p.article.title || '', p.article.summary || '',
-            p.article.body || '', tagsStr || '', imageUrl || '', resultado.post_url || '',
-          ]
-        );
-      } catch (dbErr) { console.warn('[TELEGRAM] Falha no histórico:', dbErr.message); }
-
-      // Facebook (se configurado E o reporter marcou)
-      if (p.site.facebook_enabled && p.facebookEnabled && p.site.facebook_page_id && p.site.facebook_page_token) {
-        try {
-          const cardBuffer = await gerarCard({
-            chapeu:   p.article.chapeu || '',
-            resumo:   p.article.summary || '',
-            imageUrl: imageUrl || '',
-          });
-          const fb = await publicarFoto(
-            { facebook_page_id: p.site.facebook_page_id, facebook_page_token: decryptToken(p.site.facebook_page_token) },
-            cardBuffer,
-            { chapeu: p.article.chapeu, title: p.article.title, summary: p.article.summary, post_url: resultado.post_url }
-          );
-          linha.fbUrl = fb.post_url;
-          console.log(`[TELEGRAM/FB] ✓ ${site.site_name}: ${fb.post_url}`);
-        } catch (fbErr) {
-          linha.fbError = fbErr.message;
-          console.error(`[TELEGRAM/FB] ✗ ${site.site_name}: ${fbErr.message}`);
-        }
-      }
-
-      resultados.push(linha);
-      console.log(`[TELEGRAM] ✓ ${reporter.name} → ${site.site_name}: ${resultado.post_url}`);
-    } catch (err) {
-      console.error(`[TELEGRAM] ✗ ${site.site_name}: ${err.message}`);
-      resultados.push({ site: site.site_name, ok: false, error: err.message });
+      const cardBuffer = await gerarCard({
+        chapeu:   article.chapeu || '',
+        resumo:   article.summary || '',
+        imageUrl: imageUrl || '',
+      });
+      const fb = await publicarFoto(
+        { facebook_page_id: site.facebook_page_id, facebook_page_token: decryptToken(site.facebook_page_token) },
+        cardBuffer,
+        { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url }
+      );
+      fbInfo = `\n📘 Facebook: ${fb.post_url || 'OK'}`;
+      console.log(`[TELEGRAM/FB] ✓ ${site.site_name}: ${fb.post_url}`);
+    } catch (fbErr) {
+      fbInfo = `\n📘 Facebook falhou: ${fbErr.message}`;
+      console.error(`[TELEGRAM/FB] ✗ ${site.site_name}: ${fbErr.message}`);
     }
   }
 
-  // Monta mensagem final
-  const linhas = ['📰 *Resultado das publicações:*', ''];
-  for (const r of resultados) {
-    if (r.ok) {
-      linhas.push(`✓ ${r.site}: ${r.url}`);
-      if (r.fbUrl)   linhas.push(`  📘 Facebook: ${r.fbUrl}`);
-      if (r.fbError) linhas.push(`  📘 Facebook falhou: ${r.fbError}`);
-    } else {
-      linhas.push(`✗ ${r.site}: ${r.error}`);
-    }
-  }
-  await bot.sendMessage(chatId, linhas.join('\n'), { parse_mode: 'Markdown', disable_web_page_preview: true });
+  console.log(`[TELEGRAM] ✓ ${reporter.name} → ${site.site_name}: ${resultado.post_url}`);
   limparSessao(chatId);
+  return bot.sendMessage(chatId,
+    `✅ Publicado!\n\n${article.title}\n\n${resultado.post_url || ''}${fbInfo}`,
+    { disable_web_page_preview: false }
+  );
 }
 
 // ─── Callbacks ──────────────────────────────────────────────────────────────
@@ -496,73 +427,47 @@ async function processarCallback(bot, query) {
 
   const s = getSessao(chatId);
 
-  // ── Cancelar (qualquer etapa) ────────────────────────────────────────────
+  // ── Cancelar ──────────────────────────────────────────────────────────────
   if (data === 'cancel') {
     limparSessao(chatId);
-    return bot.sendMessage(chatId, 'Sessão cancelada. Toda a cobertura foi descartada.');
+    return bot.sendMessage(chatId, '❌ Cancelado. Sessão descartada.');
   }
 
-  // ── Toggle de portal na multi-seleção ────────────────────────────────────
-  if (data.startsWith('toggle:')) {
-    const siteId = data.slice(7);
-    if (s.selectedSiteIds.has(siteId)) s.selectedSiteIds.delete(siteId);
-    else                                s.selectedSiteIds.add(siteId);
-    try {
-      await bot.editMessageReplyMarkup(
-        teclado_sites_multi(s.sites, s.selectedSiteIds),
-        { chat_id: chatId, message_id: query.message.message_id }
-      );
-    } catch (e) { /* mensagem talvez antiga */ }
-    return;
-  }
-
-  // ── Confirmar seleção de sites → gerar artigos ───────────────────────────
-  if (data === 'sites_done') {
-    if (!s.selectedSiteIds.size) {
-      return bot.sendMessage(chatId, 'Selecione ao menos um portal antes de continuar.');
-    }
-    return await gerarParaTodosPortais(bot, chatId, s, reporter);
+  // ── Escolha de site ──────────────────────────────────────────────────────
+  if (data.startsWith('s:')) {
+    const siteId = data.slice(2);
+    const site = s.sites.find(x => x.id === siteId);
+    if (!site) return bot.sendMessage(chatId, 'Site não encontrado. Use "gere" novamente.');
+    s.selectedSite = site;
+    return await gerarEPedirCategoria(bot, chatId, s, reporter);
   }
 
   // ── Paginação de categorias ──────────────────────────────────────────────
-  if (data.startsWith('catpg:')) {
-    const [, siteId, offsetStr] = data.split(':');
-    const p = s.pendingByPortal[siteId];
-    if (!p) return;
-    p.catOffset = parseInt(offsetStr);
+  if (data.startsWith('cm:')) {
+    s.catOffset = parseInt(data.slice(3));
     return bot.editMessageReplyMarkup(
-      teclado_categorias(p.categorias, p.catOffset, siteId),
+      teclado_categorias(s.categorias, s.catOffset),
       { chat_id: chatId, message_id: query.message.message_id }
     );
   }
 
   // ── Escolha de categoria ─────────────────────────────────────────────────
-  if (data.startsWith('cat:')) {
-    const [, siteId, catIdStr] = data.split(':');
-    const catId = parseInt(catIdStr) || 0;
-    const p = s.pendingByPortal[siteId];
-    if (!p) return;
-    if (catId === 0) {
-      p.categoria = { id: 0, name: 'Sem categoria' };
-    } else {
-      const cat = p.categorias.find(c => c.id === catId);
-      p.categoria = cat || { id: catId, name: `Categoria ${catId}` };
-    }
-    return await configurarProximoPortal(bot, chatId, s);
+  if (data.startsWith('c:')) {
+    if (!s.pendingArticle) return bot.sendMessage(chatId, 'Sessão sem matéria. Envie "gere" novamente.');
+    const catId = parseInt(data.slice(2)) || 0;
+    s.pendingArticle.category_ids = catId ? [catId] : [];
+    return await proximaEtapaAposCategoria(bot, chatId, s);
   }
 
-  // ── Decisão de Facebook por portal ───────────────────────────────────────
+  // ── Decisão de Facebook ──────────────────────────────────────────────────
   if (data.startsWith('fb:')) {
-    const [, siteId, decisaoStr] = data.split(':');
-    const p = s.pendingByPortal[siteId];
-    if (!p) return;
-    p.facebookEnabled = decisaoStr === '1';
-    return await configurarProximoPortal(bot, chatId, s);
+    s.publishToFacebook = data === 'fb:1';
+    return await mostrarConfirmacao(bot, chatId, s);
   }
 
-  // ── Confirmar publicação geral ───────────────────────────────────────────
-  if (data === 'pub_all') {
-    return await publicarTudo(bot, chatId, s, reporter);
+  // ── Publicar ──────────────────────────────────────────────────────────────
+  if (data === 'pub') {
+    return await publicar(bot, chatId, s, reporter);
   }
 }
 
