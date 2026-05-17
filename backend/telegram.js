@@ -224,10 +224,6 @@ function textoPrevia(artigo) {
   return `*${artigo.title}*\n\n_${artigo.summary}_\n\n${corpo}${corpo.length >= 250 ? '...' : ''}`;
 }
 
-function escapeMd(s) {
-  return String(s || '').replace(/([_*[\]()~`>#+=|{}.!-])/g, '\\$1');
-}
-
 // ─── Fluxo principal ──────────────────────────────────────────────────────────
 
 async function processarMensagem(bot, msg) {
@@ -315,7 +311,7 @@ async function gerarParaTodosPortais(bot, chatId, s, reporter) {
 
   for (const site of selecionados) {
     try {
-      await bot.sendMessage(chatId, `⚙️ Gerando para *${escapeMd(site.site_name)}*...`, { parse_mode: 'MarkdownV2' });
+      await bot.sendMessage(chatId, `⚙️ Gerando para "${site.site_name}"...`);
       const aiPrompt = site.ai_prompt || reporter.ai_prompt || '';
       const article  = await gerarArtigo(briefing, aiPrompt);
       s.pendingByPortal[site.id] = {
