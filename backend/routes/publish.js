@@ -13,7 +13,7 @@ router.use(auth);
 
 // ── POST /api/publish ─────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
-  const { article_id, site_id, rewritten, force } = req.body || {};
+  const { article_id, site_id, rewritten, force, publish_to_facebook } = req.body || {};
 
   if (!article_id || !site_id || !rewritten) {
     return res.status(400).json({ error: 'article_id, site_id e rewritten são obrigatórios.' });
@@ -45,7 +45,8 @@ router.post('/', async (req, res) => {
              COALESCE(sc.blogger_refresh_token, ss.blogger_refresh_token) AS blogger_refresh_token,
              COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
              COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
-             COALESCE(sc.post_format, ss.post_format)         AS post_format
+             COALESCE(sc.post_format, ss.post_format)         AS post_format,
+             sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
@@ -119,7 +120,50 @@ router.post('/', async (req, res) => {
       console.error('[publish] falha ao registrar no banco (post criado):', dbErr.message);
     }
 
-    res.json({ success: true, post_url: result.post_url, post_id: result.post_id });
+    // ── Publicação no Facebook (opcional) ──────────────────────────────────
+    let facebookResult = null;
+    const wantsFacebook = publish_to_facebook === true || publish_to_facebook === 'true';
+    if (wantsFacebook && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
+      try {
+        const { gerarCard } = require('../utils/card-generator');
+        const { publicarFoto } = require('../connectors/facebook');
+        const { decryptToken } = require('../connectors/encrypt');
+
+        const cardBuffer = await gerarCard({
+          chapeu:   rewritten.chapeu || article.chapeu || '',
+          resumo:   rewritten.summary || article.summary || '',
+          imageUrl: article.image_url || '',
+        });
+
+        const fb = await publicarFoto(
+          { facebook_page_id: site.facebook_page_id, facebook_page_token: decryptToken(site.facebook_page_token) },
+          cardBuffer,
+          { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+        );
+
+        // Salva referência no publications
+        try {
+          await pool.query(
+            `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
+             WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5
+             AND status = 'published'`,
+            [fb.photo_id || fb.post_id, fb.post_url, pubSubscriberId, article_id, site_id]
+          );
+        } catch (e) { console.warn('[publish/fb] grava ID:', e.message); }
+
+        facebookResult = { ok: true, post_url: fb.post_url, photo_id: fb.photo_id };
+      } catch (fbErr) {
+        console.error('[publish/fb]', fbErr.message);
+        facebookResult = { ok: false, error: fbErr.message };
+      }
+    }
+
+    res.json({
+      success: true,
+      post_url: result.post_url,
+      post_id: result.post_id,
+      facebook: facebookResult,
+    });
   } catch (err) {
     console.error('[publish]', err.message);
     res.status(500).json({ error: err.message });

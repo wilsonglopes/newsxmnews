@@ -577,6 +577,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
                COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
                COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
                COALESCE(sc.post_format, ss.post_format)         AS post_format,
+               COALESCE(sc.facebook_enabled, false)             AS facebook_enabled,
                sub.name  AS subscriber_name,
                sub.email AS subscriber_email
         FROM subscriber_sites ss

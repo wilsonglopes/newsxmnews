@@ -306,69 +306,69 @@ async function buscarScrapingHeadless(source) {
 // ─── Criar índices no banco (executado uma vez na inicialização) ─────────────
 async function criarIndicesBanco() {
   if (!pool) return;
-  try {
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_articles_url  ON articles(external_url);
-      CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(published_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_articles_src  ON articles(source_id);
-    `);
-    // Colunas de perfil do assinante — precisam existir antes do GET /auth/me
-    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS phone   VARCHAR(30)`);
-    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS address TEXT`);
+  // Helper: roda cada migration isoladamente; se uma falhar, as próximas continuam.
+  const tryMigrate = async (label, sql) => {
+    try { await pool.query(sql); }
+    catch (e) { console.warn(`[migration] ${label}: ${e.message}`); }
+  };
 
-    // Catálogo central de sites (criado via migrate.js, garantido aqui p/ ambientes novos)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS sites_catalog (
-        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name            TEXT NOT NULL,
-        platform        VARCHAR(30) NOT NULL DEFAULT 'wordpress',
-        site_url        TEXT,
-        xixo_api_key    TEXT,
-        wp_username     TEXT,
-        wp_app_password TEXT,
-        blogger_blog_id TEXT,
-        blogger_access_token  TEXT,
-        blogger_refresh_token TEXT,
-        webhook_url     TEXT,
-        webhook_secret  TEXT,
-        post_format     VARCHAR(20) DEFAULT 'editorial',
-        active          BOOLEAN DEFAULT true,
-        created_at      TIMESTAMPTZ DEFAULT now()
-      )
-    `);
-    await pool.query(`
-      ALTER TABLE subscriber_sites ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES sites_catalog(id)
-    `);
-    await pool.query(`ALTER TABLE autopub_rules ADD COLUMN IF NOT EXISTS default_category_id INTEGER`);
-    // Remove PK que exigia site_id NOT NULL — regras passam a existir no nível do catálogo
-    await pool.query(`ALTER TABLE autopub_rules DROP CONSTRAINT IF EXISTS autopub_rules_pkey`);
-    await pool.query(`ALTER TABLE autopub_rules ALTER COLUMN site_id DROP NOT NULL`);
-    // Migra autopub_rules para referenciar sites_catalog diretamente (catalog_id)
-    await pool.query(`ALTER TABLE autopub_rules ADD COLUMN IF NOT EXISTS catalog_id UUID REFERENCES sites_catalog(id)`);
-    await pool.query(`
-      UPDATE autopub_rules ar
-      SET catalog_id = ss.site_id
-      FROM subscriber_sites ss
-      WHERE ar.site_id = ss.id AND ar.catalog_id IS NULL AND ss.site_id IS NOT NULL
-    `);
-    await pool.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_autopub_catalog_source
-      ON autopub_rules(catalog_id, source_id)
-      WHERE catalog_id IS NOT NULL
-    `);
-    // Corrige slug incorreto "www2" gerado a partir do domínio da URL
-    await pool.query(`UPDATE sources SET slug = 'pref-de-praia-grande' WHERE slug = 'www2'`);
-    // Telegram: chat_id do reporter + código temporário de vinculação
-    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT UNIQUE`);
-    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_link_code VARCHAR(8)`);
-    await pool.query(`ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS ai_prompt TEXT`);
-    await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_link_expires_at TIMESTAMPTZ`);
-    // article_drafts: article_id opcional (para posts originados do Telegram) + URL do post publicado
-    await pool.query(`ALTER TABLE article_drafts ALTER COLUMN article_id DROP NOT NULL`).catch(() => {});
-    await pool.query(`ALTER TABLE article_drafts ADD COLUMN IF NOT EXISTS external_post_url TEXT`);
-  } catch (err) {
-    console.error('[DB] Erro ao criar índices:', err.message);
-  }
+  await tryMigrate('idx_articles', `
+    CREATE INDEX IF NOT EXISTS idx_articles_url  ON articles(external_url);
+    CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(published_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_articles_src  ON articles(source_id);
+  `);
+  await tryMigrate('subscribers.phone',   `ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS phone   VARCHAR(30)`);
+  await tryMigrate('subscribers.address', `ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS address TEXT`);
+
+  await tryMigrate('sites_catalog table', `
+    CREATE TABLE IF NOT EXISTS sites_catalog (
+      id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name            TEXT NOT NULL,
+      platform        VARCHAR(30) NOT NULL DEFAULT 'wordpress',
+      site_url        TEXT,
+      xixo_api_key    TEXT,
+      wp_username     TEXT,
+      wp_app_password TEXT,
+      blogger_blog_id TEXT,
+      blogger_access_token  TEXT,
+      blogger_refresh_token TEXT,
+      webhook_url     TEXT,
+      webhook_secret  TEXT,
+      post_format     VARCHAR(20) DEFAULT 'editorial',
+      active          BOOLEAN DEFAULT true,
+      created_at      TIMESTAMPTZ DEFAULT now()
+    )
+  `);
+  await tryMigrate('subscriber_sites.site_id', `ALTER TABLE subscriber_sites ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES sites_catalog(id)`);
+  await tryMigrate('autopub_rules.default_category_id', `ALTER TABLE autopub_rules ADD COLUMN IF NOT EXISTS default_category_id INTEGER`);
+  await tryMigrate('autopub_rules pkey drop', `ALTER TABLE autopub_rules DROP CONSTRAINT IF EXISTS autopub_rules_pkey`);
+  await tryMigrate('autopub_rules.site_id nullable', `ALTER TABLE autopub_rules ALTER COLUMN site_id DROP NOT NULL`);
+  await tryMigrate('autopub_rules.catalog_id', `ALTER TABLE autopub_rules ADD COLUMN IF NOT EXISTS catalog_id UUID REFERENCES sites_catalog(id)`);
+  await tryMigrate('autopub_rules backfill', `
+    UPDATE autopub_rules ar
+    SET catalog_id = ss.site_id
+    FROM subscriber_sites ss
+    WHERE ar.site_id = ss.id AND ar.catalog_id IS NULL AND ss.site_id IS NOT NULL
+  `);
+  await tryMigrate('idx_autopub_catalog_source', `
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_autopub_catalog_source
+    ON autopub_rules(catalog_id, source_id)
+    WHERE catalog_id IS NOT NULL
+  `);
+  await tryMigrate('fix slug www2', `UPDATE sources SET slug = 'pref-de-praia-grande' WHERE slug = 'www2'`);
+  await tryMigrate('subscribers.telegram_chat_id', `ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT UNIQUE`);
+  await tryMigrate('subscribers.telegram_link_code', `ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_link_code VARCHAR(8)`);
+  await tryMigrate('sites_catalog.ai_prompt', `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS ai_prompt TEXT`);
+  await tryMigrate('subscribers.telegram_link_expires_at', `ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS telegram_link_expires_at TIMESTAMPTZ`);
+  await tryMigrate('article_drafts.article_id nullable', `ALTER TABLE article_drafts ALTER COLUMN article_id DROP NOT NULL`);
+  await tryMigrate('article_drafts.external_post_url', `ALTER TABLE article_drafts ADD COLUMN IF NOT EXISTS external_post_url TEXT`);
+  // Facebook: por catálogo + por fonte no autopub
+  await tryMigrate('sites_catalog.facebook_enabled',    `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS facebook_enabled BOOLEAN DEFAULT false`);
+  await tryMigrate('sites_catalog.facebook_page_id',    `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS facebook_page_id VARCHAR(50)`);
+  await tryMigrate('sites_catalog.facebook_page_token', `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS facebook_page_token TEXT`);
+  await tryMigrate('autopub_rules.facebook_enabled',    `ALTER TABLE autopub_rules ADD COLUMN IF NOT EXISTS facebook_enabled BOOLEAN DEFAULT false`);
+  await tryMigrate('publications.facebook_post_id',     `ALTER TABLE publications ADD COLUMN IF NOT EXISTS facebook_post_id VARCHAR(100)`);
+  await tryMigrate('publications.facebook_post_url',    `ALTER TABLE publications ADD COLUMN IF NOT EXISTS facebook_post_url TEXT`);
 }
 
 // ─── Sincronizar sources.json → tabela sources do banco ──────────────────────

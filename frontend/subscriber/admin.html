@@ -1034,6 +1034,13 @@ Portal<span class="logo-news">News</span>
             <label>🗂 Categorias</label>
             <div id="map-categoria" class="cat-checkboxes"><span class="cat-placeholder">Selecione o canal primeiro…</span></div>
           </div>
+          <div class="publicar-sel-grupo" id="map-grupo-facebook" style="display:none">
+            <label>📘 Redes Sociais</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;color:#1d4ed8">
+              <input type="checkbox" id="map-chk-facebook" checked style="width:16px;height:16px;cursor:pointer" />
+              Publicar também no Facebook
+            </label>
+          </div>
         </div>
         <div class="publicar-bar-acoes">
           <button class="btn-publicar" id="btn-pub-modal" disabled>✓ Publicar este</button>
@@ -1193,6 +1200,145 @@ Portal<span class="logo-news">News</span>
   </div>
 </div>
 
+<!-- Modal Tutorial: como gerar Page Access Token do Facebook -->
+<div class="overlay hidden" id="modal-fb-tutorial">
+  <div class="modal" style="width:820px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <h3>📘 Como gerar o Page Access Token do Facebook</h3>
+      <button class="modal-close" onclick="fecharModal('modal-fb-tutorial')">✕</button>
+    </div>
+    <div class="modal-body" style="line-height:1.65;font-size:.92rem;overflow-y:auto">
+
+      <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:12px;margin-bottom:18px;font-size:.88rem">
+        <b style="color:#1d4ed8">📋 Pré-requisitos</b><br/>
+        Você precisa <b>ser administrador</b> da Página do Facebook que quer conectar. Se a Página for de cliente, peça pra ele te adicionar como admin antes.
+      </div>
+
+      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 1 — Criar o App no Meta for Developers</h4>
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:8px">
+          Acesse <a href="https://developers.facebook.com/apps/" target="_blank" style="color:#1d4ed8">developers.facebook.com/apps</a>
+        </li>
+        <li style="margin-bottom:8px">
+          Clica em <b>Criar app</b>. Em <b>Casos de uso</b>, marca <b>"Gerenciar tudo na sua Página"</b> (ícone de bandeira, na aba "Gerenciamento de conteúdo").
+        </li>
+        <li style="margin-bottom:8px">
+          Preenche dados básicos do app (nome, e-mail) e cria. Pode pular as outras configurações.
+        </li>
+      </ol>
+
+      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 2 — Habilitar as 3 permissões</h4>
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:8px">
+          No painel do app, clica em <b>"Personalizar o caso de uso 'Gerenciar tudo na sua Página'"</b>.
+        </li>
+        <li style="margin-bottom:8px">
+          Vai aparecer uma lista de permissões. Clica em <b>"+ Adicionar"</b> nas três a seguir (ignore as outras):
+          <ul style="margin-top:6px">
+            <li><code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_show_list</code> — listar suas páginas</li>
+            <li><code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_manage_posts</code> — publicar posts</li>
+            <li><code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_read_engagement</code> — ler dados da página</li>
+          </ul>
+        </li>
+        <li style="margin-bottom:8px">
+          Cada permissão deve ficar com status <b>"Pronto para teste"</b> (não precisa publicar o app pra páginas próprias).
+        </li>
+      </ol>
+
+      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 3 — Gerar User Token no Graph API Explorer</h4>
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:8px">
+          Abre o <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color:#1d4ed8">Graph API Explorer</a>.
+        </li>
+        <li style="margin-bottom:8px">
+          No painel direito:
+          <ul style="margin-top:6px">
+            <li><b>App da Meta:</b> escolhe seu app recém-criado</li>
+            <li><b>Usuário ou Página:</b> deixa em <b>"Token do usuário"</b></li>
+            <li>Em <b>Permissões</b>, clica "Adicionar uma permissão" e marca: <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_show_list</code>, <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_manage_posts</code>, <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_read_engagement</code></li>
+          </ul>
+        </li>
+        <li style="margin-bottom:8px">
+          Clica no botão azul <b>"Generate Access Token"</b>. Vai abrir popup do Facebook pedindo permissão.
+        </li>
+        <li style="margin-bottom:8px">
+          <b style="color:#dc2626">⚠️ Atenção:</b> No popup, ele vai perguntar quais Páginas você autoriza. <b>Marque a Página que quer conectar</b> (não deixa "Pular nesta etapa"). Aceita as 3 permissões.
+        </li>
+        <li style="margin-bottom:8px">
+          O campo "Token de acesso" agora tem o <b>User Token</b>. Esse vence em ~1 hora — vamos transformar em token longo.
+        </li>
+      </ol>
+
+      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 4 — Estender o token para 60 dias</h4>
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:8px">
+          Copia o User Token do passo anterior. Abre o <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" style="color:#1d4ed8">Access Token Debugger</a>.
+        </li>
+        <li style="margin-bottom:8px">
+          Cola o token, clica <b>Depurar</b>. Confirma que tem as 3 permissões (em "Escopos") e a Página listada (em "Escopos granulares").
+        </li>
+        <li style="margin-bottom:8px">
+          Lá embaixo, clica <b>"Estender token de acesso"</b>. Vai gerar um novo token válido por ~60 dias. Copia esse.
+        </li>
+      </ol>
+
+      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 5 — Pegar o Page Access Token (o que importa)</h4>
+      <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:10px;margin-bottom:10px;font-size:.85rem">
+        ⚠️ O <b>User Token</b> serve só para autenticar você. Pra postar em Página é preciso o <b>Page Token</b> — que <b>não expira</b> (enquanto sua conta for admin da Página).
+      </div>
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:8px">
+          Volta ao <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color:#1d4ed8">Graph API Explorer</a> e cola o <b>Long-Lived User Token</b> (do passo 4) no campo "Token de acesso".
+        </li>
+        <li style="margin-bottom:8px">
+          Descobre o <b>ID da Página</b> que você quer conectar. Tem duas formas:
+          <ul style="margin-top:6px">
+            <li>Na própria Página do Facebook → menu lateral "Sobre" → seção "Mais informações" → "ID da página"</li>
+            <li>Ou na URL da Página (se for nome curto, talvez precise procurar nas configurações)</li>
+          </ul>
+        </li>
+        <li style="margin-bottom:8px">
+          No Graph API Explorer, na barra ao lado do botão "Enviar" (que mostra <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">graph.facebook.com / v25.0 /</code>), digita:
+          <pre style="background:#1e293b;color:#a5f3fc;padding:8px 12px;border-radius:5px;margin-top:6px;font-size:.82rem">ID_DA_PAGINA?fields=access_token,name</pre>
+          <small style="color:#64748b">Ex: <code>1052179677989730?fields=access_token,name</code></small>
+        </li>
+        <li style="margin-bottom:8px">
+          Clica <b>Enviar</b>. A resposta vai ser tipo:
+          <pre style="background:#1e293b;color:#a5f3fc;padding:8px 12px;border-radius:5px;margin-top:6px;font-size:.82rem">{
+  "access_token": "EAAf7I3r8eGs...",  ← ESSE!
+  "name": "XMNews",
+  "id": "1052179677989730"
+}</pre>
+        </li>
+        <li style="margin-bottom:8px">
+          <b style="color:#16a34a">Copia o valor de <code>access_token</code></b> desse JSON — é o <b>Page Access Token</b>. Ele não expira.
+        </li>
+      </ol>
+
+      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 6 — Configurar no XIXO</h4>
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:8px">Volta ao XIXO admin → Sites → Editar o site → marque <b>"Ativar publicação no Facebook"</b></li>
+        <li style="margin-bottom:8px">Cola o <b>ID da Página</b> no primeiro campo</li>
+        <li style="margin-bottom:8px">Cola o <b>Page Access Token</b> no segundo campo</li>
+        <li style="margin-bottom:8px">Clica <b>🔌 Testar conexão</b> — deve mostrar <i>✓ Conectado à página: NOME_DA_PAGINA</i></li>
+        <li style="margin-bottom:8px">Marca os checkboxes 📘 nas fontes que devem postar automaticamente no Facebook (na seção de Publicação automática)</li>
+        <li>Clica <b>Salvar site</b></li>
+      </ol>
+
+      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:10px;margin-top:18px;font-size:.85rem;color:#166534">
+        ✅ <b>Pronto!</b> A partir de agora, cada publicação manual (via "Publicar este") ou automática (via autopub) vai gerar um card visual e postar na Página do Facebook com link da matéria.
+      </div>
+
+      <div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:10px;margin-top:10px;font-size:.85rem">
+        ⚠️ <b>Sobre App Review da Meta:</b> Para postar APENAS nas suas próprias páginas (você é admin), funciona sem App Review no modo "Em desenvolvimento". Se for postar em páginas de terceiros (clientes), o cliente precisa te dar acesso de admin/editor — não precisa App Review nesse caso também.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="fecharModal('modal-fb-tutorial')">Entendi</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Catálogo de Sites (CRUD do catálogo central) -->
 <div class="overlay hidden" id="modal-catalog">
   <div class="modal" style="width:640px;max-width:95vw">
@@ -1262,11 +1408,44 @@ Portal<span class="logo-news">News</span>
         <textarea id="mcat-ai-prompt" rows="5" placeholder="Você é um editor jornalístico especializado em…&#10;&#10;Reescreva o artigo seguindo estas diretrizes e retorne JSON com os campos: chapeu, titulo, resumo, corpo, tags." style="width:100%;font-size:.83rem;font-family:monospace;resize:vertical;padding:8px 10px;border:1px solid var(--border);border-radius:6px;line-height:1.5"></textarea>
       </div>
 
+      <!-- Publicação no Facebook -->
+      <div style="border:1px solid #93c5fd;border-radius:8px;overflow:hidden;margin-top:4px">
+        <div style="padding:12px 14px;background:#eff6ff">
+          <div style="font-weight:600;color:#1d4ed8;display:flex;align-items:center;gap:8px">
+            <span>📘 Publicação no Facebook</span>
+          </div>
+          <div style="font-size:.78rem;color:#4b5d8a;margin-top:2px">Configure a Page e o Access Token para postar cards automaticamente após cada publicação.</div>
+        </div>
+        <div style="padding:12px 14px;background:#fff;border-top:1px solid #93c5fd">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px">
+            <input type="checkbox" id="mcat-fb-enabled" onchange="toggleFbFields()" style="width:18px;height:18px;cursor:pointer" />
+            <span style="font-weight:600">Ativar publicação no Facebook para este site</span>
+          </label>
+          <div id="mcat-fb-fields" style="display:none">
+            <div class="form-row">
+              <div class="form-group" style="flex:1">
+                <label>ID da Página <small style="color:var(--muted);font-weight:400">(15-16 dígitos)</small></label>
+                <input type="text" id="mcat-fb-page-id" placeholder="123456789012345" style="font-family:monospace" />
+              </div>
+              <div class="form-group" style="flex:2">
+                <label>Page Access Token</label>
+                <input type="password" id="mcat-fb-page-token" placeholder="EAAxxxx... ou •••• se já configurado" style="font-family:monospace;font-size:.85rem" />
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button type="button" id="btn-test-fb" onclick="testarFacebook()" style="font-size:.78rem;padding:6px 12px;border:1px solid #2563eb;border-radius:5px;background:#eff6ff;color:#1d4ed8;cursor:pointer">🔌 Testar conexão</button>
+              <button type="button" onclick="abrirTutorialFB()" style="font-size:.78rem;padding:6px 12px;border:1px solid var(--border);border-radius:5px;background:#fff;color:#475569;cursor:pointer">📖 Como gerar o token?</button>
+              <span id="mcat-fb-status" style="font-size:.8rem"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Publicação Automática — fontes e categorias por fonte -->
       <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden;margin-top:4px">
         <div style="padding:12px 14px;background:#f0fdf4">
           <div style="font-weight:600;color:#166534">Publicação automática</div>
-          <div style="font-size:.78rem;color:#4b7c5f;margin-top:2px">Selecione as fontes e, opcionalmente, a categoria fixa de destino para cada uma. Sem categoria = IA categoriza.</div>
+          <div style="font-size:.78rem;color:#4b7c5f;margin-top:2px">Selecione as fontes, categoria fixa e marque 📘 para postar no Facebook automaticamente. Sem categoria = IA categoriza.</div>
         </div>
         <div style="padding:12px 14px;background:#fff;border-top:1px solid #86efac">
           <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">
@@ -1761,10 +1940,18 @@ function renderFontesCatalog(selecionados) {
 
   // Mapa sourceId → categoryId
   const selMap = {};
+  // Mapa sourceId → facebookEnabled (boolean)
+  const fbMap = {};
   for (const item of (selecionados || [])) {
-    if (typeof item === 'object' && item !== null) selMap[String(item.sourceId)] = item.categoryId || item.categoryId === 0 ? item.categoryId : '';
-    else selMap[String(item)] = '';
+    if (typeof item === 'object' && item !== null) {
+      selMap[String(item.sourceId)] = item.categoryId || item.categoryId === 0 ? item.categoryId : '';
+      fbMap[String(item.sourceId)]  = item.facebookEnabled === true;
+    } else {
+      selMap[String(item)] = '';
+    }
   }
+  // Só mostra coluna FB se o site tem facebook_enabled
+  const fbSiteAtivo = document.getElementById('mcat-fb-enabled')?.checked === true;
 
   const temCats    = _catsCatalogSite.length > 0;
   const paisCats   = temCats ? _catsCatalogSite.filter(c => !c.parent) : [];
@@ -1800,6 +1987,9 @@ function renderFontesCatalog(selecionados) {
           <input type="checkbox" class="catalog-fonte-cb" value="${f.id}" ${selMap.hasOwnProperty(String(f.id)) ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer;flex-shrink:0" />
           <span style="font-size:.84rem;flex:1;cursor:pointer" onclick="this.previousElementSibling.click()">${f.name}</span>
           ${catSelectorCatalog(f.id)}
+          ${fbSiteAtivo ? `<label title="Publicar no Facebook automaticamente" style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:.78rem;color:#1d4ed8;background:#eff6ff;padding:2px 6px;border-radius:4px;border:1px solid #93c5fd">
+            <input type="checkbox" class="catalog-fonte-fb" data-fid="${f.id}" ${fbMap[String(f.id)] ? 'checked' : ''} style="width:13px;height:13px;cursor:pointer" /> 📘
+          </label>` : ''}
         </div>
       `).join('')}
     </div>
@@ -1818,7 +2008,9 @@ function getFontesCatalogIds() {
   return [...document.querySelectorAll('.catalog-fonte-cb:checked')].map(cb => {
     const catEl = document.querySelector(`.catalog-fonte-cat[data-fid="${cb.value}"]`);
     const catId = catEl ? (parseInt(catEl.value) || null) : null;
-    return { sourceId: cb.value, categoryId: catId };
+    const fbEl  = document.querySelector(`.catalog-fonte-fb[data-fid="${cb.value}"]`);
+    const fbEn  = fbEl ? !!fbEl.checked : false;
+    return { sourceId: cb.value, categoryId: catId, facebookEnabled: fbEn };
   });
 }
 
@@ -1923,7 +2115,15 @@ function popularSitesDestAdmin() {
 
 document.getElementById('map-site-dest').addEventListener('change', function () {
   carregarCatsAdmin(this.value || null);
+  atualizarOpcaoFacebookAdmin();
 });
+
+function atualizarOpcaoFacebookAdmin() {
+  const siteId = document.getElementById('map-site-dest').value;
+  const site   = (allSitesCache || []).find(s => s.id === siteId);
+  const grupo  = document.getElementById('map-grupo-facebook');
+  if (grupo) grupo.style.display = site?.facebook_enabled ? '' : 'none';
+}
 
 function renderPortaisCheckboxesAdmin() {
   const container = document.getElementById('map-portais-checkboxes');
@@ -2244,6 +2444,7 @@ async function abrirArtigoModal(artigo) {
   document.getElementById('btn-pub-modal').textContent = '✓ Publicar este';
   document.getElementById('map-site-dest').value = '';
   document.getElementById('map-grupo-site-dest').style.display = 'none';
+  document.getElementById('map-grupo-facebook').style.display = 'none';
   document.getElementById('map-categoria').innerHTML = '<span class="cat-placeholder">Aguardando geração…</span>';
   document.getElementById('map-grupo-cats-sel').style.display = 'none';
   document.getElementById('map-cats-sel').innerHTML = '<span class="cat-chips-empty">Nenhuma selecionada</span>';
@@ -2562,6 +2763,10 @@ function loadTabAdmin(idx) {
     : p.status === 'publicado' ? '✔ Publicado'
     : p.status === 'erro'      ? '↺ Tentar novamente'
     : '✓ Publicar este';
+  // Checkbox FB: mostra se o portal atual tem facebook_enabled
+  const siteOfTab = (allSitesCache || []).find(s => s.id === p.siteId);
+  const fbGroup   = document.getElementById('map-grupo-facebook');
+  if (fbGroup) fbGroup.style.display = siteOfTab?.facebook_enabled ? '' : 'none';
   const linkEl = document.getElementById('map-link-publicado');
   if (p.postUrl) {
     const label = p.clientName ? `${p.clientName} — ${p.siteName}` : p.siteName;
@@ -2587,9 +2792,16 @@ async function publicarPortalAdmin(idx) {
     image_url:    artigoSelecionado.image_url || null,
     category_ids: portal.categoryIds || []
   };
+  const publishToFb = document.getElementById('map-chk-facebook')?.checked === true;
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
-    body: JSON.stringify({ article_id: artigoSelecionado.id, site_id: destSiteId, rewritten, force })
+    body: JSON.stringify({
+      article_id: artigoSelecionado.id,
+      site_id: destSiteId,
+      rewritten,
+      force,
+      publish_to_facebook: publishToFb,
+    })
   });
   try {
     let res = await req(false); let data = await res.json();
@@ -2606,8 +2818,15 @@ async function publicarPortalAdmin(idx) {
     if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
     portal.status  = 'publicado';
     portal.postUrl = data.post_url;
+    portal.facebookResult = data.facebook || null;
     pubHistorico.push({ site: portal.siteName, url: data.post_url });
-    toast(`Publicado em ${portal.siteName}!`, 'sucesso');
+    if (data.facebook?.ok) {
+      toast(`Publicado em ${portal.siteName} + Facebook 📘`, 'sucesso');
+    } else if (data.facebook?.error) {
+      toast(`Publicado em ${portal.siteName}, mas Facebook falhou: ${data.facebook.error}`, 'aviso');
+    } else {
+      toast(`Publicado em ${portal.siteName}!`, 'sucesso');
+    }
   } catch (err) {
     portal.status = 'erro'; portal.error = err.message;
     toast(`Erro em ${portal.siteName}: ${err.message}`, 'erro');
@@ -3373,6 +3592,44 @@ function toggleCatalogPlatformFields() {
   document.getElementById('mcat-webhook-fields').style.display = p === 'webhook'   ? '' : 'none';
 }
 
+function toggleFbFields() {
+  const on = document.getElementById('mcat-fb-enabled').checked;
+  document.getElementById('mcat-fb-fields').style.display = on ? '' : 'none';
+  // Re-renderiza a lista de fontes pra mostrar/ocultar checkboxes de FB por fonte
+  if (typeof renderFontesCatalog === 'function' && Array.isArray(_todasFontes)) {
+    renderFontesCatalog(getFontesCatalogIds());
+  }
+}
+
+function abrirTutorialFB() {
+  document.getElementById('modal-fb-tutorial').classList.remove('hidden');
+}
+
+async function testarFacebook() {
+  const btn = document.getElementById('btn-test-fb');
+  const status = document.getElementById('mcat-fb-status');
+  const pageId = document.getElementById('mcat-fb-page-id').value.trim();
+  const token = document.getElementById('mcat-fb-page-token').value.trim();
+  const siteId = document.getElementById('mcat-id').value;
+  if (!pageId) { status.innerHTML = '<span style="color:#dc2626">ID da Página obrigatório.</span>'; return; }
+  btn.disabled = true; status.innerHTML = '<span class="spin"></span> Testando…';
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/sites-catalog/test-fb`, {
+      method: 'POST', headers: authHeader(),
+      body: JSON.stringify({
+        facebook_page_id: pageId,
+        facebook_page_token: token,
+        site_id: siteId || null,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Falha no teste');
+    status.innerHTML = `<span style="color:#16a34a">✓ ${d.message}</span>`;
+  } catch (e) {
+    status.innerHTML = `<span style="color:#dc2626">✕ ${e.message}</span>`;
+  } finally { btn.disabled = false; }
+}
+
 async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-title').textContent  = siteId ? 'Editar Site' : 'Novo Site no Catálogo';
   document.getElementById('mcat-id').value           = siteId || '';
@@ -3386,6 +3643,11 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-active').value       = 'true';
   document.getElementById('mcat-platform').value     = 'wordpress';
   document.getElementById('mcat-ai-prompt').value    = '';
+  document.getElementById('mcat-fb-enabled').checked = false;
+  document.getElementById('mcat-fb-page-id').value   = '';
+  document.getElementById('mcat-fb-page-token').value = '';
+  document.getElementById('mcat-fb-status').textContent = '';
+  toggleFbFields();
   toggleCatalogPlatformFields();
   _todasFontes     = [];
   _catsCatalogSite = [];
@@ -3404,6 +3666,10 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-active').value       = s.active ? 'true' : 'false';
       document.getElementById('mcat-platform').value     = s.platform || 'wordpress';
       document.getElementById('mcat-ai-prompt').value    = s.ai_prompt || '';
+      document.getElementById('mcat-fb-enabled').checked = s.facebook_enabled === true;
+      document.getElementById('mcat-fb-page-id').value   = s.facebook_page_id || '';
+      document.getElementById('mcat-fb-page-token').value = s.facebook_page_token === '••••••••' ? '••••••••' : '';
+      toggleFbFields();
       toggleCatalogPlatformFields();
     }
 
@@ -3446,7 +3712,12 @@ async function salvarCatalog() {
     post_format: document.getElementById('mcat-post-format').value || 'editorial',
     active:      document.getElementById('mcat-active').value === 'true',
     ai_prompt:   document.getElementById('mcat-ai-prompt').value.trim() || null,
+    facebook_enabled:    document.getElementById('mcat-fb-enabled').checked,
+    facebook_page_id:    document.getElementById('mcat-fb-page-id').value.trim() || null,
+    facebook_page_token: document.getElementById('mcat-fb-page-token').value.trim() || null,
   };
+  // Não enviar token se for o placeholder "••••••••" (significa "não mudar")
+  if (body.facebook_page_token === '••••••••') delete body.facebook_page_token;
   if (!body.name)     return toast('Nome é obrigatório.', 'erro');
   if (!body.platform) return toast('Plataforma é obrigatória.', 'erro');
 

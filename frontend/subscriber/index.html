@@ -837,6 +837,13 @@
             <label>✓ Selecionadas</label>
             <div id="sel-cats-chips" class="cat-chips"><span class="cat-chips-empty">Nenhuma selecionada</span></div>
           </div>
+          <div class="publicar-sel-grupo" id="sel-grupo-facebook" style="display:none">
+            <label>📘 Redes Sociais</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;color:#1d4ed8">
+              <input type="checkbox" id="chk-publish-facebook" checked style="width:16px;height:16px;cursor:pointer" />
+              Publicar também no Facebook
+            </label>
+          </div>
         </div>
         <div class="publicar-bar-acoes">
           <button class="btn-publicar" id="btn-publicar-agora" disabled>✓ Publicar este</button>
@@ -1666,6 +1673,10 @@ function loadTabContent(idx) {
   btnPub.textContent = p.status === 'gerando' ? '⟳ Gerando…'
     : p.status === 'publicado' ? '✔ Publicado'
     : '✓ Publicar este';
+  // Checkbox FB: só aparece se o site tem facebook_enabled
+  const siteData = (Array.isArray(sitesData) ? sitesData : []).find(s => s.id === p.siteId);
+  const fbGroup  = document.getElementById('sel-grupo-facebook');
+  if (fbGroup) fbGroup.style.display = siteData?.facebook_enabled ? '' : 'none';
   const linkEl = document.getElementById('link-publicado');
   if (p.postUrl) {
     linkEl.innerHTML = `<ul class="pub-lista"><li>✔ <span class="pub-site">${p.siteName}:</span> <a href="${p.postUrl}" target="_blank" rel="noopener">${p.postUrl}</a></li></ul>`;
@@ -1687,9 +1698,16 @@ async function publicarPortal(idx) {
     tags:         portal.tags.split(',').map(t => t.trim()).filter(Boolean),
     category_ids: portal.categoryIds || []
   };
+  const publishToFb = document.getElementById('chk-publish-facebook')?.checked === true;
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
-    body: JSON.stringify({ article_id: artigoAtual.id, site_id: destSiteId, rewritten, force })
+    body: JSON.stringify({
+      article_id: artigoAtual.id,
+      site_id: destSiteId,
+      rewritten,
+      force,
+      publish_to_facebook: publishToFb,
+    })
   });
   try {
     let res = await req(false); let data = await res.json();
@@ -1697,8 +1715,15 @@ async function publicarPortal(idx) {
     if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
     portal.status  = 'publicado';
     portal.postUrl = data.post_url;
+    portal.facebookResult = data.facebook || null;
     pubHistoricoIndex.push({ site: portal.siteName, url: data.post_url });
-    toast(`Publicado em ${portal.siteName}!`, 'sucesso');
+    if (data.facebook?.ok) {
+      toast(`Publicado em ${portal.siteName} + Facebook 📘`, 'sucesso');
+    } else if (data.facebook?.error) {
+      toast(`Publicado em ${portal.siteName}, mas Facebook falhou: ${data.facebook.error}`, 'aviso');
+    } else {
+      toast(`Publicado em ${portal.siteName}!`, 'sucesso');
+    }
     limparRascunho(artigoAtual?.id);
   } catch (err) {
     portal.status = 'erro'; portal.error = err.message;

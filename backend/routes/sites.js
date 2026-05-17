@@ -26,6 +26,7 @@ router.get('/', async (req, res) => {
               COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
               COALESCE(sc.webhook_url, ss.webhook_url)     AS webhook_url,
               COALESCE(sc.post_format, ss.post_format)     AS post_format,
+              COALESCE(sc.facebook_enabled, false)         AS facebook_enabled,
               CASE WHEN COALESCE(sc.platform, ss.platform) = 'wordpress' THEN
                 (COALESCE(sc.xixo_api_key, ss.xixo_api_key) IS NOT NULL OR
                  COALESCE(sc.wp_app_password, ss.wp_app_password) IS NOT NULL)

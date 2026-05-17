@@ -25,8 +25,12 @@ router.get('/', async (req, res) => {
       GROUP BY sc.id
       ORDER BY sc.name
     `);
-    // Não retorna wp_app_password ao frontend
-    res.json(rows.map(r => ({ ...r, wp_app_password: r.wp_app_password ? '••••••••' : null })));
+    // Não retorna senhas/tokens ao frontend
+    res.json(rows.map(r => ({
+      ...r,
+      wp_app_password:     r.wp_app_password     ? '••••••••' : null,
+      facebook_page_token: r.facebook_page_token ? '••••••••' : null,
+    })));
   } catch (err) {
     console.error('[sites-catalog/list]', err.message);
     res.status(500).json({ error: err.message });
@@ -36,20 +40,25 @@ router.get('/', async (req, res) => {
 // ── POST /api/admin/sites-catalog ─────────────────────────────────────────────
 router.post('/', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
-          blogger_blog_id, webhook_url, webhook_secret, post_format, ai_prompt } = req.body || {};
+          blogger_blog_id, webhook_url, webhook_secret, post_format, ai_prompt,
+          facebook_enabled, facebook_page_id, facebook_page_token } = req.body || {};
   if (!name || !platform) return res.status(400).json({ error: 'name e platform são obrigatórios.' });
   try {
     const { rows } = await pool.query(
       `INSERT INTO sites_catalog
          (name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
-          blogger_blog_id, webhook_url, webhook_secret, post_format, ai_prompt)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          blogger_blog_id, webhook_url, webhook_secret, post_format, ai_prompt,
+          facebook_enabled, facebook_page_id, facebook_page_token)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING id, name, platform, site_url, post_format, active, created_at`,
       [
         name, platform, site_url || null, xixo_api_key || null, wp_username || null,
         wp_app_password ? encryptToken(wp_app_password) : null,
         blogger_blog_id || null, webhook_url || null, webhook_secret || null,
         post_format || 'editorial', ai_prompt || null,
+        facebook_enabled === true || facebook_enabled === 'true',
+        facebook_page_id || null,
+        facebook_page_token ? encryptToken(facebook_page_token) : null,
       ]
     );
     res.status(201).json(rows[0]);
@@ -62,7 +71,8 @@ router.post('/', async (req, res) => {
 // ── PUT /api/admin/sites-catalog/:id ─────────────────────────────────────────
 router.put('/:id', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
-          blogger_blog_id, webhook_url, webhook_secret, post_format, active, ai_prompt } = req.body || {};
+          blogger_blog_id, webhook_url, webhook_secret, post_format, active, ai_prompt,
+          facebook_enabled, facebook_page_id, facebook_page_token } = req.body || {};
   try {
     const sets = []; const vals = []; let p = 1;
     if (name        !== undefined) { sets.push(`name = $${p++}`);        vals.push(name); }
@@ -80,6 +90,12 @@ router.put('/:id', async (req, res) => {
     if (post_format     !== undefined) { sets.push(`post_format = $${p++}`);     vals.push(post_format || 'editorial'); }
     if (active          !== undefined) { sets.push(`active = $${p++}`);          vals.push(active === true || active === 'true'); }
     if (ai_prompt       !== undefined) { sets.push(`ai_prompt = $${p++}`);       vals.push(ai_prompt || null); }
+    if (facebook_enabled  !== undefined) { sets.push(`facebook_enabled = $${p++}`);  vals.push(facebook_enabled === true || facebook_enabled === 'true'); }
+    if (facebook_page_id  !== undefined) { sets.push(`facebook_page_id = $${p++}`);  vals.push(facebook_page_id || null); }
+    if (facebook_page_token && facebook_page_token !== '••••••••') {
+      sets.push(`facebook_page_token = $${p++}`);
+      vals.push(encryptToken(facebook_page_token));
+    }
     if (!sets.length) return res.status(400).json({ error: 'Nada para atualizar.' });
     vals.push(req.params.id);
     const { rows } = await pool.query(
@@ -149,7 +165,8 @@ router.get('/:id/wp-categories', async (req, res) => {
 router.get('/:id/autopub', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT source_id AS "sourceId", default_category_id AS "categoryId"
+      `SELECT source_id AS "sourceId", default_category_id AS "categoryId",
+              COALESCE(facebook_enabled, false) AS "facebookEnabled"
        FROM autopub_rules WHERE catalog_id = $1`,
       [req.params.id]
     );
@@ -169,16 +186,45 @@ router.put('/:id/autopub', async (req, res) => {
       for (const item of sources) {
         const srcId = (typeof item === 'object' && item !== null) ? item.sourceId : item;
         const catId = (typeof item === 'object' && item !== null) ? (item.categoryId || null) : null;
+        const fbEn  = (typeof item === 'object' && item !== null) ? (item.facebookEnabled === true) : false;
         if (!srcId) continue;
         await pool.query(
-          `INSERT INTO autopub_rules (catalog_id, source_id, default_category_id) VALUES ($1, $2, $3)`,
-          [req.params.id, srcId, catId]
+          `INSERT INTO autopub_rules (catalog_id, source_id, default_category_id, facebook_enabled)
+           VALUES ($1, $2, $3, $4)`,
+          [req.params.id, srcId, catId, fbEn]
         );
       }
     }
     res.json({ ok: true });
   } catch (err) {
     console.error('[sites-catalog/autopub/put]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/admin/sites-catalog/test-fb ────────────────────────────────────
+// Body: { facebook_page_id, facebook_page_token }
+// Se token = '••••••••' (placeholder) E o ID do site é passado em :id query,
+// usa o token salvo no banco para o teste.
+router.post('/test-fb', async (req, res) => {
+  const { testarConexao } = require('../connectors/facebook');
+  let { facebook_page_id, facebook_page_token, site_id } = req.body || {};
+  try {
+    if ((!facebook_page_token || facebook_page_token === '••••••••') && site_id) {
+      const { rows } = await pool.query(
+        'SELECT facebook_page_id, facebook_page_token FROM sites_catalog WHERE id = $1',
+        [site_id]
+      );
+      if (rows[0]) {
+        facebook_page_id    = facebook_page_id || rows[0].facebook_page_id;
+        facebook_page_token = decryptToken(rows[0].facebook_page_token);
+      }
+    }
+    const r = await testarConexao({ page_id: facebook_page_id, page_token: facebook_page_token });
+    if (!r.ok) return res.status(400).json(r);
+    res.json(r);
+  } catch (err) {
+    console.error('[sites-catalog/test-fb]', err.message);
     res.status(500).json({ error: err.message });
   }
 });

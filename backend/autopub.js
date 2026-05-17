@@ -257,7 +257,8 @@ async function rodarAutopub() {
              COALESCE(sc.blogger_refresh_token, ss.blogger_refresh_token) AS blogger_refresh_token,
              COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
              COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
-             COALESCE(sc.post_format, ss.post_format)         AS post_format
+             COALESCE(sc.post_format, ss.post_format)         AS post_format,
+             sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token
       FROM subscriber_sites ss
       JOIN sites_catalog sc ON sc.id = ss.site_id
       JOIN subscribers   s  ON s.id  = ss.subscriber_id
@@ -275,7 +276,8 @@ async function rodarAutopub() {
         const catalogId = site.catalog_id;
         if (!catalogId) continue; // site legado sem vínculo ao catálogo, pula
         const { rows: regras } = await pool.query(
-          `SELECT source_id, default_category_id FROM autopub_rules WHERE catalog_id = $1`,
+          `SELECT source_id, default_category_id, COALESCE(facebook_enabled, false) AS facebook_enabled
+           FROM autopub_rules WHERE catalog_id = $1`,
           [catalogId]
         );
 
@@ -284,6 +286,10 @@ async function rodarAutopub() {
         // Mapa sourceId → categoryId fixo (null = usar IA)
         const catPorFonte = Object.fromEntries(
           regras.map(r => [String(r.source_id), r.default_category_id || null])
+        );
+        // Mapa sourceId → facebook_enabled (default: false)
+        const fbPorFonte = Object.fromEntries(
+          regras.map(r => [String(r.source_id), r.facebook_enabled === true])
         );
 
         // Artigos novos não processados para este site
@@ -402,6 +408,37 @@ async function rodarAutopub() {
                 reescrito.chapeu || null, reescrito.summary || null, tagsStr, catsStr,
               ]
             );
+
+            // 4.1 Publicação no Facebook (se site tem FB ligado E regra desta fonte permite)
+            const querPostarFB = site.facebook_enabled
+              && fbPorFonte[String(artigo.source_id)]
+              && site.facebook_page_id
+              && site.facebook_page_token;
+            if (querPostarFB) {
+              try {
+                const { gerarCard }     = require('./utils/card-generator');
+                const { publicarFoto }  = require('./connectors/facebook');
+                const { decryptToken }  = require('./connectors/encrypt');
+                const cardBuffer = await gerarCard({
+                  chapeu:   reescrito.chapeu || artigo.chapeu || '',
+                  resumo:   reescrito.summary || artigo.summary || '',
+                  imageUrl: artigo.image_url || '',
+                });
+                const fb = await publicarFoto(
+                  { facebook_page_id: site.facebook_page_id, facebook_page_token: decryptToken(site.facebook_page_token) },
+                  cardBuffer,
+                  { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
+                );
+                await pool.query(
+                  `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
+                   WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
+                  [fb.photo_id || fb.post_id, fb.post_url, site.subscriber_id, artigo.id, site.id]
+                );
+                console.log(`[AUTOPUB/FB] ✓ "${reescrito.title.slice(0, 50)}" → ${fb.post_url || 'OK'}`);
+              } catch (fbErr) {
+                console.error(`[AUTOPUB/FB] ✗ "${reescrito.title.slice(0, 50)}": ${fbErr.message}`);
+              }
+            }
 
             await registrarLog(artigo.id, site.id, site.subscriber_id, 'ok', null);
             console.log(`[AUTOPUB] ✓ "${reescrito.title.slice(0, 60)}" → ${site.name}`);
