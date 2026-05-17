@@ -1202,139 +1202,293 @@ Portal<span class="logo-news">News</span>
 
 <!-- Modal Tutorial: como gerar Page Access Token do Facebook -->
 <div class="overlay hidden" id="modal-fb-tutorial">
-  <div class="modal" style="width:820px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column">
+  <div class="modal" style="width:880px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header">
-      <h3>📘 Como gerar o Page Access Token do Facebook</h3>
+      <h3>📘 Tutorial completo — Conectar Facebook ao XIXO</h3>
       <button class="modal-close" onclick="fecharModal('modal-fb-tutorial')">✕</button>
     </div>
-    <div class="modal-body" style="line-height:1.65;font-size:.92rem;overflow-y:auto">
+    <div class="modal-body" style="line-height:1.7;font-size:.92rem;overflow-y:auto">
 
-      <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:12px;margin-bottom:18px;font-size:.88rem">
-        <b style="color:#1d4ed8">📋 Pré-requisitos</b><br/>
-        Você precisa <b>ser administrador</b> da Página do Facebook que quer conectar. Se a Página for de cliente, peça pra ele te adicionar como admin antes.
+      <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd;border-radius:8px;padding:14px;margin-bottom:18px;font-size:.9rem">
+        <b style="color:#1d4ed8;font-size:1rem">🎯 O que você vai fazer</b><br/>
+        Criar um app no Facebook Developers, dar 3 permissões, gerar um token "eterno" da sua Página, e colar aqui no XIXO. <b>Tempo estimado: 15 minutos.</b><br/><br/>
+
+        <b style="color:#1d4ed8">📋 Antes de começar — você precisa:</b>
+        <ul style="margin:6px 0 0 18px">
+          <li>Ser <b>administrador da Página do Facebook</b> que quer conectar</li>
+          <li>Ter conta no Facebook Developers (qualquer Facebook serve)</li>
+          <li>O <b>ID da Página</b> em mãos — veja como descobrir no fim do tutorial</li>
+        </ul>
       </div>
 
-      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 1 — Criar o App no Meta for Developers</h4>
-      <ol style="padding-left:22px">
-        <li style="margin-bottom:8px">
-          Acesse <a href="https://developers.facebook.com/apps/" target="_blank" style="color:#1d4ed8">developers.facebook.com/apps</a>
-        </li>
-        <li style="margin-bottom:8px">
-          Clica em <b>Criar app</b>. Em <b>Casos de uso</b>, marca <b>"Gerenciar tudo na sua Página"</b> (ícone de bandeira, na aba "Gerenciamento de conteúdo").
-        </li>
-        <li style="margin-bottom:8px">
-          Preenche dados básicos do app (nome, e-mail) e cria. Pode pular as outras configurações.
-        </li>
-      </ol>
+      <!-- ═════════════════ PARTE 1 ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#1d4ed8;border-bottom:2px solid #93c5fd;padding-bottom:6px">PARTE 1 — Criar o App no Meta for Developers</h3>
 
-      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 2 — Habilitar as 3 permissões</h4>
       <ol style="padding-left:22px">
-        <li style="margin-bottom:8px">
-          No painel do app, clica em <b>"Personalizar o caso de uso 'Gerenciar tudo na sua Página'"</b>.
+        <li style="margin-bottom:10px">
+          Acesse: <a href="https://developers.facebook.com/apps/" target="_blank" style="color:#1d4ed8;font-weight:600">developers.facebook.com/apps</a>
         </li>
-        <li style="margin-bottom:8px">
-          Vai aparecer uma lista de permissões. Clica em <b>"+ Adicionar"</b> nas três a seguir (ignore as outras):
-          <ul style="margin-top:6px">
-            <li><code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_show_list</code> — listar suas páginas</li>
-            <li><code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_manage_posts</code> — publicar posts</li>
-            <li><code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_read_engagement</code> — ler dados da página</li>
+        <li style="margin-bottom:10px">
+          Clica no botão azul <b>"Criar app"</b> (canto superior direito).
+        </li>
+        <li style="margin-bottom:10px">
+          <b>Detalhes do app:</b>
+          <ul style="margin:6px 0 0 18px">
+            <li>Nome do app: algo como <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">xmnews_post</code> (sem espaços, só letras/números/underscore)</li>
+            <li>E-mail de contato: seu e-mail</li>
+            <li>Clica <b>Avançar</b></li>
           </ul>
         </li>
-        <li style="margin-bottom:8px">
-          Cada permissão deve ficar com status <b>"Pronto para teste"</b> (não precisa publicar o app pra páginas próprias).
-        </li>
-      </ol>
-
-      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 3 — Gerar User Token no Graph API Explorer</h4>
-      <ol style="padding-left:22px">
-        <li style="margin-bottom:8px">
-          Abre o <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color:#1d4ed8">Graph API Explorer</a>.
-        </li>
-        <li style="margin-bottom:8px">
-          No painel direito:
-          <ul style="margin-top:6px">
-            <li><b>App da Meta:</b> escolhe seu app recém-criado</li>
-            <li><b>Usuário ou Página:</b> deixa em <b>"Token do usuário"</b></li>
-            <li>Em <b>Permissões</b>, clica "Adicionar uma permissão" e marca: <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_show_list</code>, <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_manage_posts</code>, <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_read_engagement</code></li>
+        <li style="margin-bottom:10px">
+          <b>Casos de uso</b> — aqui é a parte CRÍTICA:
+          <ul style="margin:6px 0 0 18px">
+            <li>No filtro à esquerda, clica em <b>"Gerenciamento de conteúdo"</b></li>
+            <li>Vai aparecer 5 opções. Marca o checkbox de <b>"Gerenciar tudo na sua Página"</b> (ícone de bandeira azul)</li>
+            <li>Clica <b>Avançar</b></li>
           </ul>
         </li>
-        <li style="margin-bottom:8px">
-          Clica no botão azul <b>"Generate Access Token"</b>. Vai abrir popup do Facebook pedindo permissão.
+        <li style="margin-bottom:10px">
+          <b>Empresa:</b> escolhe "Eu mesmo" ou cria um perfil empresarial básico. <b>Avançar.</b>
         </li>
-        <li style="margin-bottom:8px">
-          <b style="color:#dc2626">⚠️ Atenção:</b> No popup, ele vai perguntar quais Páginas você autoriza. <b>Marque a Página que quer conectar</b> (não deixa "Pular nesta etapa"). Aceita as 3 permissões.
+        <li style="margin-bottom:10px">
+          <b>Requisitos:</b> só clica <b>Avançar</b>. Não precisa preencher nada.
         </li>
-        <li style="margin-bottom:8px">
-          O campo "Token de acesso" agora tem o <b>User Token</b>. Esse vence em ~1 hora — vamos transformar em token longo.
-        </li>
-      </ol>
-
-      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 4 — Estender o token para 60 dias</h4>
-      <ol style="padding-left:22px">
-        <li style="margin-bottom:8px">
-          Copia o User Token do passo anterior. Abre o <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" style="color:#1d4ed8">Access Token Debugger</a>.
-        </li>
-        <li style="margin-bottom:8px">
-          Cola o token, clica <b>Depurar</b>. Confirma que tem as 3 permissões (em "Escopos") e a Página listada (em "Escopos granulares").
-        </li>
-        <li style="margin-bottom:8px">
-          Lá embaixo, clica <b>"Estender token de acesso"</b>. Vai gerar um novo token válido por ~60 dias. Copia esse.
+        <li style="margin-bottom:10px">
+          <b>Visão geral:</b> clica <b>Criar app</b> ou <b>Concluir</b>.
         </li>
       </ol>
 
-      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 5 — Pegar o Page Access Token (o que importa)</h4>
-      <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:10px;margin-bottom:10px;font-size:.85rem">
-        ⚠️ O <b>User Token</b> serve só para autenticar você. Pra postar em Página é preciso o <b>Page Token</b> — que <b>não expira</b> (enquanto sua conta for admin da Página).
+      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:10px;margin:14px 0;color:#166534">
+        ✅ <b>Resultado da Parte 1:</b> Você está agora no painel do seu app. Anota: no canto superior você vê o nome do app.
       </div>
+
+      <!-- ═════════════════ PARTE 2 ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#1d4ed8;border-bottom:2px solid #93c5fd;padding-bottom:6px">PARTE 2 — Habilitar as 3 permissões</h3>
+
       <ol style="padding-left:22px">
-        <li style="margin-bottom:8px">
-          Volta ao <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color:#1d4ed8">Graph API Explorer</a> e cola o <b>Long-Lived User Token</b> (do passo 4) no campo "Token de acesso".
+        <li style="margin-bottom:10px">
+          No painel do app (você está aí depois de criar), procura a seção <b>"Personalização do app e requisitos"</b>.
         </li>
-        <li style="margin-bottom:8px">
-          Descobre o <b>ID da Página</b> que você quer conectar. Tem duas formas:
-          <ul style="margin-top:6px">
-            <li>Na própria Página do Facebook → menu lateral "Sobre" → seção "Mais informações" → "ID da página"</li>
-            <li>Ou na URL da Página (se for nome curto, talvez precise procurar nas configurações)</li>
+        <li style="margin-bottom:10px">
+          Clica na primeira linha: <b>"Personalizar o caso de uso 'Gerenciar tudo na sua Página'"</b> (com a setinha à direita).
+        </li>
+        <li style="margin-bottom:10px">
+          Vai abrir uma tela com várias permissões listadas. Vai aparecer um botão <b>"+ Adicionar"</b> ao lado de cada uma.
+        </li>
+        <li style="margin-bottom:10px">
+          <b>Adiciona SOMENTE estas 3:</b> (ignore as outras como <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_manage_metadata</code> ou <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">pages_read_user_content</code>)
+          <ul style="margin:6px 0 0 18px">
+            <li><code style="background:#f1f5f9;padding:2px 6px;border-radius:3px;color:#1d4ed8;font-weight:600">pages_show_list</code> — listar suas Páginas</li>
+            <li><code style="background:#f1f5f9;padding:2px 6px;border-radius:3px;color:#1d4ed8;font-weight:600">pages_manage_posts</code> — publicar posts</li>
+            <li><code style="background:#f1f5f9;padding:2px 6px;border-radius:3px;color:#1d4ed8;font-weight:600">pages_read_engagement</code> — ler dados</li>
           </ul>
         </li>
-        <li style="margin-bottom:8px">
-          No Graph API Explorer, na barra ao lado do botão "Enviar" (que mostra <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">graph.facebook.com / v25.0 /</code>), digita:
-          <pre style="background:#1e293b;color:#a5f3fc;padding:8px 12px;border-radius:5px;margin-top:6px;font-size:.82rem">ID_DA_PAGINA?fields=access_token,name</pre>
+        <li style="margin-bottom:10px">
+          Cada permissão adicionada vira <b style="color:#16a34a">"Pronto para teste"</b> com botão "Ações" do lado.
+        </li>
+      </ol>
+
+      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:10px;margin:14px 0;color:#166534">
+        ✅ <b>Resultado da Parte 2:</b> 3 permissões adicionadas, status "Pronto para teste". Sem precisar de App Review da Meta enquanto for sua Página.
+      </div>
+
+      <!-- ═════════════════ PARTE 3 ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#1d4ed8;border-bottom:2px solid #93c5fd;padding-bottom:6px">PARTE 3 — Gerar o User Token (curto)</h3>
+
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:10px">
+          Abre em nova aba: <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color:#1d4ed8;font-weight:600">Graph API Explorer</a>
+        </li>
+        <li style="margin-bottom:10px">
+          No painel à direita, configura:
+          <ul style="margin:6px 0 0 18px">
+            <li><b>App da Meta:</b> seleciona o app que você acabou de criar</li>
+            <li><b>Usuário ou Página:</b> deixa <b>"Token do usuário"</b></li>
+          </ul>
+        </li>
+        <li style="margin-bottom:10px">
+          Em <b>Permissões</b> (também no painel direito), clica em <b>"Adicionar uma permissão"</b>. Marca as MESMAS 3:
+          <ul style="margin:6px 0 0 18px">
+            <li><code style="background:#f1f5f9;padding:2px 6px;border-radius:3px">pages_show_list</code></li>
+            <li><code style="background:#f1f5f9;padding:2px 6px;border-radius:3px">pages_manage_posts</code></li>
+            <li><code style="background:#f1f5f9;padding:2px 6px;border-radius:3px">pages_read_engagement</code></li>
+          </ul>
+        </li>
+        <li style="margin-bottom:10px">
+          Clica no botão azul <b>"Generate Access Token"</b>. Vai abrir um popup do Facebook pedindo autorização.
+        </li>
+        <li style="margin-bottom:10px">
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:10px">
+            <b style="color:#dc2626">⚠️ ARMADILHA #1 — Selecionar a Página no popup</b><br/>
+            No popup do Facebook ele vai perguntar <b>"Quais Páginas você quer permitir acesso?"</b>:
+            <ul style="margin:6px 0 0 18px">
+              <li><b>NÃO clica</b> em "Pular nesta etapa" ou "Optar por todas as Páginas atuais e futuras"</li>
+              <li><b>Marca SOMENTE a Página específica</b> que você quer conectar</li>
+              <li>Continua, aceita as 3 permissões, finaliza</li>
+            </ul>
+            <small>Se errar e pular, o token gerado não vai ter acesso à Página. Volta e refaz.</small>
+          </div>
+        </li>
+        <li style="margin-bottom:10px">
+          O campo <b>"Token de acesso"</b> agora tem o User Token. Esse vence em ~1 hora — vamos prolongar.
+        </li>
+      </ol>
+
+      <!-- ═════════════════ PARTE 4 ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#1d4ed8;border-bottom:2px solid #93c5fd;padding-bottom:6px">PARTE 4 — Estender o token para 60 dias (Long-Lived)</h3>
+
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:10px">
+          Copia o User Token do passo anterior (do campo "Token de acesso" no Graph Explorer).
+        </li>
+        <li style="margin-bottom:10px">
+          Abre em nova aba: <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" style="color:#1d4ed8;font-weight:600">Access Token Debugger</a>
+        </li>
+        <li style="margin-bottom:10px">
+          Cola o token no campo, clica <b>Depurar</b>.
+        </li>
+        <li style="margin-bottom:10px">
+          Confirma:
+          <ul style="margin:6px 0 0 18px">
+            <li><b>Tipo:</b> User</li>
+            <li><b>Escopos:</b> tem as 3 permissões</li>
+            <li><b>Escopos granulares:</b> sua Página aparece listada</li>
+          </ul>
+          Se não tiver, volta e refaz a Parte 3.
+        </li>
+        <li style="margin-bottom:10px">
+          Rola pra baixo, clica no botão <b>"Estender token de acesso"</b>.
+        </li>
+        <li style="margin-bottom:10px">
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:10px">
+            <b style="color:#dc2626">⚠️ ARMADILHA #2 — Qual token copiar</b><br/>
+            Vai aparecer uma caixa <b>nova</b> embaixo da tela, com o título <b>"Este novo token de acesso de vida longa expirará em X dias"</b>.<br/>
+            <b>Copia o token de DENTRO dessa caixa nova</b> (não o do topo da página!). Esse é o <b>Long-Lived User Token</b> (~60 dias).
+          </div>
+        </li>
+      </ol>
+
+      <!-- ═════════════════ PARTE 5 ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#1d4ed8;border-bottom:2px solid #93c5fd;padding-bottom:6px">PARTE 5 — Pegar o Page Token "eterno"</h3>
+
+      <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:12px;margin-bottom:12px">
+        <b style="color:#9a3412">🔑 Conceito-chave:</b> O <b>User Token</b> identifica VOCÊ (vence em 60 dias).<br/>
+        O <b>Page Token</b> identifica a PÁGINA (NÃO EXPIRA, se derivado de um Long-Lived User Token).<br/>
+        <b>Pra publicar em Página precisamos do Page Token.</b>
+      </div>
+
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:10px">
+          Volta pro <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color:#1d4ed8;font-weight:600">Graph API Explorer</a>.
+        </li>
+        <li style="margin-bottom:10px">
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:10px">
+            <b style="color:#dc2626">⚠️ ARMADILHA #3 — Trocar o token no campo</b><br/>
+            O campo <b>"Token de acesso"</b> pode ter regenerado um token CURTO automaticamente (acontece se trocou de aba).<br/>
+            <b>Apaga totalmente</b> o campo e <b>cola o Long-Lived</b> (que você copiou na Parte 4).
+          </div>
+        </li>
+        <li style="margin-bottom:10px">
+          <b>Verificação importante:</b> abre o <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" style="color:#1d4ed8">Debugger</a> em outra aba, cola o token que você acabou de pôr no Explorer, e confere:
+          <ul style="margin:6px 0 0 18px">
+            <li><b>Expira:</b> deve mostrar <i>"aproximadamente 60 dias"</i> ou similar</li>
+            <li>Se mostrar "em cerca de 1 hora" — é o CURTO, não funciona. Volta à Parte 4 e refaz.</li>
+          </ul>
+        </li>
+        <li style="margin-bottom:10px">
+          Com o Long-Lived no campo, agora monta o endpoint. Na barra de URL do Explorer (campo grande do meio, depois de "v25.0 /"), digita:
+          <pre style="background:#1e293b;color:#a5f3fc;padding:10px 12px;border-radius:5px;margin-top:6px;font-size:.85rem;overflow-x:auto">ID_DA_PAGINA?fields=access_token,name</pre>
           <small style="color:#64748b">Ex: <code>1052179677989730?fields=access_token,name</code></small>
         </li>
-        <li style="margin-bottom:8px">
-          Clica <b>Enviar</b>. A resposta vai ser tipo:
-          <pre style="background:#1e293b;color:#a5f3fc;padding:8px 12px;border-radius:5px;margin-top:6px;font-size:.82rem">{
-  "access_token": "EAAf7I3r8eGs...",  ← ESSE!
-  "name": "XMNews",
+        <li style="margin-bottom:10px">
+          Clica <b>Enviar</b> (botão azul à direita). A resposta vai aparecer no centro:
+          <pre style="background:#1e293b;color:#a5f3fc;padding:10px 12px;border-radius:5px;margin-top:6px;font-size:.85rem;overflow-x:auto">{
+  "access_token": "EAAf7I3r8eGs...",  <span style="color:#fde047">&larr; ESSE É O PAGE TOKEN</span>
+  "name": "Nome da Página",
   "id": "1052179677989730"
 }</pre>
         </li>
-        <li style="margin-bottom:8px">
-          <b style="color:#16a34a">Copia o valor de <code>access_token</code></b> desse JSON — é o <b>Page Access Token</b>. Ele não expira.
+        <li style="margin-bottom:10px">
+          <b style="color:#16a34a">Copia o valor inteiro de <code>access_token</code></b> (sem as aspas).
+        </li>
+        <li style="margin-bottom:10px">
+          <b>Confirme que NÃO expira:</b> cola esse Page Token no Debugger (em outra aba) e verifica:
+          <ul style="margin:6px 0 0 18px">
+            <li><b>Tipo:</b> Page</li>
+            <li><b>Expira:</b> <b style="color:#16a34a">Nunca</b> ✅</li>
+          </ul>
+          Se mostrar <b>"em cerca de 1 hora"</b>, o token no Explorer não estava Long-Lived — volta à Parte 5 passo 2.
         </li>
       </ol>
 
-      <h4 style="margin:18px 0 8px;color:#1d4ed8">PARTE 6 — Configurar no XIXO</h4>
+      <!-- ═════════════════ PARTE 6 ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#1d4ed8;border-bottom:2px solid #93c5fd;padding-bottom:6px">PARTE 6 — Como descobrir o ID da Página</h3>
+
+      <p>Existem 3 formas:</p>
       <ol style="padding-left:22px">
-        <li style="margin-bottom:8px">Volta ao XIXO admin → Sites → Editar o site → marque <b>"Ativar publicação no Facebook"</b></li>
-        <li style="margin-bottom:8px">Cola o <b>ID da Página</b> no primeiro campo</li>
-        <li style="margin-bottom:8px">Cola o <b>Page Access Token</b> no segundo campo</li>
-        <li style="margin-bottom:8px">Clica <b>🔌 Testar conexão</b> — deve mostrar <i>✓ Conectado à página: NOME_DA_PAGINA</i></li>
-        <li style="margin-bottom:8px">Marca os checkboxes 📘 nas fontes que devem postar automaticamente no Facebook (na seção de Publicação automática)</li>
-        <li>Clica <b>Salvar site</b></li>
+        <li style="margin-bottom:8px"><b>Pelo Facebook:</b> entra na sua Página → menu lateral → <b>"Sobre"</b> → seção <b>"Transparência da Página"</b> ou <b>"Mais informações"</b> → o ID está listado.</li>
+        <li style="margin-bottom:8px"><b>Pelo Business Suite:</b> Configurações → Página → ID aparece nas informações.</li>
+        <li style="margin-bottom:8px"><b>Pelo Graph Explorer:</b> com o Long-Lived User Token no campo, faz <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">me/accounts</code>. A resposta lista todas suas Páginas com IDs (mesmo que liste vazio em alguns casos, o método pelo ID direto da Parte 5 sempre funciona).</li>
       </ol>
 
-      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:10px;margin-top:18px;font-size:.85rem;color:#166534">
-        ✅ <b>Pronto!</b> A partir de agora, cada publicação manual (via "Publicar este") ou automática (via autopub) vai gerar um card visual e postar na Página do Facebook com link da matéria.
+      <!-- ═════════════════ PARTE 7 ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#1d4ed8;border-bottom:2px solid #93c5fd;padding-bottom:6px">PARTE 7 — Configurar aqui no XIXO</h3>
+
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:8px">Fecha este tutorial.</li>
+        <li style="margin-bottom:8px">Marca o checkbox <b>"Ativar publicação no Facebook para este site"</b>.</li>
+        <li style="margin-bottom:8px">No campo <b>"ID da Página"</b>: cola o ID (só os números).</li>
+        <li style="margin-bottom:8px">No campo <b>"Page Access Token"</b>: cola o Page Token (o "eterno" da Parte 5).</li>
+        <li style="margin-bottom:8px">Clica <b>🔌 Testar conexão</b>:
+          <ul style="margin:6px 0 0 18px">
+            <li>✓ Verde: <i>"Conectado à página: NOME"</i> — está OK!</li>
+            <li>✗ Vermelho: confere ID e token; talvez o token tenha expirado e precise refazer</li>
+          </ul>
+        </li>
+        <li style="margin-bottom:8px">Na seção <b>Publicação automática</b>, marca o checkbox <b>📘</b> nas fontes que devem postar no Facebook automaticamente quando rodar o autopub.</li>
+        <li>Clica <b>Salvar site</b>.</li>
+      </ol>
+
+      <div style="background:linear-gradient(135deg,#dcfce7,#bbf7d0);border:1px solid #86efac;border-radius:8px;padding:14px;margin-top:18px;color:#166534">
+        ✅ <b style="font-size:1rem">Pronto! O que acontece agora:</b>
+        <ul style="margin:8px 0 0 18px">
+          <li>Cada publicação manual (<b>"Publicar este"</b>) terá um checkbox <b>"Publicar também no Facebook"</b> marcado por padrão</li>
+          <li>O autopub vai gerar um card visual e postar na Página, com link da matéria</li>
+          <li>Cada post vai pra Página com o card 1080×1080 + texto + URL da matéria</li>
+        </ul>
       </div>
 
-      <div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:10px;margin-top:10px;font-size:.85rem">
-        ⚠️ <b>Sobre App Review da Meta:</b> Para postar APENAS nas suas próprias páginas (você é admin), funciona sem App Review no modo "Em desenvolvimento". Se for postar em páginas de terceiros (clientes), o cliente precisa te dar acesso de admin/editor — não precisa App Review nesse caso também.
+      <!-- ═════════════════ TROUBLESHOOTING ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#dc2626;border-bottom:2px solid #fca5a5;padding-bottom:6px">🆘 Resolução de problemas</h3>
+
+      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 14px;margin-bottom:10px">
+        <b>Erro: "Session has expired"</b><br/>
+        O User Token usado pra gerar o Page Token era curto (1h). Refaz a Parte 4 com cuidado, garantindo copiar o Long-Lived. Refaz a Parte 5.
       </div>
+
+      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 14px;margin-bottom:10px">
+        <b>Erro: "publish_actions are not available. It has been deprecated"</b><br/>
+        Você colou um User Token no lugar do Page Token. Eles parecem iguais (ambos começam com EAA) mas são diferentes. Volte à Parte 5 e copia o <code>access_token</code> de DENTRO do JSON da resposta.
+      </div>
+
+      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 14px;margin-bottom:10px">
+        <b>/me/accounts retorna lista vazia</b><br/>
+        Acontece com Páginas "Nova Experiência" ou via Business Manager. Use o método da Parte 5 (pelo ID direto), que sempre funciona.
+      </div>
+
+      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 14px;margin-bottom:10px">
+        <b>Page Token mostra "Expira: em 1 hora" no Debugger</b><br/>
+        O token no Explorer não era Long-Lived quando você consultou o ID. Garanta que copiou e colou o Long-Lived ANTES de fazer o GET no ID da Página.
+      </div>
+
+      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 14px">
+        <b>Após algum tempo o token parou de funcionar mesmo sendo "eterno"</b><br/>
+        Page Tokens duram pra sempre, mas podem ser invalidados se: a senha do Facebook do admin foi alterada; o app foi revogado nas Configurações de Segurança do Facebook do admin; o admin perdeu o role na Página. Refaça as Partes 3-5.
+      </div>
+
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" onclick="fecharModal('modal-fb-tutorial')">Entendi</button>
+      <button class="btn btn-primary" onclick="fecharModal('modal-fb-tutorial')">Entendi tudo</button>
     </div>
   </div>
 </div>
