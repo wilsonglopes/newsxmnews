@@ -32,6 +32,21 @@ function escapeXml(s) {
     .replace(/'/g, '&apos;');
 }
 
+// Extrai apenas a primeira frase completa (até o primeiro . ! ?) de um texto.
+// Garante que o card sempre termine com pontuação final, sem reticências.
+function primeiraFrase(texto) {
+  const t = (texto || '').trim();
+  if (!t) return '';
+  // Match: até o primeiro pontuação de fim de frase
+  const m = t.match(/^[^.!?]+[.!?]/);
+  if (m && m[0].length >= 40) return m[0].trim();
+  // Se a primeira frase é muito curta (<40 chars), pega até 2 frases
+  const m2 = t.match(/^[^.!?]+[.!?][^.!?]+[.!?]/);
+  if (m2) return m2[0].trim();
+  // Caso extremo: texto sem pontuação, adiciona ponto
+  return t.replace(/[,;:\-]?$/, '') + '.';
+}
+
 // Quebra texto em linhas. Se passar de maxLinhas, corta a última palavra inteira
 // e termina com ponto final (sem reticências) pra dar sensação de fechamento.
 function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
@@ -73,8 +88,10 @@ function montarSvgTextos(chapeu, resumo) {
   }
   const chapeuTexto = escapeXml(chapeuFinal.toUpperCase());
 
-  // Largura disponível ~1420px, fonte 60px → ~48 chars/linha
-  const linhasResumo = quebrarLinhas(resumo || '', 48, 5);
+  // Pega só a primeira frase completa do resumo (garante ponto final, sem reticências)
+  const resumoLimpo = primeiraFrase(resumo || '');
+  // Largura disponível ~1420px, fonte 60px → ~48 chars/linha; 6 linhas de capacidade
+  const linhasResumo = quebrarLinhas(resumoLimpo, 48, 6);
   const lineHeight = 80;
   const resumoY0 = CARD.resumoArea.y + 50;
 
