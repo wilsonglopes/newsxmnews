@@ -844,12 +844,14 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
                a.title  AS article_title, a.external_url,
                ss.name  AS site_name,    ss.site_url,
                s.name   AS subscriber_name,
+               src.name AS source_name,  src.slug AS source_slug,
                p.external_post_url, p.rewritten_title, p.rewritten_categories
         FROM autopub_log al
-        JOIN articles         a  ON a.id  = al.article_id
-        JOIN subscriber_sites ss ON ss.id = al.site_id
-        JOIN subscribers      s  ON s.id  = al.subscriber_id
-        LEFT JOIN publications p ON p.article_id = al.article_id AND p.site_id = al.site_id
+        JOIN articles         a   ON a.id   = al.article_id
+        LEFT JOIN sources     src ON src.id = a.source_id
+        JOIN subscriber_sites ss  ON ss.id  = al.site_id
+        JOIN subscribers      s   ON s.id   = al.subscriber_id
+        LEFT JOIN publications p  ON p.article_id = al.article_id AND p.site_id = al.site_id
         ORDER BY al.processed_at DESC
         LIMIT $1
       `, [limit]);

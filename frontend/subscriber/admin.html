@@ -662,9 +662,9 @@ Portal<span class="logo-news">News</span>
         <div class="panel-body">
           <table class="data-table" id="tbl-pubs">
             <thead>
-              <tr><th>Título</th><th>Cliente</th><th>Site</th><th>Status</th><th>Data</th><th></th></tr>
+              <tr><th>Título</th><th>Fonte</th><th>Cliente</th><th>Site</th><th>Status</th><th>Data</th><th></th></tr>
             </thead>
-            <tbody><tr><td colspan="6" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+            <tbody><tr><td colspan="7" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -713,12 +713,13 @@ Portal<span class="logo-news">News</span>
               <tr>
                 <th style="width:110px">Hora</th>
                 <th>Artigo publicado</th>
+                <th style="width:140px">Fonte</th>
                 <th style="width:150px">Site</th>
                 <th style="width:120px">Cliente</th>
                 <th style="width:80px;text-align:center">Status</th>
               </tr>
             </thead>
-            <tbody><tr><td colspan="5" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+            <tbody><tr><td colspan="6" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1909,7 +1910,7 @@ async function atualizarAutopub() {
     const tbody = document.querySelector('#tbl-ap-log tbody');
     const logCount = document.getElementById('ap-log-count');
     if (!Array.isArray(log) || !log.length) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma publicação automática ainda.</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma publicação automática ainda.</td></tr>';
       if (logCount) logCount.textContent = '';
       if (el) el.textContent = `Atualiza em 30s`;
       return;
@@ -1942,9 +1943,14 @@ async function atualizarAutopub() {
         ? `<a href="${r.site_url}" target="_blank" rel="noopener" style="color:var(--muted)">${r.site_name||'—'}</a>`
         : (r.site_name || '—');
 
+      const fonteCell = r.source_name
+        ? `<span style="font-size:.78rem;color:var(--text)">${r.source_name}</span>`
+        : '<span style="font-size:.78rem;color:var(--muted)">—</span>';
+
       return `<tr>
         <td style="font-size:.78rem;white-space:nowrap;color:var(--muted)">${hora}</td>
         <td style="font-size:.83rem;line-height:1.3">${tituloLink}${fonteLink}</td>
+        <td>${fonteCell}</td>
         <td style="font-size:.82rem">${siteLink}</td>
         <td style="font-size:.82rem;color:var(--muted)">${r.subscriber_name||'—'}</td>
         <td style="text-align:center">${badge}</td>
@@ -4377,7 +4383,7 @@ async function carregarPublicacoes() {
   try {
     const pubs  = await fetch(`${BACKEND}/api/admin/recent-publications`, { headers: authHeader() }).then(r => r.json());
     const tbody = document.querySelector('#tbl-pubs tbody');
-    if (!pubs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma publicação ainda.</td></tr>'; return; }
+    if (!pubs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma publicação ainda.</td></tr>'; return; }
 
     tbody.innerHTML = pubs.map(p => {
       const btnVer = p.external_post_url
@@ -4388,9 +4394,13 @@ async function carregarPublicacoes() {
       const btnRepublicar = temConteudo
         ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="republicarDoHistorico(decodeURIComponent('${pubJson}'))">📤 Republicar</button>`
         : '';
+      const fonteCell = p.article_source_name
+        ? `<span style="font-size:.78rem;color:var(--text)">${p.article_source_name}</span>`
+        : '<span style="font-size:.78rem;color:var(--muted)">—</span>';
       return `
       <tr>
         <td style="max-width:260px"><strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.rewritten_title||''}">${p.rewritten_title || p.original_title || '—'}</strong></td>
+        <td>${fonteCell}</td>
         <td style="font-size:.82rem">${p.subscriber_name||'—'}</td>
         <td style="font-size:.82rem;color:var(--muted)">${p.site_name||'—'}</td>
         <td><span class="badge ${p.status==='published'?'badge-green':'badge-red'}">${p.status}</span></td>
