@@ -12,13 +12,13 @@ const UPLOADS_DIR   = path.join(__dirname, '..', 'public', 'uploads', 'cards');
 // Garante que o diretório existe
 try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch {}
 
-// Coordenadas do template (1080×1080)
+// Coordenadas do template (1600×2000 — proporção 4:5, otimizado para Instagram)
 const CARD = {
-  width:  1080,
-  height: 1080,
-  fotoArea:    { x: 0, y: 0, w: 1080, h: 615 },  // área da foto (transparente no template)
-  chapeuBox:   { x: 61, y: 674, w: 356, h: 71, centerX: 239, centerY: 709 },
-  resumoArea:  { x: 70, y: 790, w: 940, h: 260 },// área do texto resumo
+  width:  1600,
+  height: 2000,
+  fotoArea:    { x: 0, y: 0, w: 1600, h: 1195 },                                  // área da foto (transparente no template)
+  chapeuBox:   { x: 77, y: 1274, w: 657, h: 127, centerX: 405, centerY: 1337 },   // caixa laranja
+  resumoArea:  { x: 90, y: 1450, w: 1420, h: 530 },                               // área do texto resumo
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -73,9 +73,10 @@ function montarSvgTextos(chapeu, resumo) {
   }
   const chapeuTexto = escapeXml(chapeuFinal.toUpperCase());
 
-  const linhasResumo = quebrarLinhas(resumo || '', 42, 5);
-  const lineHeight = 54;
-  const resumoY0 = CARD.resumoArea.y + 30;
+  // Largura disponível ~1420px, fonte 60px → ~48 chars/linha
+  const linhasResumo = quebrarLinhas(resumo || '', 48, 5);
+  const lineHeight = 80;
+  const resumoY0 = CARD.resumoArea.y + 50;
 
   const tspans = linhasResumo
     .map((l, i) => `<tspan x="${CARD.resumoArea.x}" dy="${i === 0 ? 0 : lineHeight}">${escapeXml(l)}</tspan>`)
@@ -84,10 +85,10 @@ function montarSvgTextos(chapeu, resumo) {
   return Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${CARD.width}" height="${CARD.height}" xmlns="http://www.w3.org/2000/svg">
   <style>
-    .chapeu { font-family: 'Montserrat', 'DejaVu Sans', sans-serif; font-weight: 700; font-size: 32px; fill: #ffffff; letter-spacing: 1px; }
-    .resumo { font-family: 'Open Sans', 'DejaVu Sans', sans-serif; font-weight: 400; font-size: 40px; fill: #ffffff; }
+    .chapeu { font-family: 'Montserrat', 'DejaVu Sans', sans-serif; font-weight: 700; font-size: 58px; fill: #ffffff; letter-spacing: 2px; }
+    .resumo { font-family: 'Open Sans', 'DejaVu Sans', sans-serif; font-weight: 400; font-size: 60px; fill: #ffffff; }
   </style>
-  <text x="${CARD.chapeuBox.centerX}" y="${CARD.chapeuBox.centerY + 11}" class="chapeu" text-anchor="middle">${chapeuTexto}</text>
+  <text x="${CARD.chapeuBox.centerX}" y="${CARD.chapeuBox.centerY + 20}" class="chapeu" text-anchor="middle">${chapeuTexto}</text>
   <text class="resumo" y="${resumoY0}">${tspans}</text>
 </svg>`);
 }
