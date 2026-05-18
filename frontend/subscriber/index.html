@@ -30,34 +30,68 @@
       --font-corpo:  'Inter', system-ui, sans-serif;
       --sombra:      0 1px 3px rgba(0,0,0,.08);
       --sombra-md:   0 4px 16px rgba(0,0,0,.10);
+      --sidebar-w:      240px;
+      --sidebar-bg:     #0f172a;
+      --sidebar-hover:  #1e293b;
+      --muted:          #64748b;
     }
-    body { font-family: var(--font-corpo); background: var(--papel); color: var(--grafite); min-height: 100vh; }
+    body { font-family: var(--font-corpo); background: var(--papel); color: var(--grafite); min-height: 100vh; display: flex; }
 
-    /* ── Header ── */
-    .header {
-      background: var(--grafite);
-      color: #fff;
-      padding: 0 1.5rem;
-      height: 52px;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+    /* ══ SIDEBAR ══════════════════════════════════════════════════════════════ */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--sidebar-bg); color: #e2e8f0;
+      display: flex; flex-direction: column; position: fixed; top: 0; left: 0;
+      height: 100vh; z-index: 100; overflow-y: auto;
     }
-    .header-logo { font-family: var(--font-titulo); font-size: 1.3rem; color: #e2e8f0; flex: 1; }
-    .header-logo .logo-news { color: var(--vermelho); }
-    .header-info { font-size: 0.8rem; color: #d1d5db; display: flex; align-items: center; gap: 0.75rem; }
-    .badge-plano { background: var(--vermelho); color: #fff; border-radius: 3px; padding: 2px 7px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
-    .header-btn { background: transparent; border: 1px solid #4b5563; color: #d1d5db; border-radius: var(--radius); padding: 4px 12px; font-size: 0.78rem; cursor: pointer; font-family: var(--font-corpo); transition: border-color .15s, color .15s; }
-    .header-btn:hover { border-color: #9ca3af; color: #fff; }
+    .sidebar-logo {
+      padding: 20px 20px 16px; border-bottom: 1px solid #1e293b;
+      font-family: var(--font-titulo); font-size: 1.3rem; color: #e2e8f0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-logo .logo-news { color: var(--vermelho); }
+    .sidebar-badge { background: var(--vermelho); color: #fff; font-size: .6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: .5px; margin-left: auto; font-family: var(--font-corpo); }
+    .sidebar-section { padding: 14px 14px 4px; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #475569; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; border-radius: 6px; margin: 1px 8px;
+      font-size: .85rem; font-weight: 500; color: #94a3b8;
+      cursor: pointer; transition: all .15s; text-decoration: none;
+      border-bottom: none;
+    }
+    .nav-item:hover { background: var(--sidebar-hover); color: #e2e8f0; }
+    .nav-item.ativa { background: var(--vermelho); color: #fff; }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer {
+      margin-top: auto; padding: 14px 16px; border-top: 1px solid #1e293b;
+      font-size: .78rem; color: #64748b;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .sidebar-footer strong { color: #cbd5e1; font-size: .82rem; font-weight: 600; }
+    .badge-plano { background: var(--vermelho); color: #fff; border-radius: 3px; padding: 2px 7px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; align-self: flex-start; }
+    .btn-logout { margin-top: 4px; width: 100%; padding: 6px; background: transparent; border: 1px solid #334155; border-radius: var(--radius); color: #64748b; font-size: .78rem; cursor: pointer; transition: all .15s; font-family: var(--font-corpo); }
+    .btn-logout:hover { border-color: var(--vermelho); color: var(--vermelho); }
+    .btn-sb-admin { margin-top: 4px; width: 100%; padding: 6px; background: var(--vermelho); border: 1px solid var(--vermelho); border-radius: var(--radius); color: #fff; font-size: .78rem; cursor: pointer; font-family: var(--font-corpo); transition: opacity .15s; }
+    .btn-sb-admin:hover { opacity: .88; }
 
-    /* ── Tabs ── */
-    .tabs { display: flex; border-bottom: 2px solid var(--borda); background: var(--branco); padding: 0 1.5rem; gap: 0; }
-    .tab { padding: 0.75rem 1.25rem; font-size: 0.85rem; font-weight: 500; color: var(--grafite-lt); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .15s, border-color .15s; white-space: nowrap; }
-    .tab.ativa { color: var(--vermelho); border-bottom-color: var(--vermelho); }
-    .tab:hover:not(.ativa) { color: var(--grafite-md); }
+    /* ══ MAIN ══════════════════════════════════════════════════════════════════ */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar {
+      background: var(--branco); border-bottom: 1px solid var(--borda);
+      padding: 0 24px; height: 56px; display: flex; align-items: center;
+      gap: 12px; position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-title { font-size: 1rem; font-weight: 600; color: var(--grafite); }
+    .topbar-sub { font-size: .78rem; color: var(--grafite-lt); }
+    .content { flex: 1; }
+
+    /* Mobile: sidebar deslizante */
+    .menu-toggle { display: none; background: transparent; border: 1px solid var(--borda); border-radius: var(--radius); padding: 5px 9px; font-size: 1.1rem; cursor: pointer; color: var(--grafite); }
+    @media (max-width: 760px) {
+      .sidebar { transform: translateX(-100%); transition: transform .2s; }
+      .sidebar.aberta { transform: translateX(0); box-shadow: 0 0 30px rgba(0,0,0,.3); }
+      .main { margin-left: 0; }
+      .menu-toggle { display: inline-flex; align-items: center; }
+    }
 
     /* ── Tela ── */
     .tela { display: none; padding: 1.25rem 1.5rem; max-width: 1100px; margin: 0 auto; }
@@ -395,27 +429,55 @@
 </head>
 <body>
 
-<!-- Header -->
-<header class="header">
-  <div class="header-logo">Portal<span class="logo-news">News</span></div>
-  <div class="header-info">
-    <span id="hd-nome">—</span>
-    <span class="badge-plano" id="hd-plano">—</span>
+<!-- ══════════════════════════════ SIDEBAR ══════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    Portal<span class="logo-news">News</span>
+    <span class="sidebar-badge">Assinante</span>
   </div>
-  <button class="header-btn" id="btn-admin-hd" style="display:none;background:var(--red);color:#fff;border-color:var(--red)" onclick="location.href='admin.html'">⚙ Admin</button>
-  <button class="header-btn" id="btn-config-hd">⚙ Configurações</button>
-  <button class="header-btn" id="btn-sair">Sair</button>
-</header>
 
-<!-- Tabs -->
-<div class="tabs">
-  <div class="tab ativa" data-tab="artigos">Publicar</div>
-  <div class="tab" data-tab="historico">📋 Histórico</div>
-  <div class="tab" data-tab="criar">✍️ Criar Post</div>
-  <div class="tab" data-tab="fontes">📡 Minhas Fontes</div>
-  <div class="tab" data-tab="portais">Meus Portais</div>
-  <div class="tab" data-tab="config">Configurações</div>
-</div>
+  <div class="sidebar-section">Publicar</div>
+  <a class="nav-item tab ativa" data-tab="artigos">
+    <span class="icon">📰</span> Publicar
+  </a>
+  <a class="nav-item tab" data-tab="criar">
+    <span class="icon">✍️</span> Criar Post
+  </a>
+
+  <div class="sidebar-section">Acompanhar</div>
+  <a class="nav-item tab" data-tab="historico">
+    <span class="icon">📋</span> Histórico
+  </a>
+
+  <div class="sidebar-section">Configuração</div>
+  <a class="nav-item tab" data-tab="fontes">
+    <span class="icon">📡</span> Minhas Fontes
+  </a>
+  <a class="nav-item tab" data-tab="portais">
+    <span class="icon">🌐</span> Meus Portais
+  </a>
+  <a class="nav-item tab" data-tab="config">
+    <span class="icon">⚙️</span> Configurações
+  </a>
+
+  <div class="sidebar-footer">
+    <strong id="hd-nome">—</strong>
+    <span class="badge-plano" id="hd-plano">—</span>
+    <button class="btn-sb-admin" id="btn-admin-hd" style="display:none" onclick="location.href='admin.html'">⚙ Painel Admin</button>
+    <button class="btn-logout" id="btn-sair">↩ Sair</button>
+  </div>
+</aside>
+
+<!-- ══════════════════════════════ MAIN ═════════════════════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('aberta')" aria-label="Menu">☰</button>
+    <div>
+      <div class="topbar-title" id="topbar-title">Publicar</div>
+      <div class="topbar-sub" id="topbar-sub">Artigos disponíveis para publicar</div>
+    </div>
+  </div>
+  <div class="content">
 
 <!-- Tela: Artigos -->
 <div class="tela visivel" id="tela-artigos">
@@ -730,6 +792,8 @@
     </div>
   </div>
 </div>
+  </div><!-- /.content -->
+</div><!-- /.main -->
 
 <!-- Modal: Identidade Editorial do Portal -->
 <div class="overlay hidden" id="overlay-ia-portal">
@@ -957,35 +1021,45 @@ function inicializarHeader() {
         : dias === 0
           ? '⚠️ Seu plano vence hoje! Entre em contato para renovar.'
           : `⚠️ Seu plano vence em ${dias} dia(s). Entre em contato para renovar.`;
-      const header = document.querySelector('header.header') || document.querySelector('.header');
-      if (header) header.insertAdjacentElement('afterend', aviso);
+      const topbar = document.querySelector('.topbar');
+      if (topbar) topbar.insertAdjacentElement('afterend', aviso);
       else document.body.prepend(aviso);
     }
   }
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
+const TAB_INFO = {
+  artigos:   { title: 'Publicar',       sub: 'Artigos disponíveis para publicar' },
+  criar:     { title: 'Criar Post',     sub: 'Escreva um novo artigo com IA' },
+  historico: { title: 'Histórico',      sub: 'Suas publicações recentes' },
+  fontes:    { title: 'Minhas Fontes',  sub: 'Catálogo de fontes ativas' },
+  portais:   { title: 'Meus Portais',   sub: 'Sites WordPress vinculados' },
+  config:    { title: 'Configurações',  sub: 'Perfil, conta e integrações' }
+};
+function atualizarTopbar(tabKey) {
+  const info = TAB_INFO[tabKey] || { title: '', sub: '' };
+  const t = document.getElementById('topbar-title');
+  const s = document.getElementById('topbar-sub');
+  if (t) t.textContent = info.title;
+  if (s) s.textContent = info.sub;
+}
+
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativa'));
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
     tab.classList.add('ativa');
     document.getElementById('tela-' + tab.dataset.tab).classList.add('visivel');
+    atualizarTopbar(tab.dataset.tab);
+    // fecha a sidebar no mobile
+    document.getElementById('sidebar')?.classList.remove('aberta');
     if (tab.dataset.tab === 'config')    { preencherPerfil(subscriber || {}); verificarStatusTelegram(); }
     if (tab.dataset.tab === 'historico') carregarHistorico();
     if (tab.dataset.tab === 'fontes')   carregarTellaFontes();
     if (tab.dataset.tab === 'criar')    criarPopularSites();
     if (tab.dataset.tab === 'portais')  renderMeusPortais();
   });
-});
-
-document.getElementById('btn-config-hd').addEventListener('click', () => {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativa'));
-  document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
-  document.querySelector('[data-tab="config"]').classList.add('ativa');
-  document.getElementById('tela-config').classList.add('visivel');
-  preencherPerfil(subscriber || {});
-  verificarStatusTelegram();
 });
 
 document.getElementById('btn-sair').addEventListener('click', logout);
@@ -2445,6 +2519,7 @@ async function republicarDoHistorico(p) {
   document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
   document.querySelector('[data-tab="artigos"]').classList.add('ativa');
   document.getElementById('tela-artigos').classList.add('visivel');
+  atualizarTopbar('artigos');
   toast('Artigo carregado — escolha os portais e publique novamente.', 'sucesso');
 }
 
@@ -2465,6 +2540,7 @@ function usarDraft(d) {
   document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
   document.querySelector('[data-tab="artigos"]').classList.add('ativa');
   document.getElementById('tela-artigos').classList.add('visivel');
+  atualizarTopbar('artigos');
 
   // Preenche cabeçalho do modal
   document.getElementById('ml-fonte').textContent  = artigoAtual.source_name;
