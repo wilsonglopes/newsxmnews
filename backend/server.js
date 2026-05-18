@@ -753,6 +753,7 @@ app.use('/api/articles',           require('./routes/articles'));
 app.use('/api/publish',            require('./routes/publish'));
 app.use('/api/sites',              require('./routes/sites'));
 app.use('/api/drafts',             require('./routes/drafts'));
+app.use('/api/publications',       require('./routes/publications'));
 app.use('/api/subscriber/sources',  require('./routes/subscriber-sources'));
 app.use('/api/subscriber',          require('./routes/subscriber-telegram'));
 
