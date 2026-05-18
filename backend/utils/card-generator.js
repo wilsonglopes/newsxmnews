@@ -90,13 +90,25 @@ function montarSvgTextos(chapeu, resumo) {
 
   // Pega só a primeira frase completa do resumo (garante ponto final, sem reticências)
   const resumoLimpo = primeiraFrase(resumo || '');
-  // Largura disponível ~1420px, fonte 60px → ~48 chars/linha; 6 linhas de capacidade
-  const linhasResumo = quebrarLinhas(resumoLimpo, 48, 6);
+  // 42 chars/linha (margem de segurança para fontes mais largas em pt-BR); 6 linhas de capacidade
+  const linhasResumo = quebrarLinhas(resumoLimpo, 42, 6);
   const lineHeight = 80;
   const resumoY0 = CARD.resumoArea.y + 50;
 
+  // Justificação: todas as linhas EXCETO a última recebem textLength=resumoArea.w
+  // com lengthAdjust='spacing' (estica APENAS os espaços entre palavras — não distorce as letras)
+  const lastIdx = linhasResumo.length - 1;
   const tspans = linhasResumo
-    .map((l, i) => `<tspan x="${CARD.resumoArea.x}" dy="${i === 0 ? 0 : lineHeight}">${escapeXml(l)}</tspan>`)
+    .map((l, i) => {
+      const palavras = l.trim().split(/\s+/);
+      const ehUltima = i === lastIdx;
+      // Não justifica: última linha; linhas com 1 palavra só; linhas muito curtas (< 60% da largura)
+      const podeJustificar = !ehUltima && palavras.length > 1 && l.length >= 28;
+      const attrs = podeJustificar
+        ? `textLength="${CARD.resumoArea.w}" lengthAdjust="spacing"`
+        : '';
+      return `<tspan x="${CARD.resumoArea.x}" dy="${i === 0 ? 0 : lineHeight}" ${attrs}>${escapeXml(l)}</tspan>`;
+    })
     .join('');
 
   return Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
