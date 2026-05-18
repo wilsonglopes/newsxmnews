@@ -99,13 +99,67 @@ function extrairImagemDoConteudo(html) {
 }
 
 // Normaliza uma data para ISO string; retorna agora se inválida ou futura
-function normalizarData(val) {
-  if (!val) return new Date().toISOString();
-  try {
+// Mapa de meses em português pra número (case-insensitive, com/sem acento)
+const MESES_PT = {
+  janeiro: 0, jan: 0,
+  fevereiro: 1, fev: 1,
+  marco: 2, 'março': 2, mar: 2,
+  abril: 3, abr: 3,
+  maio: 4, mai: 4,
+  junho: 5, jun: 5,
+  julho: 6, jul: 6,
+  agosto: 7, ago: 7,
+  setembro: 8, set: 8,
+  outubro: 9, out: 9,
+  novembro: 10, nov: 10,
+  dezembro: 11, dez: 11,
+};
+
+// Tenta parsear data em formato português: "6 de agosto de 2025"
+function parsePtDate(val) {
+  if (!val || typeof val !== 'string') return null;
+  // "6 de agosto de 2025" ou "06 de Agosto de 2025"
+  const m = val.toLowerCase().match(/(\d{1,2})\s+de\s+([a-zçãé]+)\s+de\s+(\d{4})/i);
+  if (!m) return null;
+  const dia = parseInt(m[1], 10);
+  const mes = MESES_PT[m[2].normalize('NFD').replace(/[̀-ͯ]/g, '')];
+  const ano = parseInt(m[3], 10);
+  if (mes === undefined) return null;
+  const d = new Date(Date.UTC(ano, mes, dia, 12, 0, 0));  // meio-dia UTC pra evitar borda de timezone
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Tenta extrair data de URL com padrão /AAAA/MM/DD/ (comum em WordPress)
+function parseDateFromUrl(url) {
+  if (!url) return null;
+  const m = String(url).match(/\/(\d{4})\/(\d{2})\/(\d{2})\//);
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12, 0, 0));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function normalizarData(val, fallbackUrl) {
+  // 1. Tenta parseamento padrão (ISO, RFC etc)
+  if (val) {
     const d = new Date(val);
-    if (isNaN(d.getTime()) || d.getTime() > Date.now()) return new Date().toISOString();
-    return d.toISOString();
-  } catch { return new Date().toISOString(); }
+    if (!isNaN(d.getTime()) && d.getTime() <= Date.now() + 24*3600*1000) {
+      return d.toISOString();
+    }
+    // 2. Tenta formato português "6 de agosto de 2025"
+    const dPt = parsePtDate(val);
+    if (dPt && dPt.getTime() <= Date.now() + 24*3600*1000) {
+      return dPt.toISOString();
+    }
+  }
+  // 3. Tenta extrair da URL (WordPress costuma usar /YYYY/MM/DD/)
+  if (fallbackUrl) {
+    const dUrl = parseDateFromUrl(fallbackUrl);
+    if (dUrl && dUrl.getTime() <= Date.now() + 24*3600*1000) {
+      return dUrl.toISOString();
+    }
+  }
+  // 4. Último recurso: agora
+  return new Date().toISOString();
 }
 
 // Resolve URL relativa usando a base da fonte
@@ -257,10 +311,10 @@ function extrairArtigosDeHTML(html, source) {
     })();
     const imagem = imagemPequena ? null : imagemRaw;
 
-    // Data
+    // Data — passa também a URL para tentar extrair /AAAA/MM/DD/ se o seletor falhar
     const dateSel = cfg.dateSelector || 'time, .date, .data, .published, .post-date';
     const dateEl  = $el.find(dateSel).first();
-    const dataISO = normalizarData(dateEl.attr('datetime') || dateEl.text().trim());
+    const dataISO = normalizarData(dateEl.attr('datetime') || dateEl.text().trim(), url);
 
     // Resumo: primeiro <p> que não seja vazio
     const resumo  = $el.find('p').first().text().trim();
