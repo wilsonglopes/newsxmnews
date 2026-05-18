@@ -58,7 +58,7 @@ router.post('/rewrite', async (req, res) => {
   const promptSistema = ai_prompt ||
     `Você é um editor de notícias profissional. Reescreva a matéria abaixo com linguagem jornalística clara e objetiva.
 Retorne SOMENTE um JSON com:
-{ "chapeu": string(máx 2 palavras em maiúsculas, ex: "ECONOMIA" ou "ECONOMIA DO BRASIL"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(frase completa com sentido, máx ~160 caracteres sem contar espaços — NUNCA termine no meio de uma oração; se necessário, use uma frase mais curta mas sempre encerre com ponto final), "corpo": string(HTML com <p> — OBRIGATÓRIO: mantenha extensão proporcional ao original; cubra TODOS os pontos e detalhes presentes no texto; use no mínimo ${nParas} parágrafos; NÃO comprima nem resuma em excesso), "tags": string[] }.`;
+{ "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com <p> — OBRIGATÓRIO: mantenha extensão proporcional ao original; cubra TODOS os pontos e detalhes presentes no texto; use no mínimo ${nParas} parágrafos; NÃO comprima nem resuma em excesso), "tags": string[] }.`;
 
   try {
     let textoIA = '';
@@ -213,7 +213,7 @@ router.post('/gerar', async (req, res) => {
   const promptSistema = ai_prompt ||
     `Você é um jornalista profissional. Com base no briefing fornecido, escreva um artigo jornalístico completo, original e informativo.
 Retorne SOMENTE um JSON com:
-{ "chapeu": string(máx 2 palavras em maiúsculas, ex: "ECONOMIA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(frase completa com sentido, máx ~160 caracteres sem contar espaços — NUNCA termine no meio de uma oração; encerre com ponto final), "corpo": string(HTML com pelo menos 4 parágrafos em <p>), "tags": string[] }.`;
+{ "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com pelo menos 4 parágrafos em <p>), "tags": string[] }.`;
 
   try {
     let textoIA = '';

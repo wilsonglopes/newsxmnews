@@ -102,7 +102,7 @@ REGRAS OBRIGATÓRIAS:
 - O corpo deve ter no mínimo o mesmo número de parágrafos do original. Quanto mais longa a matéria, mais longo o corpo.
 - Cada parágrafo deve ser envolto em <p>...</p>.
 Retorne SOMENTE um JSON com:
-{ "chapeu": string(máx 2 palavras em maiúsculas, ex: "ECONOMIA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(frase completa com sentido, máx ~160 caracteres sem contar espaços — NUNCA termine no meio de uma oração; encerre com ponto final), "corpo": string(HTML com <p>, proporcional ao original), "tags": string[] }.`;
+{ "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com <p>, proporcional ao original), "tags": string[] }.`;
 
   // Remove HTML e trunca em 6000 chars — aumentado para não cortar artigos longos
   const textoLimpo = (artigo.body || artigo.summary || '')

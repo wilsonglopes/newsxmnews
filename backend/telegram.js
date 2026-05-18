@@ -113,7 +113,7 @@ async function gerarArtigo(briefing, aiPrompt) {
   const sys = aiPrompt ||
     `Você é um jornalista profissional. Com base no briefing (textos, transcrições de áudio, descrições de fotos), escreva um artigo jornalístico completo.
 Retorne SOMENTE um JSON:
-{ "chapeu": string(máx 2 palavras MAIÚSCULAS), "titulo": string(máx 90 chars), "resumo": string(máx 160 chars, termine com ponto), "corpo": string(HTML ≥4 parágrafos em <p>), "tags": string[] }`;
+{ "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE"), "titulo": string(máx 90 chars), "resumo": string(uma frase única curta e completa, máx 130 chars, OBRIGATORIAMENTE terminando com ponto final), "corpo": string(HTML ≥4 parágrafos em <p>), "tags": string[] }`;
 
   let txt = '';
   if (provider === 'deepseek') {

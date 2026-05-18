@@ -32,11 +32,13 @@ function escapeXml(s) {
     .replace(/'/g, '&apos;');
 }
 
-// Quebra texto em linhas baseado em largura máxima (aproximação por chars)
+// Quebra texto em linhas. Se passar de maxLinhas, corta a última palavra inteira
+// e termina com ponto final (sem reticências) pra dar sensação de fechamento.
 function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
   const palavras = (texto || '').replace(/\s+/g, ' ').trim().split(' ');
   const linhas = [];
   let linhaAtual = '';
+  let estouroNaUltima = false;
   for (const p of palavras) {
     const tentativa = linhaAtual ? `${linhaAtual} ${p}` : p;
     if (tentativa.length <= maxCharsPorLinha) {
@@ -44,27 +46,35 @@ function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
     } else {
       if (linhaAtual) linhas.push(linhaAtual);
       linhaAtual = p;
-      if (linhas.length >= maxLinhas - 1) break;
+      if (linhas.length >= maxLinhas) { estouroNaUltima = true; break; }
     }
   }
   if (linhaAtual && linhas.length < maxLinhas) linhas.push(linhaAtual);
-  // Se truncou, adiciona "..." na última
-  if (linhas.length === maxLinhas) {
-    const ultima = linhas[maxLinhas - 1];
-    if (ultima.length > maxCharsPorLinha - 3) {
-      linhas[maxLinhas - 1] = ultima.substring(0, maxCharsPorLinha - 3).trim() + '...';
-    } else {
-      linhas[maxLinhas - 1] = ultima + '...';
-    }
+
+  // Se a IA mandou texto maior que cabe, garante que termina com pontuação final
+  if (estouroNaUltima) {
+    let ult = linhas[linhas.length - 1];
+    if (!/[.!?]$/.test(ult)) ult = ult.replace(/[,;:\-]?$/, '') + '.';
+    linhas[linhas.length - 1] = ult;
   }
   return linhas;
 }
 
 // SVG dos textos (chapéu + resumo)
 function montarSvgTextos(chapeu, resumo) {
-  const chapeuTexto = escapeXml((chapeu || '').toUpperCase());
-  const linhasResumo = quebrarLinhas(resumo || '', 42, 4);
-  const lineHeight = 56;
+  // Chapéu: pega só a primeira palavra (1 palavra MAIÚSCULA, evita "INDÚSTRIA DE" etc)
+  const chapeuRaw = (chapeu || '').trim();
+  // Pega primeira palavra substantiva ignorando preposições/artigos curtos
+  const palavras = chapeuRaw.split(/\s+/);
+  let chapeuFinal = palavras[0] || '';
+  // Se a primeira palavra é uma preposição/artigo, tenta a segunda
+  if (/^(DA|DO|DE|DAS|DOS|EM|NO|NA|COM|PARA|POR|A|O)$/i.test(chapeuFinal) && palavras[1]) {
+    chapeuFinal = palavras[1];
+  }
+  const chapeuTexto = escapeXml(chapeuFinal.toUpperCase());
+
+  const linhasResumo = quebrarLinhas(resumo || '', 42, 5);
+  const lineHeight = 54;
   const resumoY0 = CARD.resumoArea.y + 30;
 
   const tspans = linhasResumo
