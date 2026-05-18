@@ -767,10 +767,12 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       );
       if (!cat[0]) return res.status(404).json({ error: 'Site não encontrado no catálogo.' });
       const { rows } = await pool.query(
-        `INSERT INTO subscriber_sites (subscriber_id, site_id, ai_prompt, default_category_id)
-         VALUES ($1,$2,$3,$4)
+        `INSERT INTO subscriber_sites
+           (subscriber_id, site_id, name, platform, site_url, ai_prompt, default_category_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING id, active`,
-        [req.params.id, site_id, ai_prompt || null, default_category_id || null]
+        [req.params.id, site_id, cat[0].name, cat[0].platform, cat[0].site_url,
+         ai_prompt || null, default_category_id || null]
       );
       await salvarAutopubRules(rows[0].id, req.params.id, autopub_source_ids);
       res.status(201).json({ ...rows[0], name: cat[0].name, platform: cat[0].platform, site_url: cat[0].site_url });
