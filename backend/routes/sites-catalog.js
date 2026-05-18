@@ -72,7 +72,8 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
           blogger_blog_id, webhook_url, webhook_secret, post_format, active, ai_prompt,
-          facebook_enabled, facebook_page_id, facebook_page_token } = req.body || {};
+          facebook_enabled, facebook_page_id, facebook_page_token,
+          instagram_enabled } = req.body || {};
   try {
     const sets = []; const vals = []; let p = 1;
     if (name        !== undefined) { sets.push(`name = $${p++}`);        vals.push(name); }
@@ -96,6 +97,7 @@ router.put('/:id', async (req, res) => {
       sets.push(`facebook_page_token = $${p++}`);
       vals.push(encryptToken(facebook_page_token));
     }
+    if (instagram_enabled !== undefined) { sets.push(`instagram_enabled = $${p++}`); vals.push(instagram_enabled === true || instagram_enabled === 'true'); }
     if (!sets.length) return res.status(400).json({ error: 'Nada para atualizar.' });
     vals.push(req.params.id);
     const { rows } = await pool.query(
@@ -203,11 +205,12 @@ router.put('/:id/autopub', async (req, res) => {
 });
 
 // ── POST /api/admin/sites-catalog/test-fb ────────────────────────────────────
-// Body: { facebook_page_id, facebook_page_token }
-// Se token = '••••••••' (placeholder) E o ID do site é passado em :id query,
-// usa o token salvo no banco para o teste.
+// Body: { facebook_page_id, facebook_page_token, site_id? }
+// Se token = '••••••••' (placeholder) E o ID do site é passado, usa o token salvo.
+// Após validar a Page, tenta auto-detectar o Instagram Business Account conectado.
 router.post('/test-fb', async (req, res) => {
   const { testarConexao } = require('../connectors/facebook');
+  const { descobrirIgBusinessAccount } = require('../connectors/instagram');
   let { facebook_page_id, facebook_page_token, site_id } = req.body || {};
   try {
     if ((!facebook_page_token || facebook_page_token === '••••••••') && site_id) {
@@ -222,7 +225,20 @@ router.post('/test-fb', async (req, res) => {
     }
     const r = await testarConexao({ page_id: facebook_page_id, page_token: facebook_page_token });
     if (!r.ok) return res.status(400).json(r);
-    res.json(r);
+
+    // Auto-discovery do Instagram (opcional, não falha se não tiver)
+    const ig = await descobrirIgBusinessAccount({ page_id: facebook_page_id, page_token: facebook_page_token });
+    if (ig && site_id) {
+      // Salva o ID/username do IG no banco automaticamente
+      try {
+        await pool.query(
+          `UPDATE sites_catalog SET instagram_business_account_id = $1, instagram_username = $2 WHERE id = $3`,
+          [ig.id, ig.username || null, site_id]
+        );
+      } catch (e) { console.warn('[test-fb] salvar IG:', e.message); }
+    }
+
+    res.json({ ...r, instagram: ig });
   } catch (err) {
     console.error('[sites-catalog/test-fb]', err.message);
     res.status(500).json({ error: err.message });

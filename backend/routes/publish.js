@@ -46,7 +46,8 @@ router.post('/', async (req, res) => {
              COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
              COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
              COALESCE(sc.post_format, ss.post_format)         AS post_format,
-             sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token
+             sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
+             sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
@@ -120,41 +121,87 @@ router.post('/', async (req, res) => {
       console.error('[publish] falha ao registrar no banco (post criado):', dbErr.message);
     }
 
-    // ── Publicação no Facebook (opcional) ──────────────────────────────────
-    let facebookResult = null;
+    // ── Publicação no Facebook + Instagram (opcional) ────────────────────
+    let facebookResult  = null;
+    let instagramResult = null;
     const wantsFacebook = publish_to_facebook === true || publish_to_facebook === 'true';
+
     if (wantsFacebook && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
       try {
-        const { gerarCard } = require('../utils/card-generator');
+        const { gerarCard, gerarCardComUrl } = require('../utils/card-generator');
         const { publicarFoto } = require('../connectors/facebook');
+        const { publicar: publicarInstagram } = require('../connectors/instagram');
         const { decryptToken } = require('../connectors/encrypt');
 
-        const cardBuffer = await gerarCard({
-          chapeu:   rewritten.chapeu || article.chapeu || '',
-          resumo:   rewritten.summary || article.summary || '',
-          imageUrl: article.image_url || '',
-        });
+        const wantsInstagram = site.instagram_enabled && site.instagram_business_account_id;
+        const pageToken = decryptToken(site.facebook_page_token);
 
-        const fb = await publicarFoto(
-          { facebook_page_id: site.facebook_page_id, facebook_page_token: decryptToken(site.facebook_page_token) },
-          cardBuffer,
-          { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
-        );
+        // Se vai postar no IG também, salva o card em disco (precisa de URL pública)
+        let cardBuffer, cardPublicUrl;
+        if (wantsInstagram) {
+          const r = await gerarCardComUrl({
+            chapeu:   rewritten.chapeu || article.chapeu || '',
+            resumo:   rewritten.summary || article.summary || '',
+            imageUrl: article.image_url || '',
+          });
+          cardBuffer    = r.buffer;
+          cardPublicUrl = r.publicUrl;
+        } else {
+          cardBuffer = await gerarCard({
+            chapeu:   rewritten.chapeu || article.chapeu || '',
+            resumo:   rewritten.summary || article.summary || '',
+            imageUrl: article.image_url || '',
+          });
+        }
 
-        // Salva referência no publications
+        // Facebook
         try {
-          await pool.query(
-            `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
-             WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5
-             AND status = 'published'`,
-            [fb.photo_id || fb.post_id, fb.post_url, pubSubscriberId, article_id, site_id]
+          const fb = await publicarFoto(
+            { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
+            cardBuffer,
+            { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
           );
-        } catch (e) { console.warn('[publish/fb] grava ID:', e.message); }
+          facebookResult = { ok: true, post_url: fb.post_url, photo_id: fb.photo_id };
+          try {
+            await pool.query(
+              `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
+               WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
+              [fb.photo_id || fb.post_id, fb.post_url, pubSubscriberId, article_id, site_id]
+            );
+          } catch (e) { console.warn('[publish/fb] grava ID:', e.message); }
+        } catch (fbErr) {
+          console.error('[publish/fb]', fbErr.message);
+          facebookResult = { ok: false, error: fbErr.message };
+        }
 
-        facebookResult = { ok: true, post_url: fb.post_url, photo_id: fb.photo_id };
-      } catch (fbErr) {
-        console.error('[publish/fb]', fbErr.message);
-        facebookResult = { ok: false, error: fbErr.message };
+        // Instagram (só posta se FB foi OK ou independente do FB)
+        if (wantsInstagram && cardPublicUrl) {
+          try {
+            const ig = await publicarInstagram(
+              {
+                instagram_business_account_id: site.instagram_business_account_id,
+                facebook_page_token: pageToken,
+              },
+              cardPublicUrl,
+              { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+            );
+            instagramResult = { ok: true, post_url: ig.post_url, post_id: ig.post_id };
+            try {
+              await pool.query(
+                `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
+                 WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
+                [ig.post_id, ig.post_url, pubSubscriberId, article_id, site_id]
+              );
+            } catch (e) { console.warn('[publish/ig] grava ID:', e.message); }
+          } catch (igErr) {
+            console.error('[publish/ig]', igErr.message);
+            instagramResult = { ok: false, error: igErr.message };
+          }
+        }
+      } catch (err) {
+        console.error('[publish/social]', err.message);
+        if (!facebookResult)  facebookResult  = { ok: false, error: err.message };
+        if (!instagramResult) instagramResult = { ok: false, error: err.message };
       }
     }
 
@@ -162,7 +209,8 @@ router.post('/', async (req, res) => {
       success: true,
       post_url: result.post_url,
       post_id: result.post_id,
-      facebook: facebookResult,
+      facebook:  facebookResult,
+      instagram: instagramResult,
     });
   } catch (err) {
     console.error('[publish]', err.message);

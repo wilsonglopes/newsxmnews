@@ -1432,6 +1432,55 @@ Portal<span class="logo-news">News</span>
       </ol>
 
       <!-- ═════════════════ PARTE 7 ═════════════════ -->
+      <!-- ═════════════════ PARTE 7 (renumerada — antes era 7) ═════════════════ -->
+      <h3 style="margin:24px 0 10px;color:#be185d;border-bottom:2px solid #f9a8d4;padding-bottom:6px">📷 PARTE EXTRA — Conectar Instagram (opcional)</h3>
+
+      <div style="background:linear-gradient(135deg,#fdf2f8,#fce7f3);border:1px solid #f9a8d4;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.9rem;color:#831843">
+        <b>🎯 O que faz:</b> além de postar no Facebook, posta automaticamente no Instagram (foto única no feed) com a mesma legenda. Usa o MESMO Page Access Token — não precisa de token separado.
+      </div>
+
+      <ol style="padding-left:22px">
+        <li style="margin-bottom:10px">
+          <b>Pré-requisito:</b> sua conta Instagram precisa ser <b>Profissional (Business ou Creator)</b> e estar <b>conectada à Page do Facebook</b>.
+          <ul style="margin:6px 0 0 18px;font-size:.85rem">
+            <li>No app do Instagram → Perfil → ☰ → Configurações → <b>Tipo de conta</b> → "Mudar para conta profissional"</li>
+            <li>Depois: Configurações → Meta → <b>Contas conectadas</b> → conectar à Page do FB</li>
+          </ul>
+        </li>
+        <li style="margin-bottom:10px">
+          <b>Adicionar permissões IG no app Meta</b> — volta no <a href="https://developers.facebook.com/apps/" target="_blank" style="color:#be185d;font-weight:600">Meta for Developers</a>, abre seu app:
+          <ul style="margin:6px 0 0 18px">
+            <li>Vá no caso de uso <b>"Gerenciar tudo na sua Página"</b> (mesma da Parte 2)</li>
+            <li>Procure e adicione com <b>"+ Adicionar"</b>:
+              <ul style="margin:4px 0 0 18px">
+                <li><code style="background:#fce7f3;padding:2px 6px;border-radius:3px;color:#be185d;font-weight:600">instagram_basic</code></li>
+                <li><code style="background:#fce7f3;padding:2px 6px;border-radius:3px;color:#be185d;font-weight:600">instagram_content_publish</code></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li style="margin-bottom:10px">
+          <b>Regerar Page Token com as novas permissões</b> — refaz as <b>Partes 3, 4 e 5</b> do tutorial.
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:10px;margin-top:8px">
+            <b style="color:#dc2626">⚠️ Importante:</b> no Graph API Explorer, marca também <code>instagram_basic</code> e <code>instagram_content_publish</code> em "Permissões" antes de "Generate Access Token". Senão o Page Token novo continua sem acesso ao IG.
+          </div>
+        </li>
+        <li style="margin-bottom:10px">
+          <b>Atualizar o Page Token aqui no XIXO</b>:
+          <ul style="margin:6px 0 0 18px">
+            <li>Sites → Editar XMNews → cola o token NOVO no campo "Page Access Token"</li>
+            <li>Clica <b>🔌 Testar conexão</b></li>
+            <li>Se o Instagram estiver conectado à Page e o token tiver as permissões IG, vai aparecer um <b>bloco rosa</b> embaixo: <i>"📷 Instagram detectado: @xmnews"</i></li>
+            <li>Marca o checkbox <b>"Publicar também no Instagram"</b></li>
+            <li>Salva</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:10px;margin:14px 0;color:#166534">
+        ✅ <b>Pronto!</b> A partir de agora, cada post no Facebook irá automaticamente também pro Instagram.
+      </div>
+
       <h3 style="margin:24px 0 10px;color:#1d4ed8;border-bottom:2px solid #93c5fd;padding-bottom:6px">PARTE 7 — Configurar aqui no XIXO</h3>
 
       <ol style="padding-left:22px">
@@ -1590,6 +1639,22 @@ Portal<span class="logo-news">News</span>
               <button type="button" id="btn-test-fb" onclick="testarFacebook()" style="font-size:.78rem;padding:6px 12px;border:1px solid #2563eb;border-radius:5px;background:#eff6ff;color:#1d4ed8;cursor:pointer">🔌 Testar conexão</button>
               <button type="button" onclick="abrirTutorialFB()" style="font-size:.78rem;padding:6px 12px;border:1px solid var(--border);border-radius:5px;background:#fff;color:#475569;cursor:pointer">📖 Como gerar o token?</button>
               <span id="mcat-fb-status" style="font-size:.8rem"></span>
+            </div>
+
+            <!-- Instagram (auto-detectado a partir da Page) -->
+            <div id="mcat-ig-bloco" style="display:none;margin-top:12px;padding:10px 12px;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border:1px solid #f9a8d4;border-radius:6px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="font-size:1rem">📷</span>
+                <b style="color:#be185d">Instagram detectado:</b>
+                <span id="mcat-ig-username" style="font-family:monospace;color:#9d174d"></span>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;color:#831843">
+                <input type="checkbox" id="mcat-ig-enabled" style="width:16px;height:16px;cursor:pointer" />
+                Publicar também no Instagram (sempre junto com o Facebook)
+              </label>
+              <div style="font-size:.75rem;color:#9d174d;margin-top:4px">
+                ℹ️ Cada post no Facebook também irá pro Instagram com o mesmo card e legenda.
+              </div>
             </div>
           </div>
         </div>
@@ -3779,9 +3844,30 @@ async function testarFacebook() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Falha no teste');
     status.innerHTML = `<span style="color:#16a34a">✓ ${d.message}</span>`;
+    // Mostra o bloco Instagram se a Page tem IG conectado
+    if (d.instagram && d.instagram.id) {
+      mostrarBlocoInstagram(d.instagram.username, d.instagram.id);
+    } else {
+      esconderBlocoInstagram();
+    }
   } catch (e) {
     status.innerHTML = `<span style="color:#dc2626">✕ ${e.message}</span>`;
   } finally { btn.disabled = false; }
+}
+
+function mostrarBlocoInstagram(username, igId) {
+  const bloco = document.getElementById('mcat-ig-bloco');
+  const userEl = document.getElementById('mcat-ig-username');
+  if (!bloco || !userEl) return;
+  userEl.textContent = username ? `@${username}` : `ID ${igId}`;
+  bloco.style.display = '';
+}
+
+function esconderBlocoInstagram() {
+  const bloco = document.getElementById('mcat-ig-bloco');
+  if (bloco) bloco.style.display = 'none';
+  const cb = document.getElementById('mcat-ig-enabled');
+  if (cb) cb.checked = false;
 }
 
 async function abrirModalCatalog(siteId) {
@@ -3801,6 +3887,7 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-fb-page-id').value   = '';
   document.getElementById('mcat-fb-page-token').value = '';
   document.getElementById('mcat-fb-status').textContent = '';
+  esconderBlocoInstagram();
   toggleFbFields();
   toggleCatalogPlatformFields();
   _todasFontes     = [];
@@ -3823,6 +3910,13 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-fb-enabled').checked = s.facebook_enabled === true;
       document.getElementById('mcat-fb-page-id').value   = s.facebook_page_id || '';
       document.getElementById('mcat-fb-page-token').value = s.facebook_page_token === '••••••••' ? '••••••••' : '';
+      // Instagram: mostra o bloco se site tem IG salvo
+      if (s.instagram_business_account_id) {
+        mostrarBlocoInstagram(s.instagram_username, s.instagram_business_account_id);
+        document.getElementById('mcat-ig-enabled').checked = s.instagram_enabled === true;
+      } else {
+        esconderBlocoInstagram();
+      }
       toggleFbFields();
       toggleCatalogPlatformFields();
     }
@@ -3869,6 +3963,7 @@ async function salvarCatalog() {
     facebook_enabled:    document.getElementById('mcat-fb-enabled').checked,
     facebook_page_id:    document.getElementById('mcat-fb-page-id').value.trim() || null,
     facebook_page_token: document.getElementById('mcat-fb-page-token').value.trim() || null,
+    instagram_enabled:   document.getElementById('mcat-ig-enabled')?.checked || false,
   };
   // Não enviar token se for o placeholder "••••••••" (significa "não mudar")
   if (body.facebook_page_token === '••••••••') delete body.facebook_page_token;

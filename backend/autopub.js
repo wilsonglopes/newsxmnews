@@ -258,7 +258,8 @@ async function rodarAutopub() {
              COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
              COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
              COALESCE(sc.post_format, ss.post_format)         AS post_format,
-             sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token
+             sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
+             sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username
       FROM subscriber_sites ss
       JOIN sites_catalog sc ON sc.id = ss.site_id
       JOIN subscribers   s  ON s.id  = ss.subscriber_id
@@ -409,34 +410,78 @@ async function rodarAutopub() {
               ]
             );
 
-            // 4.1 Publicação no Facebook (se site tem FB ligado E regra desta fonte permite)
+            // 4.1 Publicação no Facebook + Instagram (se site tem FB ligado E regra desta fonte permite)
             const querPostarFB = site.facebook_enabled
               && fbPorFonte[String(artigo.source_id)]
               && site.facebook_page_id
               && site.facebook_page_token;
             if (querPostarFB) {
               try {
-                const { gerarCard }     = require('./utils/card-generator');
-                const { publicarFoto }  = require('./connectors/facebook');
-                const { decryptToken }  = require('./connectors/encrypt');
-                const cardBuffer = await gerarCard({
-                  chapeu:   reescrito.chapeu || artigo.chapeu || '',
-                  resumo:   reescrito.summary || artigo.summary || '',
-                  imageUrl: artigo.image_url || '',
-                });
-                const fb = await publicarFoto(
-                  { facebook_page_id: site.facebook_page_id, facebook_page_token: decryptToken(site.facebook_page_token) },
-                  cardBuffer,
-                  { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
-                );
-                await pool.query(
-                  `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
-                   WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
-                  [fb.photo_id || fb.post_id, fb.post_url, site.subscriber_id, artigo.id, site.id]
-                );
-                console.log(`[AUTOPUB/FB] ✓ "${reescrito.title.slice(0, 50)}" → ${fb.post_url || 'OK'}`);
-              } catch (fbErr) {
-                console.error(`[AUTOPUB/FB] ✗ "${reescrito.title.slice(0, 50)}": ${fbErr.message}`);
+                const { gerarCard, gerarCardComUrl } = require('./utils/card-generator');
+                const { publicarFoto }               = require('./connectors/facebook');
+                const { publicar: publicarInstagram } = require('./connectors/instagram');
+                const { decryptToken }               = require('./connectors/encrypt');
+                const querPostarIG = site.instagram_enabled && site.instagram_business_account_id;
+                const pageToken    = decryptToken(site.facebook_page_token);
+
+                // Se vai postar no IG, salva o card em disco
+                let cardBuffer, cardPublicUrl;
+                if (querPostarIG) {
+                  const r = await gerarCardComUrl({
+                    chapeu:   reescrito.chapeu || artigo.chapeu || '',
+                    resumo:   reescrito.summary || artigo.summary || '',
+                    imageUrl: artigo.image_url || '',
+                  });
+                  cardBuffer    = r.buffer;
+                  cardPublicUrl = r.publicUrl;
+                } else {
+                  cardBuffer = await gerarCard({
+                    chapeu:   reescrito.chapeu || artigo.chapeu || '',
+                    resumo:   reescrito.summary || artigo.summary || '',
+                    imageUrl: artigo.image_url || '',
+                  });
+                }
+
+                // Facebook
+                try {
+                  const fb = await publicarFoto(
+                    { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
+                    cardBuffer,
+                    { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
+                  );
+                  await pool.query(
+                    `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
+                     WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
+                    [fb.photo_id || fb.post_id, fb.post_url, site.subscriber_id, artigo.id, site.id]
+                  );
+                  console.log(`[AUTOPUB/FB] ✓ "${reescrito.title.slice(0, 50)}" → ${fb.post_url || 'OK'}`);
+                } catch (fbErr) {
+                  console.error(`[AUTOPUB/FB] ✗ "${reescrito.title.slice(0, 50)}": ${fbErr.message}`);
+                }
+
+                // Instagram (independente do FB ter dado certo ou não)
+                if (querPostarIG && cardPublicUrl) {
+                  try {
+                    const ig = await publicarInstagram(
+                      {
+                        instagram_business_account_id: site.instagram_business_account_id,
+                        facebook_page_token: pageToken,
+                      },
+                      cardPublicUrl,
+                      { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
+                    );
+                    await pool.query(
+                      `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
+                       WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
+                      [ig.post_id, ig.post_url, site.subscriber_id, artigo.id, site.id]
+                    );
+                    console.log(`[AUTOPUB/IG] ✓ "${reescrito.title.slice(0, 50)}" → ${ig.post_url || 'OK'}`);
+                  } catch (igErr) {
+                    console.error(`[AUTOPUB/IG] ✗ "${reescrito.title.slice(0, 50)}": ${igErr.message}`);
+                  }
+                }
+              } catch (err) {
+                console.error(`[AUTOPUB/SOCIAL] ✗ "${reescrito.title.slice(0, 50)}": ${err.message}`);
               }
             }
 

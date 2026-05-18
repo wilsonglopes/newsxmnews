@@ -49,6 +49,8 @@ app.use(express.json({ limit: '20mb' }));
 // ─── Frontend estático ────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../frontend/subscriber')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Uploads sob /api/* (nginx só encaminha /api/*) — cards gerados pra Instagram
+app.use('/api/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // ─── Fontes ────────────────────────────────────────────────────────────────────
 const sources = require('./sources.json');
@@ -369,6 +371,12 @@ async function criarIndicesBanco() {
   await tryMigrate('autopub_rules.facebook_enabled',    `ALTER TABLE autopub_rules ADD COLUMN IF NOT EXISTS facebook_enabled BOOLEAN DEFAULT false`);
   await tryMigrate('publications.facebook_post_id',     `ALTER TABLE publications ADD COLUMN IF NOT EXISTS facebook_post_id VARCHAR(100)`);
   await tryMigrate('publications.facebook_post_url',    `ALTER TABLE publications ADD COLUMN IF NOT EXISTS facebook_post_url TEXT`);
+  // Instagram: detectado a partir do Page Token (mesmas credenciais do FB)
+  await tryMigrate('sites_catalog.instagram_enabled',     `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS instagram_enabled BOOLEAN DEFAULT false`);
+  await tryMigrate('sites_catalog.instagram_business_id', `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS instagram_business_account_id VARCHAR(50)`);
+  await tryMigrate('sites_catalog.instagram_username',    `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS instagram_username VARCHAR(100)`);
+  await tryMigrate('publications.instagram_post_id',      `ALTER TABLE publications ADD COLUMN IF NOT EXISTS instagram_post_id VARCHAR(100)`);
+  await tryMigrate('publications.instagram_post_url',     `ALTER TABLE publications ADD COLUMN IF NOT EXISTS instagram_post_url TEXT`);
 }
 
 // ─── Sincronizar sources.json → tabela sources do banco ──────────────────────
@@ -729,6 +737,11 @@ cron.schedule('* * * * *', () => verificarERotar().catch(e => console.error('[AU
 
 const { iniciarBot } = require('./telegram');
 iniciarBot();
+
+// Cleanup diário de cards antigos do Instagram (> 7 dias)
+const { limparCardsAntigos } = require('./utils/card-generator');
+cron.schedule('0 3 * * *', () => limparCardsAntigos(7));
+limparCardsAntigos(7); // roda na inicialização também
 
 // ─── ROTAS ────────────────────────────────────────────────────────────────────
 

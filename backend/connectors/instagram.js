@@ -1,0 +1,109 @@
+'use strict';
+
+const axios = require('axios');
+
+const GRAPH = 'https://graph.facebook.com/v19.0';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function stripHtml(html) {
+  return (html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function montarCaption({ chapeu, title, summary, post_url }) {
+  // Caption do Instagram: texto puro, sem markdown.
+  // Limit Instagram: 2200 chars.
+  const linhas = [];
+  if (chapeu) linhas.push(`📰 ${chapeu.toUpperCase()}`);
+  if (title)  linhas.push('', title.trim());
+  if (summary) {
+    linhas.push('');
+    const resumo = stripHtml(summary);
+    linhas.push(resumo);
+  }
+  if (post_url) {
+    linhas.push('', `🔗 Leia a matéria completa em:`);
+    linhas.push(post_url);
+  }
+  return linhas.join('\n').substring(0, 2200);
+}
+
+// ─── Detectar IG Business Account vinculado a uma Page ──────────────────────
+// Usa o Page Token. Retorna { id, username } ou null se não tem IG conectado.
+async function descobrirIgBusinessAccount({ page_id, page_token }) {
+  try {
+    const r = await axios.get(`${GRAPH}/${page_id}`, {
+      params: {
+        fields: 'instagram_business_account{id,username}',
+        access_token: page_token,
+      },
+      timeout: 10000,
+    });
+    const ig = r.data?.instagram_business_account;
+    return ig ? { id: ig.id, username: ig.username } : null;
+  } catch (err) {
+    console.warn('[instagram/discover]', err.response?.data?.error?.message || err.message);
+    return null;
+  }
+}
+
+// ─── Publicar foto + texto no Instagram ─────────────────────────────────────
+// site: { instagram_business_account_id, facebook_page_token (decrypted) }
+// imagePublicUrl: URL HTTPS pública (acessível pela Meta) da imagem do card
+// article: { chapeu, title, summary, post_url }
+async function publicar(site, imagePublicUrl, article) {
+  if (!site.instagram_business_account_id) {
+    throw new Error('Instagram Business Account não configurado para este site.');
+  }
+  if (!site.facebook_page_token) {
+    throw new Error('Page Access Token ausente.');
+  }
+  if (!imagePublicUrl || !/^https:\/\//.test(imagePublicUrl)) {
+    throw new Error('Instagram exige imagem em URL HTTPS pública.');
+  }
+
+  const igId   = site.instagram_business_account_id;
+  const token  = site.facebook_page_token;
+  const caption = montarCaption(article);
+
+  // Etapa 1: cria container de mídia
+  let creationId;
+  try {
+    const r = await axios.post(`${GRAPH}/${igId}/media`, null, {
+      params: { image_url: imagePublicUrl, caption, access_token: token },
+      timeout: 30000,
+    });
+    creationId = r.data.id;
+    if (!creationId) throw new Error('IG não retornou creation_id.');
+  } catch (err) {
+    const fbErr = err.response?.data?.error;
+    throw new Error(fbErr ? `IG/media: ${fbErr.message} (code ${fbErr.code})` : `IG/media: ${err.message}`);
+  }
+
+  // Etapa 2: publica o container
+  let mediaId;
+  try {
+    const r = await axios.post(`${GRAPH}/${igId}/media_publish`, null, {
+      params: { creation_id: creationId, access_token: token },
+      timeout: 30000,
+    });
+    mediaId = r.data.id;
+  } catch (err) {
+    const fbErr = err.response?.data?.error;
+    throw new Error(fbErr ? `IG/publish: ${fbErr.message} (code ${fbErr.code})` : `IG/publish: ${err.message}`);
+  }
+
+  // Tenta pegar o permalink (URL pública do post)
+  let post_url = null;
+  try {
+    const r = await axios.get(`${GRAPH}/${mediaId}`, {
+      params: { fields: 'permalink', access_token: token },
+      timeout: 10000,
+    });
+    post_url = r.data?.permalink || null;
+  } catch { /* opcional, ignora */ }
+
+  return { ok: true, post_id: mediaId, post_url };
+}
+
+module.exports = { descobrirIgBusinessAccount, publicar };

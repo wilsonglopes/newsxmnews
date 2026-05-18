@@ -5,8 +5,9 @@ const axios                  = require('axios');
 const https                  = require('https');
 const pool                   = require('./db/connection');
 const { publishToWordPress } = require('./connectors/wordpress');
-const { gerarCard }          = require('./utils/card-generator');
+const { gerarCard, gerarCardComUrl } = require('./utils/card-generator');
 const { publicarFoto }       = require('./connectors/facebook');
+const { publicar: publicarInstagram } = require('./connectors/instagram');
 const { decryptToken }       = require('./connectors/encrypt');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
@@ -159,7 +160,9 @@ async function buscarSites(subscriberId) {
             COALESCE(sc.wp_app_password, ss.wp_app_password)  AS wp_app_password,
             COALESCE(sc.post_format,     ss.post_format)      AS post_format,
             COALESCE(sc.facebook_enabled, false)              AS facebook_enabled,
-            sc.facebook_page_id, sc.facebook_page_token
+            sc.facebook_page_id, sc.facebook_page_token,
+            COALESCE(sc.instagram_enabled, false)             AS instagram_enabled,
+            sc.instagram_business_account_id, sc.instagram_username
      FROM subscriber_sites ss
      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
      WHERE ss.subscriber_id = $1 AND ss.active = true`,
@@ -329,8 +332,10 @@ async function proximaEtapaAposCategoria(bot, chatId, s) {
   // Se site tem Facebook, pergunta. Senão vai pra confirmação
   if (s.selectedSite.facebook_enabled && s.selectedSite.facebook_page_id && s.selectedSite.facebook_page_token) {
     s.step = 'escolhendo_fb';
+    const temIG = s.selectedSite.instagram_enabled && s.selectedSite.instagram_business_account_id;
+    const igTxt = temIG ? ' + Instagram 📷' : '';
     return bot.sendMessage(chatId,
-      `📘 Publicar também no Facebook da página "${s.selectedSite.site_name}"?`,
+      `📘 Publicar também no Facebook${igTxt} da página "${s.selectedSite.site_name}"?`,
       { reply_markup: teclado_facebook() }
     );
   }
@@ -384,25 +389,68 @@ async function publicar(bot, chatId, s, reporter) {
     );
   } catch (dbErr) { console.warn('[TELEGRAM] histórico:', dbErr.message); }
 
-  // Facebook (se reporter aceitou)
+  // Facebook + Instagram (se reporter aceitou)
   let fbInfo = '';
   if (s.publishToFacebook && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
+    const querPostarIG = site.instagram_enabled && site.instagram_business_account_id;
+    const pageToken    = decryptToken(site.facebook_page_token);
+
+    // Gera card; se for postar no IG, salva em disco também (precisa URL pública)
+    let cardBuffer, cardPublicUrl;
     try {
-      const cardBuffer = await gerarCard({
-        chapeu:   article.chapeu || '',
-        resumo:   article.summary || '',
-        imageUrl: imageUrl || '',
-      });
-      const fb = await publicarFoto(
-        { facebook_page_id: site.facebook_page_id, facebook_page_token: decryptToken(site.facebook_page_token) },
-        cardBuffer,
-        { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url }
-      );
-      fbInfo = `\n📘 Facebook: ${fb.post_url || 'OK'}`;
-      console.log(`[TELEGRAM/FB] ✓ ${site.site_name}: ${fb.post_url}`);
-    } catch (fbErr) {
-      fbInfo = `\n📘 Facebook falhou: ${fbErr.message}`;
-      console.error(`[TELEGRAM/FB] ✗ ${site.site_name}: ${fbErr.message}`);
+      if (querPostarIG) {
+        const r = await gerarCardComUrl({
+          chapeu:   article.chapeu || '',
+          resumo:   article.summary || '',
+          imageUrl: imageUrl || '',
+        });
+        cardBuffer    = r.buffer;
+        cardPublicUrl = r.publicUrl;
+      } else {
+        cardBuffer = await gerarCard({
+          chapeu:   article.chapeu || '',
+          resumo:   article.summary || '',
+          imageUrl: imageUrl || '',
+        });
+      }
+    } catch (cardErr) {
+      fbInfo = `\n📘 Falha ao gerar card: ${cardErr.message}`;
+      cardBuffer = null;
+    }
+
+    // Facebook
+    if (cardBuffer) {
+      try {
+        const fb = await publicarFoto(
+          { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
+          cardBuffer,
+          { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url }
+        );
+        fbInfo = `\n📘 Facebook: ${fb.post_url || 'OK'}`;
+        console.log(`[TELEGRAM/FB] ✓ ${site.site_name}: ${fb.post_url}`);
+      } catch (fbErr) {
+        fbInfo = `\n📘 Facebook falhou: ${fbErr.message}`;
+        console.error(`[TELEGRAM/FB] ✗ ${site.site_name}: ${fbErr.message}`);
+      }
+    }
+
+    // Instagram
+    if (querPostarIG && cardPublicUrl) {
+      try {
+        const ig = await publicarInstagram(
+          {
+            instagram_business_account_id: site.instagram_business_account_id,
+            facebook_page_token: pageToken,
+          },
+          cardPublicUrl,
+          { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url }
+        );
+        fbInfo += `\n📷 Instagram: ${ig.post_url || 'OK'}`;
+        console.log(`[TELEGRAM/IG] ✓ ${site.site_name}: ${ig.post_url}`);
+      } catch (igErr) {
+        fbInfo += `\n📷 Instagram falhou: ${igErr.message}`;
+        console.error(`[TELEGRAM/IG] ✗ ${site.site_name}: ${igErr.message}`);
+      }
     }
   }
 

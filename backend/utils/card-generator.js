@@ -1,10 +1,16 @@
 'use strict';
 
-const sharp = require('sharp');
-const path  = require('path');
-const axios = require('axios');
+const sharp  = require('sharp');
+const path   = require('path');
+const fs     = require('fs');
+const crypto = require('crypto');
+const axios  = require('axios');
 
 const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'xmnews-facebook.png');
+const UPLOADS_DIR   = path.join(__dirname, '..', 'public', 'uploads', 'cards');
+
+// Garante que o diretório existe
+try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch {}
 
 // Coordenadas do template (1080×1080)
 const CARD = {
@@ -130,4 +136,35 @@ async function gerarCard({ chapeu, resumo, imageUrl }) {
   return cardFinal;
 }
 
-module.exports = { gerarCard, CARD };
+// Gera card e SALVA em disco, retornando o caminho relativo e URL pública.
+// Use quando precisar de URL acessível externamente (Instagram exige).
+async function gerarCardComUrl(payload) {
+  const buffer = await gerarCard(payload);
+  const id     = crypto.randomBytes(8).toString('hex');
+  const fname  = `card-${id}.jpg`;
+  const fpath  = path.join(UPLOADS_DIR, fname);
+  fs.writeFileSync(fpath, buffer);
+  const base = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
+  const publicUrl = base ? `${base}/api/uploads/cards/${fname}` : `/api/uploads/cards/${fname}`;
+  return { buffer, fname, fpath, publicUrl };
+}
+
+// Limpa cards antigos (> 7 dias). Pode ser chamado por cron.
+function limparCardsAntigos(diasMax = 7) {
+  try {
+    const limite = Date.now() - diasMax * 24 * 60 * 60 * 1000;
+    const arquivos = fs.readdirSync(UPLOADS_DIR);
+    let removidos = 0;
+    for (const f of arquivos) {
+      const fp = path.join(UPLOADS_DIR, f);
+      const stat = fs.statSync(fp);
+      if (stat.mtimeMs < limite) {
+        fs.unlinkSync(fp);
+        removidos++;
+      }
+    }
+    if (removidos) console.log(`[card-generator] ${removidos} cards antigos removidos.`);
+  } catch (e) { console.warn('[card-generator] cleanup:', e.message); }
+}
+
+module.exports = { gerarCard, gerarCardComUrl, limparCardsAntigos, CARD, UPLOADS_DIR };
