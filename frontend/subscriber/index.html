@@ -2514,12 +2514,50 @@ async function republicarDoHistorico(p) {
     summary:      p.rewritten_summary || '',
     bodyFetched:  true,
   };
-  // Muda pra aba Artigos e abre modal
+
+  // Muda pra aba Artigos
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativa'));
   document.querySelectorAll('.tela').forEach(t => t.classList.remove('visivel'));
   document.querySelector('[data-tab="artigos"]').classList.add('ativa');
   document.getElementById('tela-artigos').classList.add('visivel');
   atualizarTopbar('artigos');
+
+  // Preenche cabeçalho do modal
+  document.getElementById('ml-fonte').textContent  = artigoAtual.source_name;
+  document.getElementById('ml-titulo').textContent = artigoAtual.title;
+  document.getElementById('ml-data').textContent   = p.published_at
+    ? new Date(p.published_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric' })
+    : '';
+  document.getElementById('ml-link').href          = artigoAtual.external_url || '#';
+
+  const imgEl = document.getElementById('ml-imagem');
+  if (artigoAtual.image_url) { imgEl.src = proxyImg(artigoAtual.image_url); imgEl.classList.remove('hidden'); }
+  else                       { imgEl.classList.add('hidden'); }
+
+  document.getElementById('ml-corpo').innerHTML = artigoAtual.body
+    ? artigoAtual.body
+    : `<p style="color:var(--grafite-lt);font-style:italic;font-size:.87rem;">Carregado do histórico — edite os campos abaixo e publique novamente.</p>`;
+
+  // Preenche campos da IA com o conteúdo já reescrito da publicação
+  document.getElementById('ia-chapeu').value = p.rewritten_chapeu  || '';
+  document.getElementById('ia-titulo').value = p.rewritten_title   || '';
+  document.getElementById('ia-resumo').value = p.rewritten_summary || '';
+  document.getElementById('ia-corpo').value  = p.rewritten_body    || '';
+  document.getElementById('ia-tags').value   = Array.isArray(p.rewritten_tags)
+    ? p.rewritten_tags.join(', ')
+    : (p.rewritten_tags || '');
+
+  // Reseta estado do modal
+  document.getElementById('ia-resultado').classList.remove('hidden');
+  document.getElementById('link-publicado').classList.remove('visivel');
+  document.getElementById('btn-publicar-agora').disabled    = false;
+  document.getElementById('btn-publicar-agora').textContent = '✓ Publicar este';
+  document.getElementById('badge-rascunho').style.display   = 'none';
+  if (typeof atualizarBotaoGerar === 'function') atualizarBotaoGerar();
+
+  document.getElementById('overlay-leitura').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
   toast('Artigo carregado — escolha os portais e publique novamente.', 'sucesso');
 }
 
