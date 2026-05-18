@@ -4394,7 +4394,7 @@ async function carregarPublicacoes() {
         <td style="font-size:.82rem">${p.subscriber_name||'—'}</td>
         <td style="font-size:.82rem;color:var(--muted)">${p.site_name||'—'}</td>
         <td><span class="badge ${p.status==='published'?'badge-green':'badge-red'}">${p.status}</span></td>
-        <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">${p.published_at ? new Date(p.published_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+        <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">${p.published_at ? new Date(p.published_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
         <td style="white-space:nowrap">${btnVer}${btnRepublicar}</td>
       </tr>`;
     }).join('');
