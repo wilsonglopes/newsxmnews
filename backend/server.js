@@ -227,6 +227,39 @@ async function buscarRSS(source) {
   return mapearItensFeed(feed.items, source);
 }
 
+async function buscarSitemap(source) {
+  const resp = await axios.get(source.url, {
+    timeout: 15000,
+    headers: { 'User-Agent': 'Mozilla/5.0 RB24Horas-Aggregator/1.0' },
+    responseType: 'text'
+  });
+  const $ = cheerio.load(resp.data, { xmlMode: true });
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+
+  const items = [];
+  $('url').each((_, el) => {
+    const url     = $('loc', el).first().text().trim();
+    const title   = $('news\\:title', el).first().text().trim() || $('title', el).first().text().trim();
+    const pubDate = $('news\\:publication_date', el).first().text().trim() || $('lastmod', el).first().text().trim();
+    if (!url || !title) return;
+    if (pubDate && new Date(pubDate).getTime() < cutoff) return;
+    items.push({
+      id:           md5(url),
+      source:       source.name,
+      source_slug:  source.slug,
+      category:     source.category,
+      title,
+      summary:      '',
+      url,
+      image:        null,
+      published_at: normalizarData(pubDate),
+      content:      ''
+    });
+  });
+
+  return items.slice(0, 25);
+}
+
 const PUPPETEER_OPTS = {
   headless: 'new',
   args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
@@ -726,6 +759,8 @@ async function atualizarFonte(source) {
       }
     } else if (source.type === 'api') {
       itens = await buscarAPI(source);
+    } else if (source.type === 'sitemap') {
+      itens = await buscarSitemap(source);
     } else if (source.type === 'rss') {
       itens = await buscarRSS(source);
     } else {

@@ -917,8 +917,8 @@
   {
     "name": "Correio do Povo",
     "slug": "correiodopovo",
-    "type": "rss",
-    "url": "https://www.correiodopovo.com.br/cmlink/correiodopovo",
+    "type": "sitemap",
+    "url": "https://www.correiodopovo.com.br/sitemap_news.xml",
     "active": true,
     "category": "regional",
     "extract_body_image": false,
