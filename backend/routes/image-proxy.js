@@ -52,6 +52,10 @@ const ALLOWED_HOSTS = [
   'wp.com', 'i0.wp.com', 'i1.wp.com', 'i2.wp.com',
   // O Cruzeiro Notícias
   'ocruzeironoticias.com.br',
+  // Agora RS
+  'agorars.com', 'uploads.agorars.com',
+  // Correio do Povo
+  'correiodopovo.com.br',
 ];
 
 // GET /api/proxy-image?url=<encoded>
