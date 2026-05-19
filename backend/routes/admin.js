@@ -37,28 +37,46 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   // GET /api/admin/stats
   router.get('/stats', async (req, res) => {
     try {
-      const [totalArt, hojeArt, erros, totalSubs] = await Promise.all([
+      const [totalArt, hojeArt, totalSubs, pubsHoje, pubsSemana, filaStats] = await Promise.all([
         pool.query('SELECT COUNT(*) FROM articles'),
-        pool.query("SELECT COUNT(*) FROM articles WHERE fetched_at >= now() - interval '24 hours'"),
-        pool.query('SELECT COUNT(*) FROM articles WHERE fetched_at IS NULL'),
+        pool.query("SELECT COUNT(*) FROM articles WHERE DATE(fetched_at AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE AT TIME ZONE 'America/Sao_Paulo'"),
         pool.query('SELECT COUNT(*) FROM subscribers WHERE active = true'),
+        pool.query("SELECT COUNT(*) FROM publications WHERE DATE(published_at AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE AT TIME ZONE 'America/Sao_Paulo'"),
+        pool.query("SELECT COUNT(*) FROM publications WHERE published_at >= now() - interval '7 days'"),
+        pool.query("SELECT COUNT(*) FILTER (WHERE status='pending') AS pending, COUNT(*) FILTER (WHERE status='error') AS errors FROM autopub_queue"),
       ]);
 
-      const bySource = await pool.query(`
-        SELECT so.name, so.slug, so.category, COUNT(a.id)::int AS total
-        FROM sources so
-        LEFT JOIN articles a ON a.source_id = so.id
-        GROUP BY so.id, so.name, so.slug, so.category
-        ORDER BY total DESC
-      `);
+      const [bySourceHoje, bySourceTotal] = await Promise.all([
+        pool.query(`
+          SELECT so.name, so.slug, so.category, COUNT(a.id)::int AS total
+          FROM sources so
+          LEFT JOIN articles a ON a.source_id = so.id
+            AND DATE(a.fetched_at AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE AT TIME ZONE 'America/Sao_Paulo'
+          WHERE so.active = true
+          GROUP BY so.id, so.name, so.slug, so.category
+          ORDER BY total DESC
+        `),
+        pool.query(`
+          SELECT so.name, so.slug, so.category, COUNT(a.id)::int AS total
+          FROM sources so
+          LEFT JOIN articles a ON a.source_id = so.id
+          GROUP BY so.id, so.name, so.slug, so.category
+          ORDER BY total DESC
+        `),
+      ]);
 
       res.json({
         totalArticles:      parseInt(totalArt.rows[0].count),
         articlesToday:      parseInt(hojeArt.rows[0].count),
+        pubsToday:          parseInt(pubsHoje.rows[0].count),
+        pubsWeek:           parseInt(pubsSemana.rows[0].count),
+        queuePending:       parseInt(filaStats.rows[0].pending),
+        queueErrors:        parseInt(filaStats.rows[0].errors),
         activeSubscribers:  parseInt(totalSubs.rows[0].count),
         activeSources:      sources.filter(s => s.active).length,
         totalSources:       sources.length,
-        bySource:           bySource.rows,
+        bySource:           bySourceTotal.rows,
+        bySourceToday:      bySourceHoje.rows,
       });
     } catch (err) {
       console.error('[admin/stats]', err.message);

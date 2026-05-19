@@ -448,6 +448,11 @@ Portal<span class="logo-news">News</span>
           <div class="stat-card-label">Publicações hoje</div>
         </div>
         <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-card-icon icon-purple">📅</div></div>
+          <div class="stat-card-value" id="st-pubs-semana">—</div>
+          <div class="stat-card-label">Publicações (7 dias)</div>
+        </div>
+        <div class="stat-card">
           <div class="stat-card-top"><div class="stat-card-icon icon-orange">📡</div></div>
           <div class="stat-card-value" id="st-fontes">—</div>
           <div class="stat-card-label">Fontes ativas</div>
@@ -462,15 +467,28 @@ Portal<span class="logo-news">News</span>
           <div class="stat-card-value" id="st-sites">—</div>
           <div class="stat-card-label">Sites cadastrados</div>
         </div>
+        <div class="stat-card" id="st-fila-card" onclick="irPara('fila')" style="cursor:pointer" title="Ver fila">
+          <div class="stat-card-top"><div class="stat-card-icon icon-orange">⏳</div></div>
+          <div class="stat-card-value" id="st-fila-pendente">—</div>
+          <div class="stat-card-label">Fila pendente</div>
+        </div>
       </div>
 
       <div class="panels-grid">
 
-        <!-- Portais mais ativos -->
+        <!-- Fontes mais ativas -->
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">📡 Artigos por portal</span>
-            <span class="badge badge-gray" id="db-total-fontes">—</span>
+            <span class="panel-title">📡 Artigos por fonte</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="badge badge-gray" id="db-total-fontes">—</span>
+              <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.72rem">
+                <button id="db-toggle-hoje" onclick="dbToggleFontes('hoje')"
+                  style="padding:3px 10px;background:#dc2626;color:#fff;border:none;cursor:pointer;font-size:.72rem;font-family:var(--font)">Hoje</button>
+                <button id="db-toggle-total" onclick="dbToggleFontes('total')"
+                  style="padding:3px 10px;background:transparent;color:var(--muted);border:none;cursor:pointer;font-size:.72rem;font-family:var(--font)">Total</button>
+              </div>
+            </div>
           </div>
           <div class="panel-body" id="db-fontes-body">
             <div class="loading"><span class="spin"></span>Carregando…</div>
@@ -2039,6 +2057,8 @@ async function atualizarAutopub() {
 
 // ══ PAINEL (dashboard) ════════════════════════════════════════════════════════
 
+let _dbStatsCache = null;
+
 async function carregarDashboard() {
   try {
     const [stats, pubs, allSites] = await Promise.all([
@@ -2047,39 +2067,40 @@ async function carregarDashboard() {
       fetch(`${BACKEND}/api/admin/all-sites`,           { headers: authHeader() }).then(r => r.json()),
     ]);
 
+    _dbStatsCache = stats;
+
     document.getElementById('st-clientes').textContent      = stats.activeSubscribers ?? '—';
     document.getElementById('st-artigos-hoje').textContent  = stats.articlesToday?.toLocaleString('pt-BR') ?? '—';
+    document.getElementById('st-pubs-hoje').textContent     = stats.pubsToday?.toLocaleString('pt-BR') ?? '—';
+    document.getElementById('st-pubs-semana').textContent   = stats.pubsWeek?.toLocaleString('pt-BR') ?? '—';
     document.getElementById('st-fontes').textContent        = `${stats.activeSources}/${stats.totalSources}`;
     document.getElementById('st-total-artigos').textContent = stats.totalArticles?.toLocaleString('pt-BR') ?? '—';
     document.getElementById('st-sites').textContent         = allSites.length ?? '—';
 
-    const hoje = new Date().toDateString();
-    const pubsHoje = (pubs || []).filter(p => new Date(p.published_at).toDateString() === hoje).length;
-    document.getElementById('st-pubs-hoje').textContent = pubsHoje;
+    const qPend = stats.queuePending ?? 0;
+    const qErr  = stats.queueErrors  ?? 0;
+    const filaEl = document.getElementById('st-fila-pendente');
+    if (filaEl) filaEl.textContent = qPend;
+    const filaCard = document.getElementById('st-fila-card');
+    if (filaCard) filaCard.style.outline = qErr > 0 ? '2px solid #dc2626' : '';
 
-    const bySource = (stats.bySource || []).filter(s => s.total > 0);
-    const maxTotal = Math.max(...bySource.map(s => s.total), 1);
-    document.getElementById('db-total-fontes').textContent = `${bySource.length} portais`;
-    document.getElementById('db-fontes-body').innerHTML = bySource.slice(0, 15).map(s => `
-      <div class="fonte-bar">
-        <div class="fonte-bar-name">${s.name}</div>
-        <div class="fonte-bar-track"><div class="fonte-bar-fill" style="width:${(s.total/maxTotal*100).toFixed(0)}%"></div></div>
-        <div class="fonte-bar-count">${s.total}</div>
-      </div>`).join('') || '<div class="empty">Sem dados</div>';
+    dbRenderFontes('hoje');
 
     const tbody = document.querySelector('#db-pubs-table tbody');
     if (!pubs || !pubs.length) {
       tbody.innerHTML = '<tr><td class="empty">Nenhuma publicação ainda</td></tr>';
     } else {
-      tbody.innerHTML = pubs.slice(0, 8).map(p => `
-        <tr>
+      tbody.innerHTML = pubs.slice(0, 8).map(p => {
+        const dt = p.published_at ? new Date(p.published_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+        return `<tr>
           <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            <strong title="${p.rewritten_title || p.original_title || ''}">${p.rewritten_title || p.original_title || '—'}</strong>
+            <strong title="${(p.rewritten_title || p.original_title || '').replace(/"/g,'&quot;')}">${p.rewritten_title || p.original_title || '—'}</strong>
           </td>
-          <td style="font-size:.78rem;color:var(--muted)">${p.subscriber_name || '—'}</td>
-          <td><span class="badge ${p.status === 'published' ? 'badge-green' : 'badge-red'}">${p.status}</span></td>
-          <td style="font-size:.75rem;color:var(--muted)">${new Date(p.published_at).toLocaleDateString('pt-BR')}</td>
-        </tr>`).join('');
+          <td style="font-size:.78rem;color:var(--muted)">${p.site_name || p.subscriber_name || '—'}</td>
+          <td><span class="badge ${p.status === 'published' ? 'badge-green' : 'badge-red'}">${p.status === 'published' ? 'PUBLISHED' : p.status}</span></td>
+          <td style="font-size:.75rem;color:var(--muted);white-space:nowrap">${dt}</td>
+        </tr>`;
+      }).join('');
     }
 
     const clientes = await fetch(`${BACKEND}/api/admin/subscribers`, { headers: authHeader() }).then(r => r.json());
@@ -2095,6 +2116,30 @@ async function carregarDashboard() {
 
   } catch (e) { console.error(e); }
 }
+
+function dbRenderFontes(modo) {
+  if (!_dbStatsCache) return;
+  const dados = modo === 'hoje'
+    ? (_dbStatsCache.bySourceToday || []).filter(s => s.total > 0)
+    : (_dbStatsCache.bySource       || []).filter(s => s.total > 0);
+
+  const maxTotal = Math.max(...dados.map(s => s.total), 1);
+  const label    = modo === 'hoje' ? 'fontes ativas hoje' : 'fontes com artigos';
+  document.getElementById('db-total-fontes').textContent = `${dados.length} ${label}`;
+  document.getElementById('db-fontes-body').innerHTML = dados.slice(0, 20).map(s => `
+    <div class="fonte-bar">
+      <div class="fonte-bar-name">${s.name}</div>
+      <div class="fonte-bar-track"><div class="fonte-bar-fill" style="width:${(s.total/maxTotal*100).toFixed(0)}%"></div></div>
+      <div class="fonte-bar-count">${s.total}</div>
+    </div>`).join('') || '<div class="empty">Sem dados para hoje</div>';
+
+  document.getElementById('db-toggle-hoje').style.background  = modo === 'hoje'  ? '#dc2626' : 'transparent';
+  document.getElementById('db-toggle-hoje').style.color       = modo === 'hoje'  ? '#fff'    : 'var(--muted)';
+  document.getElementById('db-toggle-total').style.background = modo === 'total' ? '#dc2626' : 'transparent';
+  document.getElementById('db-toggle-total').style.color      = modo === 'total' ? '#fff'    : 'var(--muted)';
+}
+
+function dbToggleFontes(modo) { dbRenderFontes(modo); }
 
 // ══ PUBLICAR (tabela) ════════════════════════════════════════════════════════
 
