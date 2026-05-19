@@ -897,7 +897,7 @@
     "slug": "midiamax",
     "type": "rss",
     "url": "https://midiamax.com.br/feed/",
-    "active": true,
+    "active": false,
     "category": "regional",
     "extract_body_image": false,
     "content_selector": ".entry-content",
