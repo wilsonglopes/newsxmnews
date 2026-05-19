@@ -13,28 +13,11 @@ const { decryptToken }       = require('./connectors/encrypt');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
-let _rodando     = false;    // mutex simples — evita execuções sobrepostas
-let _ultimaRodada = null;   // timestamp da última execução bem-sucedida
-
-// Chamado a cada minuto pelo cron — decide se é hora de rodar
-async function verificarERotar() {
-  const settings = lerSettings();
-  if (settings.autopub_enabled === false) return;
-
-  const intervaloMs = (settings.autopub_interval_minutos || 15) * 60 * 1000;
-  const agora = Date.now();
-
-  if (_ultimaRodada && agora - _ultimaRodada < intervaloMs) return; // ainda não chegou a hora
-
-  _ultimaRodada = agora;
-  rodarAutopub().catch(e => console.error('[AUTOPUB] Erro inesperado:', e.message));
-}
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function lerSettings() {
   try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'settings.json'), 'utf8')); } catch { return {}; }
 }
-
-// ── Helpers de texto (replicados de routes/ia.js para uso interno) ────────────
 
 function truncarSemEspacos(str, maxChars) {
   if (!str) return str;
@@ -104,7 +87,6 @@ REGRAS OBRIGATÓRIAS:
 Retorne SOMENTE um JSON com:
 { "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com <p>, proporcional ao original), "tags": string[] }.`;
 
-  // Remove HTML e trunca em 6000 chars — aumentado para não cortar artigos longos
   const textoLimpo = (artigo.body || artigo.summary || '')
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
@@ -115,17 +97,16 @@ Retorne SOMENTE um JSON com:
 
   const userContent = `TÍTULO: ${artigo.title}\n\nCONTEÚDO:\n${textoLimpo}`;
 
-  // Tenta chamar a IA; em caso de resposta inválida, faz 1 retry
   let resultado = null;
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     try {
       const textoIA = await chamarIA(provider, promptSistema, userContent);
       resultado = extrairJSON(textoIA);
       if (resultado) break;
-      console.warn(`[AUTOPUB] Tentativa ${tentativa}: IA retornou JSON inválido para "${artigo.title.slice(0, 50)}"`);
+      console.warn(`[WORKER] Tentativa ${tentativa}: IA retornou JSON inválido para "${artigo.title.slice(0, 50)}"`);
     } catch (e) {
       if (tentativa === 2) throw e;
-      console.warn(`[AUTOPUB] Tentativa ${tentativa} falhou: ${e.message}. Retrying…`);
+      console.warn(`[WORKER] Tentativa ${tentativa} falhou: ${e.message}. Retrying…`);
       await new Promise(r => setTimeout(r, 5000));
     }
   }
@@ -149,8 +130,6 @@ Retorne SOMENTE um JSON com:
 async function buscarCategorias(site) {
   const baseUrl = (site.site_url || '').replace(/\/$/, '');
   try {
-    // Headers vazios — sem User-Agent de browser, que o ModSecurity bloqueia.
-    // Credenciais incluídas se disponíveis, mas o endpoint é público no WP.
     const headers = {};
     if (site.wp_username && site.wp_app_password) {
       const password = decryptToken(site.wp_app_password);
@@ -164,10 +143,10 @@ async function buscarCategorias(site) {
     const cats = Array.isArray(resp.data)
       ? resp.data.map(c => ({ id: c.id, name: c.name, parent: c.parent || null }))
       : [];
-    console.log(`[AUTOPUB] categorias "${site.name}": ${cats.length} encontradas`);
+    console.log(`[WORKER] categorias "${site.name}": ${cats.length} encontradas`);
     return cats;
   } catch (e) {
-    console.warn(`[AUTOPUB] falha ao buscar categorias "${site.name}": ${e.message}`);
+    console.warn(`[WORKER] falha ao buscar categorias "${site.name}": ${e.message}`);
     return [];
   }
 }
@@ -201,15 +180,15 @@ Regras:
   const conteudo = `CATEGORIAS:\n${linhas.join('\n')}\n\nARTIGO:\nChapéu: ${reescrito.chapeu}\nTítulo: ${reescrito.title}\nTags: ${(reescrito.tags || []).join(', ')}\nConteúdo: ${corpoTruncado}`;
 
   try {
-    const textoIA  = await chamarIA(provider, promptSistema, conteudo, 256);
+    const textoIA   = await chamarIA(provider, promptSistema, conteudo, 256);
     const resultado = extrairJSON(textoIA);
     const ids = Array.isArray(resultado?.category_ids)
       ? resultado.category_ids.map(Number).filter(n => n > 0)
       : [];
-    console.log(`[AUTOPUB] categorias IA retornou: [${ids.join(', ')}]`);
+    console.log(`[WORKER] categorias IA retornou: [${ids.join(', ')}]`);
     return ids;
   } catch (e) {
-    console.warn(`[AUTOPUB] categorizarComIA falhou: ${e.message}`);
+    console.warn(`[WORKER] categorizarComIA falhou: ${e.message}`);
     return [];
   }
 }
@@ -225,286 +204,368 @@ async function registrarLog(articleId, siteId, subscriberId, status, errorMsg) {
        DO UPDATE SET status = $4, error_msg = $5, processed_at = now()`,
       [articleId, siteId, subscriberId, status, errorMsg || null]
     );
-  } catch (e) { console.error('[autopub] Erro ao registrar log:', e.message); }
+  } catch (e) { console.error('[WORKER] Erro ao registrar log:', e.message); }
 }
 
-// ── Rodada principal ──────────────────────────────────────────────────────────
+// ── Producer: detecta artigos novos e enfileira ───────────────────────────────
 
-async function rodarAutopub() {
-  if (!pool)     return;
-  if (_rodando)  { console.log('[AUTOPUB] Rodada anterior ainda em execução, pulando.'); return; }
-
+async function rodarProdutor() {
+  if (!pool) return;
   const settings = lerSettings();
   if (settings.autopub_enabled === false) return;
 
-  const provider     = settings.ia_provider          || 'gemini';
-  const maxPorSite   = settings.autopub_max_por_rodada || 3;
+  const maxHoras = settings.autopub_max_horas ?? 2;
 
-  _rodando = true;
-  try {
-    const { rows: sites } = await pool.query(`
-      SELECT DISTINCT ON (sc.id) ss.id, COALESCE(ss.ai_prompt, sc.ai_prompt) AS ai_prompt, ss.default_category_id,
-             s.id AS subscriber_id,
-             sc.id AS catalog_id,
-             COALESCE(sc.name, ss.name)                       AS name,
-             COALESCE(sc.platform, ss.platform)               AS platform,
-             COALESCE(sc.site_url, ss.site_url)               AS site_url,
-             COALESCE(sc.wp_username, ss.wp_username)         AS wp_username,
-             COALESCE(sc.wp_app_password, ss.wp_app_password) AS wp_app_password,
-             COALESCE(sc.xixo_api_key, ss.xixo_api_key)       AS xixo_api_key,
-             COALESCE(sc.blogger_blog_id, ss.blogger_blog_id) AS blogger_blog_id,
-             COALESCE(sc.blogger_access_token, ss.blogger_access_token)   AS blogger_access_token,
-             COALESCE(sc.blogger_refresh_token, ss.blogger_refresh_token) AS blogger_refresh_token,
-             COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
-             COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
-             COALESCE(sc.post_format, ss.post_format)         AS post_format,
-             sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
-             sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username
-      FROM subscriber_sites ss
-      JOIN sites_catalog sc ON sc.id = ss.site_id
-      JOIN subscribers   s  ON s.id  = ss.subscriber_id
-      WHERE ss.active = true AND s.active = true
-        AND EXISTS (SELECT 1 FROM autopub_rules ar WHERE ar.catalog_id = sc.id)
-      ORDER BY sc.id, ss.created_at
-    `);
+  const { rows: sites } = await pool.query(`
+    SELECT DISTINCT ON (sc.id)
+           ss.id AS site_id, ss.subscriber_id,
+           sc.id AS catalog_id,
+           COALESCE(sc.name, ss.name)         AS name,
+           sc.instagram_enabled
+    FROM subscriber_sites ss
+    JOIN sites_catalog sc ON sc.id = ss.site_id
+    JOIN subscribers   s  ON s.id  = ss.subscriber_id
+    WHERE ss.active = true AND s.active = true
+      AND EXISTS (SELECT 1 FROM autopub_rules ar WHERE ar.catalog_id = sc.id)
+    ORDER BY sc.id, ss.created_at
+  `);
 
-    if (!sites.length) return;
-    console.log(`[AUTOPUB] ${sites.length} site(s) ativo(s).`);
+  if (!sites.length) return;
 
-    for (const site of sites) {
-      try {
-        // Fontes configuradas nas regras de autopub — buscadas pelo catálogo do site
-        const catalogId = site.catalog_id;
-        if (!catalogId) continue; // site legado sem vínculo ao catálogo, pula
-        const { rows: regras } = await pool.query(
-          `SELECT source_id, default_category_id, COALESCE(facebook_enabled, false) AS facebook_enabled
-           FROM autopub_rules WHERE catalog_id = $1`,
-          [catalogId]
-        );
+  let total = 0;
+  for (const site of sites) {
+    try {
+      const { rows: regras } = await pool.query(
+        `SELECT source_id FROM autopub_rules WHERE catalog_id = $1`,
+        [site.catalog_id]
+      );
+      if (!regras.length) continue;
+      const sourceIds = regras.map(r => r.source_id);
 
-        if (!regras.length) continue; // site sem fontes configuradas
-        const sourceIds = regras.map(r => r.source_id);
-        // Mapa sourceId → categoryId fixo (null = usar IA)
-        const catPorFonte = Object.fromEntries(
-          regras.map(r => [String(r.source_id), r.default_category_id || null])
-        );
-        // Mapa sourceId → facebook_enabled (default: false)
-        const fbPorFonte = Object.fromEntries(
-          regras.map(r => [String(r.source_id), r.facebook_enabled === true])
-        );
+      const { rowCount } = await pool.query(`
+        INSERT INTO autopub_queue
+          (catalog_id, site_id, subscriber_id, source_id, article_id,
+           publish_facebook, publish_instagram, default_category_id)
+        SELECT $1, $2, $3, a.source_id, a.id,
+               COALESCE(ar.facebook_enabled, false),
+               $6::boolean,
+               ar.default_category_id
+        FROM articles a
+        JOIN autopub_rules ar ON ar.catalog_id = $1 AND ar.source_id = a.source_id
+        WHERE a.source_id = ANY($4::uuid[])
+          AND a.fetched_at >= NOW() - make_interval(hours => $5::int)
+          AND NOT EXISTS (
+            SELECT 1 FROM autopub_log WHERE article_id = a.id AND site_id = $2
+          )
+        ON CONFLICT (catalog_id, article_id) DO NOTHING
+      `, [site.catalog_id, site.site_id, site.subscriber_id, sourceIds, maxHoras, site.instagram_enabled]);
 
-        // Artigos novos não processados para este site
-        // Só processa artigos coletados nas últimas N horas (padrão 2h) — evita publicar notícias antigas
-        const maxHoras = settings.autopub_max_horas ?? 2;
-        const { rows: artigos } = await pool.query(`
-          SELECT a.*,
-                 so.name AS source_name,
-                 so.content_selector,
-                 so.featured_image_selector,
-                 so.extract_body_image,
-                 so.slug   AS source_slug,
-                 so.category AS source_category
-          FROM articles a
-          JOIN sources so ON so.id = a.source_id
-          WHERE a.source_id = ANY($1::uuid[])
-            AND a.fetched_at >= NOW() - make_interval(hours => $4::int)
-            AND a.id NOT IN (
-              SELECT article_id FROM autopub_log WHERE site_id = $2
-            )
-          ORDER BY a.published_at DESC NULLS LAST, a.fetched_at DESC
-          LIMIT $3
-        `, [sourceIds, site.id, maxPorSite, maxHoras]);
-
-        if (!artigos.length) continue;
-        console.log(`[AUTOPUB] "${site.name}": ${artigos.length} artigo(s) para processar.`);
-
-        const cats = await buscarCategorias(site);
-
-        for (const artigo of artigos) {
-          try {
-            // 0. Garante conteúdo completo — mesmo pipeline do modal do frontend.
-            // Artigos recém-chegados do RSS têm apenas o snippet (200-400 chars).
-            // Se o corpo for curto, raspa a página original antes de reescrever.
-            const bodyTexto = (artigo.body || '').replace(/<[^>]*>/g, '').trim();
-            const imgAntes  = artigo.image_url || null;
-            console.log(`[AUTOPUB] "${artigo.title?.slice(0,50)}" — body=${bodyTexto.length}c image_url=${imgAntes || 'null'}`);
-
-            // Imagem é thumbnail WP se tiver -150x150. ou -300x225. no nome
-            const isThumbnailWP = (url) => {
-              if (!url) return false;
-              const mParam = url.match(/[,/?&]width=(\d+)/i);
-              if (mParam && parseInt(mParam[1]) < 280) return true;
-              const mFile = url.match(/-(\d+)x\d+\.(?:jpe?g|jfif|png|gif|webp|avif)/i);
-              return mFile ? parseInt(mFile[1]) < 400 : false;
-            };
-            if ((bodyTexto.length < 800 || !artigo.image_url || isThumbnailWP(artigo.image_url)) && artigo.external_url) {
-              try {
-                const sourceConf = {
-                  content_selector:        artigo.content_selector        || null,
-                  featured_image_selector: artigo.featured_image_selector || null,
-                  url:                     artigo.external_url,
-                  category:                artigo.source_category         || '',
-                  extract_body_image:      artigo.extract_body_image      || false,
-                };
-                const { body, image_url } = await fetchFullContent(artigo.external_url, sourceConf);
-                if (body)      artigo.body      = body;
-                if (image_url) artigo.image_url = image_url;
-                console.log(`[AUTOPUB] após scraping: body=${((body||'').replace(/<[^>]*>/g,'').trim().length)}c image_url=${artigo.image_url || 'null'}`);
-                if (body || image_url) {
-                  await pool.query(
-                    'UPDATE articles SET body = $1, image_url = $2 WHERE id = $3',
-                    [artigo.body, artigo.image_url, artigo.id]
-                  );
-                }
-              } catch (scraperErr) {
-                console.warn(`[AUTOPUB] Scraping "${artigo.title?.slice(0,50)}": ${scraperErr.message}`);
-              }
-            }
-
-            // Pula artigo se ainda ficou sem conteúdo suficiente após scraping
-            const bodyFinal = (artigo.body || '').replace(/<[^>]*>/g, '').trim();
-            if (bodyFinal.length < 100) {
-              console.warn(`[AUTOPUB] Pulando "${artigo.title?.slice(0,50)}" — corpo muito curto (${bodyFinal.length} chars)`);
-              await registrarLog(artigo.id, site.id, site.subscriber_id, 'erro', 'Conteúdo insuficiente para publicar');
-              continue;
-            }
-
-            // 1. Reescreve
-            const reescrito = await reescreverArtigo(artigo, site.ai_prompt, provider);
-
-            // 2. Categoriza — usa categoria fixa da regra ou delega à IA
-            const catFixa = catPorFonte[String(artigo.source_id)];
-            if (catFixa) {
-              reescrito.category_ids = [catFixa];
-              console.log(`[AUTOPUB] categoria fixa (fonte ${artigo.source_name}): [${catFixa}]`);
-            } else {
-              reescrito.category_ids = await categorizarComIA(reescrito, cats, provider);
-            }
-
-            // 3. Publica
-            let resultado;
-            switch (site.platform) {
-              case 'wordpress': resultado = await publishToWordPress(site, reescrito, artigo); break;
-              case 'blogger':   resultado = await publishToBlogger(site, reescrito, artigo);   break;
-              case 'webhook':   resultado = await publishViaWebhook(site, reescrito, artigo);  break;
-              default: throw new Error(`Plataforma desconhecida: ${site.platform}`);
-            }
-
-            // 4. Grava publicação
-            const tagsStr = Array.isArray(reescrito.tags) ? reescrito.tags.join(', ') : null;
-            const catsStr = reescrito.category_ids?.length
-              ? reescrito.category_ids.map(id => cats.find(c => c.id === id)?.name).filter(Boolean).join(', ')
-              : null;
-            await pool.query(
-              `INSERT INTO publications
-                 (subscriber_id, article_id, site_id, platform,
-                  external_post_id, external_post_url,
-                  rewritten_title, rewritten_body,
-                  rewritten_chapeu, rewritten_summary, rewritten_tags, rewritten_categories, status)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'published')`,
-              [
-                site.subscriber_id, artigo.id, site.id, site.platform,
-                resultado.post_id, resultado.post_url,
-                reescrito.title, reescrito.body,
-                reescrito.chapeu || null, reescrito.summary || null, tagsStr, catsStr,
-              ]
-            );
-
-            // 4.1 Publicação no Facebook + Instagram (se site tem FB ligado E regra desta fonte permite)
-            const querPostarFB = site.facebook_enabled
-              && fbPorFonte[String(artigo.source_id)]
-              && site.facebook_page_id
-              && site.facebook_page_token;
-            if (querPostarFB) {
-              try {
-                const { gerarCard, gerarCardComUrl } = require('./utils/card-generator');
-                const { publicarFoto }               = require('./connectors/facebook');
-                const { publicar: publicarInstagram } = require('./connectors/instagram');
-                const { decryptToken }               = require('./connectors/encrypt');
-                const querPostarIG = site.instagram_enabled && site.instagram_business_account_id;
-                const pageToken    = decryptToken(site.facebook_page_token);
-
-                // Se vai postar no IG, salva o card em disco
-                let cardBuffer, cardPublicUrl;
-                if (querPostarIG) {
-                  const r = await gerarCardComUrl({
-                    chapeu:   reescrito.chapeu || artigo.chapeu || '',
-                    resumo:   reescrito.summary || artigo.summary || '',
-                    imageUrl: artigo.image_url || '',
-                  });
-                  cardBuffer    = r.buffer;
-                  cardPublicUrl = r.publicUrl;
-                } else {
-                  cardBuffer = await gerarCard({
-                    chapeu:   reescrito.chapeu || artigo.chapeu || '',
-                    resumo:   reescrito.summary || artigo.summary || '',
-                    imageUrl: artigo.image_url || '',
-                  });
-                }
-
-                // Facebook
-                try {
-                  const fb = await publicarFoto(
-                    { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
-                    cardBuffer,
-                    { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
-                  );
-                  await pool.query(
-                    `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
-                     WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
-                    [fb.photo_id || fb.post_id, fb.post_url, site.subscriber_id, artigo.id, site.id]
-                  );
-                  console.log(`[AUTOPUB/FB] ✓ "${reescrito.title.slice(0, 50)}" → ${fb.post_url || 'OK'}`);
-                } catch (fbErr) {
-                  console.error(`[AUTOPUB/FB] ✗ "${reescrito.title.slice(0, 50)}": ${fbErr.message}`);
-                }
-
-                // Instagram (independente do FB ter dado certo ou não)
-                if (querPostarIG && cardPublicUrl) {
-                  try {
-                    const ig = await publicarInstagram(
-                      {
-                        instagram_business_account_id: site.instagram_business_account_id,
-                        facebook_page_token: pageToken,
-                      },
-                      cardPublicUrl,
-                      { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
-                    );
-                    await pool.query(
-                      `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
-                       WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
-                      [ig.post_id, ig.post_url, site.subscriber_id, artigo.id, site.id]
-                    );
-                    console.log(`[AUTOPUB/IG] ✓ "${reescrito.title.slice(0, 50)}" → ${ig.post_url || 'OK'}`);
-                  } catch (igErr) {
-                    console.error(`[AUTOPUB/IG] ✗ "${reescrito.title.slice(0, 50)}": ${igErr.message}`);
-                  }
-                }
-              } catch (err) {
-                console.error(`[AUTOPUB/SOCIAL] ✗ "${reescrito.title.slice(0, 50)}": ${err.message}`);
-              }
-            }
-
-            await registrarLog(artigo.id, site.id, site.subscriber_id, 'ok', null);
-            console.log(`[AUTOPUB] ✓ "${reescrito.title.slice(0, 60)}" → ${site.name}`);
-
-          } catch (err) {
-            console.error(`[AUTOPUB] ✗ "${artigo.title.slice(0, 50)}" → ${site.name}: ${err.message}`);
-            await registrarLog(artigo.id, site.id, site.subscriber_id, 'erro', err.message);
-          }
-
-          // Pausa entre artigos — espaça as publicações para parecer mais natural no site
-          await new Promise(r => setTimeout(r, 20000));
-        }
-
-      } catch (err) {
-        console.error(`[AUTOPUB] Erro no site "${site.name}": ${err.message}`);
+      if (rowCount > 0) {
+        console.log(`[PRODUCER] "${site.name}": ${rowCount} artigo(s) enfileirado(s).`);
+        total += rowCount;
       }
+    } catch (e) {
+      console.error(`[PRODUCER] Erro no site "${site.name}": ${e.message}`);
     }
+  }
+  if (total > 0) console.log(`[PRODUCER] Total enfileirado: ${total}`);
+}
+
+// ── Worker: processa 1 item da fila ──────────────────────────────────────────
+
+async function processarProximoItem() {
+  if (!pool) return;
+  const settings   = lerSettings();
+  const maxRetries = settings.worker_max_retries  ?? 3;
+  const maxHoras   = settings.queue_max_age_horas ?? 12;
+
+  // Reserva 1 item atomicamente com SELECT ... FOR UPDATE SKIP LOCKED
+  const client = await pool.connect();
+  let item = null;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(`
+      SELECT q.*,
+             sc.name AS site_name, sc.platform, sc.site_url,
+             sc.ai_prompt AS cat_ai_prompt,
+             sc.wp_username AS sc_wp_username, sc.wp_app_password AS sc_wp_app_password,
+             sc.xixo_api_key, sc.blogger_blog_id, sc.blogger_access_token, sc.blogger_refresh_token,
+             sc.webhook_url, sc.webhook_secret, sc.post_format,
+             sc.facebook_enabled AS site_facebook_enabled,
+             sc.facebook_page_id, sc.facebook_page_token,
+             sc.instagram_enabled AS site_instagram_enabled,
+             sc.instagram_business_account_id, sc.instagram_username,
+             ss.ai_prompt AS sub_ai_prompt,
+             ss.wp_username AS ss_wp_username, ss.wp_app_password AS ss_wp_app_password,
+             ss.default_category_id AS ss_default_category_id
+      FROM autopub_queue q
+      JOIN sites_catalog    sc ON sc.id = q.catalog_id
+      JOIN subscriber_sites ss ON ss.id = q.site_id
+      WHERE q.status = 'pending'
+        AND q.attempts < $1
+        AND q.enqueued_at > NOW() - make_interval(hours => $2::int)
+      ORDER BY q.enqueued_at ASC
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    `, [maxRetries, maxHoras]);
+
+    if (!rows.length) { await client.query('ROLLBACK'); return; }
+    item = rows[0];
+    await client.query(
+      `UPDATE autopub_queue SET status = 'processing', attempts = attempts + 1 WHERE id = $1`,
+      [item.id]
+    );
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
   } finally {
-    _rodando = false;
-    console.log('[AUTOPUB] Rodada concluída.');
+    client.release();
+  }
+
+  // Processa fora da transação
+  try {
+    await processarItem(item);
+    await pool.query(
+      `UPDATE autopub_queue SET status = 'done', processed_at = now(), error_message = null WHERE id = $1`,
+      [item.id]
+    );
+    console.log(`[WORKER] ✓ concluído: ${item.site_name} — ${item.id}`);
+  } catch (e) {
+    const newStatus = item.attempts >= maxRetries ? 'error' : 'pending';
+    await pool.query(
+      `UPDATE autopub_queue SET status = $1, error_message = $2, processed_at = now() WHERE id = $3`,
+      [newStatus, e.message, item.id]
+    );
+    console.error(`[WORKER] ✗ ${item.site_name} (${newStatus}): ${e.message}`);
   }
 }
 
-module.exports = { rodarAutopub, verificarERotar };
+// ── Processa um item da fila (scraping + IA + publicação) ─────────────────────
+
+async function processarItem(item) {
+  const settings = lerSettings();
+  const provider  = settings.ia_provider || 'gemini';
+
+  // Monta objeto site compatível com os helpers existentes
+  const site = {
+    id:                item.site_id,
+    catalog_id:        item.catalog_id,
+    subscriber_id:     item.subscriber_id,
+    name:              item.site_name,
+    platform:          item.platform,
+    site_url:          item.site_url,
+    ai_prompt:         item.sub_ai_prompt || item.cat_ai_prompt,
+    wp_username:       item.ss_wp_username || item.sc_wp_username,
+    wp_app_password:   item.ss_wp_app_password || item.sc_wp_app_password,
+    xixo_api_key:      item.xixo_api_key,
+    blogger_blog_id:   item.blogger_blog_id,
+    blogger_access_token:  item.blogger_access_token,
+    blogger_refresh_token: item.blogger_refresh_token,
+    webhook_url:       item.webhook_url,
+    webhook_secret:    item.webhook_secret,
+    post_format:       item.post_format,
+    facebook_enabled:  item.site_facebook_enabled,
+    facebook_page_id:  item.facebook_page_id,
+    facebook_page_token: item.facebook_page_token,
+    instagram_enabled: item.site_instagram_enabled,
+    instagram_business_account_id: item.instagram_business_account_id,
+    instagram_username: item.instagram_username,
+  };
+
+  // Busca artigo com dados da fonte
+  const { rows: artigos } = await pool.query(`
+    SELECT a.*,
+           so.name AS source_name,
+           so.content_selector,
+           so.featured_image_selector,
+           so.extract_body_image,
+           so.slug   AS source_slug,
+           so.category AS source_category
+    FROM articles a
+    JOIN sources so ON so.id = a.source_id
+    WHERE a.id = $1
+  `, [item.article_id]);
+  if (!artigos.length) throw new Error('Artigo não encontrado');
+  const artigo = artigos[0];
+
+  // 0. Garante conteúdo completo (mesmo pipeline do frontend)
+  const bodyTexto = (artigo.body || '').replace(/<[^>]*>/g, '').trim();
+  console.log(`[WORKER] "${artigo.title?.slice(0, 50)}" — body=${bodyTexto.length}c image_url=${artigo.image_url || 'null'}`);
+
+  const isThumbnailWP = (url) => {
+    if (!url) return false;
+    const mParam = url.match(/[,/?&]width=(\d+)/i);
+    if (mParam && parseInt(mParam[1]) < 280) return true;
+    const mFile = url.match(/-(\d+)x\d+\.(?:jpe?g|jfif|png|gif|webp|avif)/i);
+    return mFile ? parseInt(mFile[1]) < 400 : false;
+  };
+
+  if ((bodyTexto.length < 800 || !artigo.image_url || isThumbnailWP(artigo.image_url)) && artigo.external_url) {
+    try {
+      const sourceConf = {
+        content_selector:        artigo.content_selector        || null,
+        featured_image_selector: artigo.featured_image_selector || null,
+        url:                     artigo.external_url,
+        category:                artigo.source_category         || '',
+        extract_body_image:      artigo.extract_body_image      || false,
+      };
+      const { body, image_url } = await fetchFullContent(artigo.external_url, sourceConf);
+      if (body)      artigo.body      = body;
+      if (image_url) artigo.image_url = image_url;
+      console.log(`[WORKER] após scraping: body=${((body || '').replace(/<[^>]*>/g, '').trim().length)}c image_url=${artigo.image_url || 'null'}`);
+      if (body || image_url) {
+        await pool.query(
+          'UPDATE articles SET body = $1, image_url = $2 WHERE id = $3',
+          [artigo.body, artigo.image_url, artigo.id]
+        );
+      }
+    } catch (scraperErr) {
+      console.warn(`[WORKER] Scraping "${artigo.title?.slice(0, 50)}": ${scraperErr.message}`);
+    }
+  }
+
+  const bodyFinal = (artigo.body || '').replace(/<[^>]*>/g, '').trim();
+  if (bodyFinal.length < 100) {
+    await registrarLog(artigo.id, site.id, site.subscriber_id, 'erro', 'Conteúdo insuficiente para publicar');
+    throw new Error(`Conteúdo insuficiente (${bodyFinal.length} chars)`);
+  }
+
+  // 1. Reescreve com IA
+  const reescrito = await reescreverArtigo(artigo, site.ai_prompt, provider);
+
+  // 2. Busca categorias e categoriza
+  const cats = await buscarCategorias(site);
+  const catFixa = item.default_category_id || item.ss_default_category_id;
+  if (catFixa) {
+    reescrito.category_ids = [catFixa];
+    console.log(`[WORKER] categoria fixa: [${catFixa}]`);
+  } else {
+    reescrito.category_ids = await categorizarComIA(reescrito, cats, provider);
+  }
+
+  // 3. Publica no CMS
+  let resultado;
+  switch (site.platform) {
+    case 'wordpress': resultado = await publishToWordPress(site, reescrito, artigo); break;
+    case 'blogger':   resultado = await publishToBlogger(site, reescrito, artigo);   break;
+    case 'webhook':   resultado = await publishViaWebhook(site, reescrito, artigo);  break;
+    default: throw new Error(`Plataforma desconhecida: ${site.platform}`);
+  }
+
+  // 4. Grava publicação
+  const tagsStr = Array.isArray(reescrito.tags) ? reescrito.tags.join(', ') : null;
+  const catsStr = reescrito.category_ids?.length
+    ? reescrito.category_ids.map(id => cats.find(c => c.id === id)?.name).filter(Boolean).join(', ')
+    : null;
+  await pool.query(
+    `INSERT INTO publications
+       (subscriber_id, article_id, site_id, platform,
+        external_post_id, external_post_url,
+        rewritten_title, rewritten_body,
+        rewritten_chapeu, rewritten_summary, rewritten_tags, rewritten_categories, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'published')`,
+    [
+      site.subscriber_id, artigo.id, site.id, site.platform,
+      resultado.post_id, resultado.post_url,
+      reescrito.title, reescrito.body,
+      reescrito.chapeu || null, reescrito.summary || null, tagsStr, catsStr,
+    ]
+  );
+
+  // 4.1 Publica no Facebook + Instagram (se configurado e habilitado para esta fonte)
+  const querPostarFB = site.facebook_enabled
+    && item.publish_facebook
+    && site.facebook_page_id
+    && site.facebook_page_token;
+
+  if (querPostarFB) {
+    try {
+      const { gerarCard, gerarCardComUrl } = require('./utils/card-generator');
+      const { publicarFoto }               = require('./connectors/facebook');
+      const { publicar: publicarInstagram } = require('./connectors/instagram');
+      const querPostarIG = site.instagram_enabled && site.instagram_business_account_id && item.publish_instagram;
+      const pageToken    = decryptToken(site.facebook_page_token);
+
+      let cardBuffer, cardPublicUrl;
+      if (querPostarIG) {
+        const r = await gerarCardComUrl({
+          chapeu:   reescrito.chapeu || artigo.chapeu || '',
+          resumo:   reescrito.summary || artigo.summary || '',
+          imageUrl: artigo.image_url || '',
+        });
+        cardBuffer    = r.buffer;
+        cardPublicUrl = r.publicUrl;
+      } else {
+        cardBuffer = await gerarCard({
+          chapeu:   reescrito.chapeu || artigo.chapeu || '',
+          resumo:   reescrito.summary || artigo.summary || '',
+          imageUrl: artigo.image_url || '',
+        });
+      }
+
+      try {
+        const fb = await publicarFoto(
+          { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
+          cardBuffer,
+          { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
+        );
+        await pool.query(
+          `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
+           WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
+          [fb.photo_id || fb.post_id, fb.post_url, site.subscriber_id, artigo.id, site.id]
+        );
+        console.log(`[WORKER/FB] ✓ "${reescrito.title.slice(0, 50)}" → ${fb.post_url || 'OK'}`);
+      } catch (fbErr) {
+        console.error(`[WORKER/FB] ✗ "${reescrito.title.slice(0, 50)}": ${fbErr.message}`);
+      }
+
+      if (querPostarIG && cardPublicUrl) {
+        try {
+          const ig = await publicarInstagram(
+            {
+              instagram_business_account_id: site.instagram_business_account_id,
+              facebook_page_token: pageToken,
+            },
+            cardPublicUrl,
+            { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
+          );
+          await pool.query(
+            `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
+             WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
+            [ig.post_id, ig.post_url, site.subscriber_id, artigo.id, site.id]
+          );
+          console.log(`[WORKER/IG] ✓ "${reescrito.title.slice(0, 50)}" → ${ig.post_url || 'OK'}`);
+        } catch (igErr) {
+          console.error(`[WORKER/IG] ✗ "${reescrito.title.slice(0, 50)}": ${igErr.message}`);
+        }
+      }
+    } catch (socialErr) {
+      console.error(`[WORKER/SOCIAL] ✗ "${reescrito.title.slice(0, 50)}": ${socialErr.message}`);
+    }
+  }
+
+  await registrarLog(artigo.id, site.id, site.subscriber_id, 'ok', null);
+  console.log(`[WORKER] ✓ "${reescrito.title.slice(0, 60)}" → ${site.name}`);
+}
+
+// ── Loop contínuo do worker: 1 item a cada 30s ────────────────────────────────
+
+let _workerAtivo = true;
+
+async function workerLoop() {
+  console.log('[WORKER] Iniciado — 1 item a cada 30s.');
+  while (_workerAtivo) {
+    await new Promise(r => setTimeout(r, 30000));
+    if (!_workerAtivo) break;
+    const settings = lerSettings();
+    if (settings.autopub_enabled === false) continue;
+    try {
+      await processarProximoItem();
+    } catch (e) {
+      console.error('[WORKER] Erro inesperado:', e.message);
+    }
+  }
+}
+
+module.exports = { rodarProdutor, workerLoop };

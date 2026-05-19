@@ -396,6 +396,9 @@ Portal<span class="logo-news">News</span>
   <a class="nav-item" data-page="autopub" onclick="irPara('autopub')">
     <span class="icon">🤖</span> Autopublicação
   </a>
+  <a class="nav-item" data-page="fila" onclick="irPara('fila')" style="display:flex;align-items:center">
+    <span class="icon">⏳</span> Fila <span id="nav-fila-badge" style="margin-left:auto;background:#2563eb;color:#fff;font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:3px;display:none"></span>
+  </a>
   <a class="nav-item" data-page="criar-post" onclick="irPara('criar-post')">
     <span class="icon">✍️</span> Criar Post
   </a>
@@ -843,6 +846,66 @@ Portal<span class="logo-news">News</span>
       </div>
 
     </div><!-- /configuracoes -->
+
+    <!-- ══ FILA DE AUTOPUBLICAÇÃO ════════════════════════════════════════════════ -->
+    <div class="page" id="page-fila">
+      <div class="section-hdr">
+        <h2>Fila de Autopublicação</h2>
+        <button class="btn btn-ghost btn-sm" onclick="carregarFila()">↻ Atualizar</button>
+      </div>
+
+      <!-- Contadores -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:20px">
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Pendentes</div>
+          <div id="fila-stat-pending" style="font-size:1.8rem;font-weight:700;color:#f59e0b">—</div>
+        </div>
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Processando</div>
+          <div id="fila-stat-processing" style="font-size:1.8rem;font-weight:700;color:#2563eb">—</div>
+        </div>
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Publicados hoje</div>
+          <div id="fila-stat-done-today" style="font-size:1.8rem;font-weight:700;color:#16a34a">—</div>
+        </div>
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Total publicado</div>
+          <div id="fila-stat-done-total" style="font-size:1.8rem;font-weight:700;color:var(--text)">—</div>
+        </div>
+        <div class="panel" style="padding:18px 20px">
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Erros</div>
+          <div id="fila-stat-error" style="font-size:1.8rem;font-weight:700;color:#dc2626">—</div>
+        </div>
+      </div>
+
+      <!-- Tabela de itens -->
+      <div class="panel">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.1rem">⏳</span>
+          <div>
+            <div style="font-weight:700;font-size:.95rem;color:var(--text)">Itens da Fila</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Últimos 100 itens — worker processa 1 a cada 30s</div>
+          </div>
+        </div>
+        <div style="padding:0">
+          <table class="data-table" id="tbl-fila">
+            <thead>
+              <tr>
+                <th>Enfileirado</th>
+                <th>Site</th>
+                <th>Fonte</th>
+                <th style="min-width:220px">Artigo</th>
+                <th>Status</th>
+                <th>Tent.</th>
+                <th>Processado</th>
+                <th>Erro</th>
+              </tr>
+            </thead>
+            <tbody><tr><td colspan="8" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /fila -->
 
     <!-- ══ CRIAR POST ════════════════════════════════════════════════════════════ -->
     <div class="page" id="page-criar-post">
@@ -1820,6 +1883,7 @@ const PAGE_TITLES = {
   fontes:          ['Fontes', 'Portais e feeds de notícias'],
   publicacoes:     ['Publicações', 'Histórico de artigos publicados'],
   autopub:         ['Autopublicação', 'Monitor do sistema de postagem automática'],
+  fila:            ['Fila', 'Fila de processamento da autopublicação'],
   'sites-catalog': ['Sites', 'Catálogo central de sites configurados'],
   'criar-post':    ['Criar Post', 'Crie um artigo com IA e publique diretamente'],
   configuracoes:   ['Configurações', 'Parâmetros globais do sistema'],
@@ -1843,6 +1907,7 @@ function irPara(page) {
   if (page === 'sites-catalog')   carregarCatalog();
   if (page === 'autopub')         iniciarMonitorAutopub();
   else                            pararMonitorAutopub();
+  if (page === 'fila')            carregarFila();
   if (page === 'criar-post')      acpPopularSites();
 }
 
@@ -2272,6 +2337,59 @@ async function salvarConfiguracoes() {
   } catch (e) {
     status.style.color = 'var(--red)';
     status.textContent = 'Erro: ' + e.message;
+  }
+}
+
+// ══ FILA DE AUTOPUBLICAÇÃO ════════════════════════════════════════════════════
+
+const STATUS_FILA = {
+  pending:    { label: 'Pendente',    color: '#f59e0b' },
+  processing: { label: 'Processando', color: '#2563eb' },
+  done:       { label: 'Publicado',   color: '#16a34a' },
+  error:      { label: 'Erro',        color: '#dc2626' },
+};
+
+async function carregarFila() {
+  const tbody = document.querySelector('#tbl-fila tbody');
+  try {
+    const data = await fetch(`${BACKEND}/api/admin/queue`, { headers: authHeader() }).then(r => r.json());
+    const s = data.stats || {};
+
+    document.getElementById('fila-stat-pending').textContent    = s.pending    ?? '—';
+    document.getElementById('fila-stat-processing').textContent = s.processing ?? '—';
+    document.getElementById('fila-stat-done-today').textContent = s.done_today ?? '—';
+    document.getElementById('fila-stat-done-total').textContent = s.done_total ?? '—';
+    document.getElementById('fila-stat-error').textContent      = s.error_total ?? '—';
+
+    const badge = document.getElementById('nav-fila-badge');
+    const pending = parseInt(s.pending) || 0;
+    if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? 'inline' : 'none'; }
+
+    if (!data.items?.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">Fila vazia.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.items.map(r => {
+      const st     = STATUS_FILA[r.status] || { label: r.status, color: '#888' };
+      const badge  = `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:.72rem;font-weight:700;color:#fff;background:${st.color}">${st.label}</span>`;
+      const enq    = r.enqueued_at  ? new Date(r.enqueued_at).toLocaleString('pt-BR',  { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+      const proc   = r.processed_at ? new Date(r.processed_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+      const titulo = (r.article_title || '—').slice(0, 60);
+      const erro   = r.error_message ? `<span title="${r.error_message}" style="cursor:help;color:#dc2626">⚠ ${r.error_message.slice(0, 40)}…</span>` : '—';
+      const social = [r.publish_facebook ? 'FB' : '', r.publish_instagram ? 'IG' : ''].filter(Boolean).join(' ');
+      return `<tr>
+        <td style="font-size:.78rem;white-space:nowrap">${enq}</td>
+        <td style="font-size:.82rem">${r.site_name || '—'}${social ? `<br><span style="font-size:.7rem;color:var(--muted)">${social}</span>` : ''}</td>
+        <td style="font-size:.8rem;color:var(--muted)">${r.source_name || '—'}</td>
+        <td style="font-size:.82rem">${titulo}</td>
+        <td>${badge}</td>
+        <td style="text-align:center;font-size:.82rem">${r.attempts ?? 0}</td>
+        <td style="font-size:.78rem;white-space:nowrap">${proc}</td>
+        <td style="font-size:.78rem">${erro}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">Erro: ${e.message}</td></tr>`;
   }
 }
 

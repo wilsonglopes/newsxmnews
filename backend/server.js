@@ -431,6 +431,29 @@ async function criarIndicesBanco() {
   await tryMigrate('sites_catalog.instagram_username',    `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS instagram_username VARCHAR(100)`);
   await tryMigrate('publications.instagram_post_id',      `ALTER TABLE publications ADD COLUMN IF NOT EXISTS instagram_post_id VARCHAR(100)`);
   await tryMigrate('publications.instagram_post_url',     `ALTER TABLE publications ADD COLUMN IF NOT EXISTS instagram_post_url TEXT`);
+
+  await tryMigrate('autopub_queue table', `
+    CREATE TABLE IF NOT EXISTS autopub_queue (
+      id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      catalog_id          UUID NOT NULL REFERENCES sites_catalog(id),
+      site_id             UUID REFERENCES subscriber_sites(id),
+      subscriber_id       UUID REFERENCES subscribers(id),
+      source_id           UUID NOT NULL REFERENCES sources(id),
+      article_id          UUID NOT NULL REFERENCES articles(id),
+      status              VARCHAR(20) DEFAULT 'pending',
+      attempts            INT DEFAULT 0,
+      publish_facebook    BOOLEAN DEFAULT false,
+      publish_instagram   BOOLEAN DEFAULT false,
+      default_category_id INT,
+      enqueued_at         TIMESTAMPTZ DEFAULT now(),
+      processed_at        TIMESTAMPTZ,
+      error_message       TEXT,
+      UNIQUE (catalog_id, article_id)
+    )
+  `);
+  await tryMigrate('idx_queue_pending', `
+    CREATE INDEX IF NOT EXISTS idx_queue_pending ON autopub_queue(status, enqueued_at) WHERE status = 'pending'
+  `);
 }
 
 // ─── Sincronizar sources.json → tabela sources do banco ──────────────────────
@@ -785,9 +808,10 @@ limparArtigosAntigos();
 cron.schedule('*/15 * * * *', atualizarTodasFontes);
 cron.schedule('0 * * * *', limparArtigosAntigos); // limpeza a cada hora
 
-// Autopub — verifica a cada minuto se chegou a hora de rodar (intervalo configurável)
-const { verificarERotar } = require('./autopub');
-cron.schedule('* * * * *', () => verificarERotar().catch(e => console.error('[AUTOPUB]', e.message)));
+// Autopub — producer enfileira a cada 5min; worker processa 1 item a cada 30s
+const { rodarProdutor, workerLoop } = require('./autopub');
+cron.schedule('*/5 * * * *', () => rodarProdutor().catch(e => console.error('[PRODUCER]', e.message)));
+workerLoop().catch(e => console.error('[WORKER] Fatal:', e));
 
 const { iniciarBot } = require('./telegram');
 iniciarBot();

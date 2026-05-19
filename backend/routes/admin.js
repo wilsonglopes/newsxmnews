@@ -896,6 +896,36 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   // FINANCEIRO
   // ════════════════════════════════════════════════════════════════════════════
 
+  // GET /api/admin/queue — stats e itens recentes da fila de autopublicação
+  router.get('/queue', async (req, res) => {
+    try {
+      const { rows: statsRows } = await pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'pending')                               AS pending,
+          COUNT(*) FILTER (WHERE status = 'processing')                            AS processing,
+          COUNT(*) FILTER (WHERE status = 'done' AND processed_at >= CURRENT_DATE) AS done_today,
+          COUNT(*) FILTER (WHERE status = 'error')                                 AS error_total,
+          COUNT(*) FILTER (WHERE status = 'done')                                  AS done_total
+        FROM autopub_queue
+      `);
+      const { rows: items } = await pool.query(`
+        SELECT q.id, q.status, q.attempts, q.enqueued_at, q.processed_at, q.error_message,
+               q.publish_facebook, q.publish_instagram,
+               sc.name     AS site_name,
+               a.title     AS article_title,
+               src.name    AS source_name,
+               src.slug    AS source_slug
+        FROM autopub_queue q
+        JOIN sites_catalog sc  ON sc.id  = q.catalog_id
+        JOIN articles      a   ON a.id   = q.article_id
+        JOIN sources       src ON src.id = q.source_id
+        ORDER BY q.enqueued_at DESC
+        LIMIT 100
+      `);
+      res.json({ stats: statsRows[0], items });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   // GET /api/admin/financial
   router.get('/financial', async (req, res) => {
     try {
