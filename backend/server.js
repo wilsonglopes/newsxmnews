@@ -475,7 +475,7 @@ async function sincronizarFontesDB() {
           url                     = EXCLUDED.url,
           type                    = EXCLUDED.type,
           category                = EXCLUDED.category,
-          active                  = EXCLUDED.active,
+          active                  = CASE WHEN sources.active = false THEN false ELSE EXCLUDED.active END,
           content_selector        = EXCLUDED.content_selector,
           extract_body_image      = EXCLUDED.extract_body_image,
           featured_image_selector = EXCLUDED.featured_image_selector`,
