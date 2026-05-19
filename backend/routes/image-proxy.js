@@ -56,6 +56,8 @@ const ALLOWED_HOSTS = [
   'agorars.com', 'uploads.agorars.com',
   // Correio do Povo
   'correiodopovo.com.br',
+  // O Sul
+  'osul.com.br',
 ];
 
 // GET /api/proxy-image?url=<encoded>
