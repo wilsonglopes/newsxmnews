@@ -851,7 +851,7 @@ Portal<span class="logo-news">News</span>
     <div class="page" id="page-fila">
       <div class="section-hdr">
         <h2>Fila de Autopublicação</h2>
-        <button class="btn btn-ghost btn-sm" onclick="carregarFila()">↻ Atualizar</button>
+        <button class="btn btn-ghost btn-sm" onclick="carregarFila(this)">↻ Atualizar</button>
       </div>
 
       <!-- Contadores -->
@@ -947,6 +947,14 @@ Portal<span class="logo-news">News</span>
               style="width:100%;margin-bottom:.45rem">
             <input type="text" id="acp-fonte-nome" placeholder="Nome da fonte (ex: G1, Prefeitura Municipal…)"
               style="width:100%;font-size:.84rem">
+          </div>
+
+          <div class="form-group" style="margin-top:.75rem">
+            <label>Portal de destino <small style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(opcional — usa o prompt personalizado do portal)</small></label>
+            <select id="acp-portal-gerar"
+              style="width:100%;padding:.5rem .65rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.84rem;font-family:var(--font)">
+              <option value="">Prompt padrão (sem portal específico)</option>
+            </select>
           </div>
 
           <div style="display:flex;gap:.75rem;align-items:center;margin-top:.5rem">
@@ -2349,10 +2357,13 @@ const STATUS_FILA = {
   error:      { label: 'Erro',        color: '#dc2626' },
 };
 
-async function carregarFila() {
+async function carregarFila(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Atualizando…'; }
   const tbody = document.querySelector('#tbl-fila tbody');
   try {
-    const data = await fetch(`${BACKEND}/api/admin/queue`, { headers: authHeader() }).then(r => r.json());
+    const r    = await fetch(`${BACKEND}/api/admin/queue`, { headers: authHeader() });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
     const s = data.stats || {};
 
     document.getElementById('fila-stat-pending').textContent    = s.pending    ?? '—';
@@ -2390,6 +2401,8 @@ async function carregarFila() {
     }).join('');
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="8" class="empty">Erro: ${e.message}</td></tr>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Atualizar'; }
   }
 }
 
@@ -3320,6 +3333,18 @@ function acpPopularSites() {
     sel.appendChild(opt);
   });
   if (val) sel.value = val;
+
+  const selPre = document.getElementById('acp-portal-gerar');
+  if (!selPre) return;
+  const valPre = selPre.value;
+  selPre.innerHTML = '<option value="">Prompt padrão (sem portal específico)</option>';
+  (allSitesCache || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name + (s.client_name ? ` (${s.client_name})` : '') + (s.ai_prompt ? ' ✦' : '');
+    selPre.appendChild(opt);
+  });
+  if (valPre) selPre.value = valPre;
 }
 
 function acpSetImagem(file) {
@@ -3428,13 +3453,16 @@ document.getElementById('acp-btn-gerar').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = '⟳ Gerando…';
   status.textContent = 'Aguarde, a IA está escrevendo o artigo…';
 
-  const provider = document.getElementById('sel-ia-provider')?.value || 'gemini';
+  const provider  = document.getElementById('sel-ia-provider')?.value || 'gemini';
+  const portalId  = document.getElementById('acp-portal-gerar')?.value || '';
+  const portalObj = portalId ? (allSitesCache || []).find(s => String(s.id) === String(portalId)) : null;
+  const ai_prompt = portalObj?.ai_prompt || '';
 
   try {
     const resp = await fetch(`${BACKEND}/api/ia/gerar`, {
       method:  'POST',
       headers: authHeader(),
-      body:    JSON.stringify({ tema, provider })
+      body:    JSON.stringify({ tema, provider, ai_prompt })
     });
     const r = await resp.json();
     if (!resp.ok) throw new Error(r.error || 'Erro na IA');
@@ -3454,8 +3482,13 @@ document.getElementById('acp-btn-gerar').addEventListener('click', async () => {
     }
 
     document.getElementById('acp-link-publicado').textContent = '';
-    document.getElementById('acp-btn-publicar').disabled = true;
     document.getElementById('acp-categorias').innerHTML = '<span class="cat-placeholder">Selecione o site primeiro…</span>';
+    document.getElementById('acp-btn-publicar').disabled = true;
+
+    if (portalId) {
+      const selDest = document.getElementById('acp-site-dest');
+      if (selDest) { selDest.value = portalId; acpCarregarCategorias(portalId); }
+    }
 
     document.getElementById('acp-fase1').style.display = 'none';
     document.getElementById('acp-fase2').style.display = '';
