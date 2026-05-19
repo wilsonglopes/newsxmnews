@@ -1,0 +1,3 @@
+name = "xixo-sc-proxy"
+main = "cloudflare-worker-sc-proxy.js"
+compatibility_date = "2024-01-01"

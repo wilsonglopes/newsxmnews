@@ -7,9 +7,13 @@ const axios = require('axios');
 const https = require('https');
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
+const CF_PROXY_DOMAINS = ['.sc.gov.br', 'midiamax.com.br'];
+
 function needsCFProxy(url) {
-  try { return new URL(url).hostname.endsWith('.sc.gov.br'); }
-  catch { return false; }
+  try {
+    const h = new URL(url).hostname;
+    return CF_PROXY_DOMAINS.some(d => h === d || h.endsWith('.' + d));
+  } catch { return false; }
 }
 
 function isAvailable() {
