@@ -39,9 +39,9 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
     try {
       const [totalArt, hojeArt, totalSubs, pubsHoje, pubsSemana, filaStats] = await Promise.all([
         pool.query('SELECT COUNT(*) FROM articles'),
-        pool.query("SELECT COUNT(*) FROM articles WHERE DATE(fetched_at AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE AT TIME ZONE 'America/Sao_Paulo'"),
+        pool.query("SELECT COUNT(*) FROM articles WHERE DATE(fetched_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date"),
         pool.query('SELECT COUNT(*) FROM subscribers WHERE active = true'),
-        pool.query("SELECT COUNT(*) FROM publications WHERE DATE(published_at AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE AT TIME ZONE 'America/Sao_Paulo'"),
+        pool.query("SELECT COUNT(*) FROM publications WHERE DATE(published_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date"),
         pool.query("SELECT COUNT(*) FROM publications WHERE published_at >= now() - interval '7 days'"),
         pool.query("SELECT COUNT(*) FILTER (WHERE status='pending') AS pending, COUNT(*) FILTER (WHERE status='error') AS errors FROM autopub_queue"),
       ]);
@@ -51,7 +51,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
           SELECT so.name, so.slug, so.category, COUNT(a.id)::int AS total
           FROM sources so
           LEFT JOIN articles a ON a.source_id = so.id
-            AND DATE(a.fetched_at AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE AT TIME ZONE 'America/Sao_Paulo'
+            AND DATE(a.fetched_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
           WHERE so.active = true
           GROUP BY so.id, so.name, so.slug, so.category
           ORDER BY total DESC
