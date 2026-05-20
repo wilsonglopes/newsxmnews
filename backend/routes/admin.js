@@ -1080,20 +1080,27 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       if (!pub)                   return res.status(404).json({ error: 'Publicação não encontrada.' });
       if (!pub.facebook_post_id)  return res.status(400).json({ error: 'Esta publicação não tem post do Facebook associado.' });
 
-      // Extrai page_id da URL: https://www.facebook.com/{page_id}_{post_id}
-      const urlMatch = (pub.facebook_post_url || '').match(/facebook\.com\/(\d+)_/);
-      const pageId   = urlMatch?.[1];
-      if (!pageId) return res.status(400).json({ error: 'Não foi possível extrair o Page ID da URL do post.' });
+      // Extrai page_id e story_id completo da URL: facebook.com/{page_id}_{post_id}
+      const urlMatch  = (pub.facebook_post_url || '').match(/facebook\.com\/(\d+)_(\d+)/);
+      const pageId    = urlMatch?.[1];
+      const storyId   = urlMatch ? `${urlMatch[1]}_${urlMatch[2]}` : null;
+      if (!pageId || !storyId) return res.status(400).json({ error: 'URL do post não tem formato {page_id}_{post_id}. Verifique se o post foi publicado com card de imagem.' });
 
       const title   = pub.rewritten_title   || pub.original_title   || 'Artigo';
       const chapeu  = pub.rewritten_chapeu  || pub.category         || '';
       const summary = pub.rewritten_summary || pub.original_summary || '';
 
-      const targeting            = targetingOverride || await sugerirTargeting(title, chapeu, summary);
+      const rawTargeting         = targetingOverride || await sugerirTargeting(title, chapeu, summary);
+      // Normaliza targeting: genders=[1,2] → omite (Meta trata como todos)
+      const targeting = { ...rawTargeting };
+      if (Array.isArray(targeting.genders) && targeting.genders.length === 2) delete targeting.genders;
+
       const dailyBudgetCentavos  = Math.round(parseFloat(daily_budget_brl) * 100);
-      const nowUnix              = Math.floor(Date.now() / 1000);
-      const endUnix              = nowUnix + (parseInt(duration_days) * 86400);
+      const startUnix            = Math.floor(Date.now() / 1000) + 300; // 5 min no futuro
+      const endUnix              = startUnix + (parseInt(duration_days) * 86400);
       const FB_API               = 'https://graph.facebook.com/v20.0';
+
+      console.log(`[boost-post] storyId=${storyId} pageId=${pageId} budget=${dailyBudgetCentavos} days=${duration_days}`);
 
       // 1. Campanha
       const campResp = await axios.post(`${FB_API}/act_${adAccountId}/campaigns`, {
@@ -1112,7 +1119,7 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         name:               `AdSet: ${title.slice(0, 70)}`,
         campaign_id:        campaignId,
         daily_budget:       dailyBudgetCentavos,
-        start_time:         nowUnix,
+        start_time:         startUnix,
         end_time:           endUnix,
         bid_strategy:       'LOWEST_COST_WITHOUT_CAP',
         billing_event:      'IMPRESSIONS',
@@ -1125,11 +1132,11 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       const adsetId = adsetResp.data?.id;
       if (!adsetId) throw new Error('Falha ao criar AdSet: ' + JSON.stringify(adsetResp.data));
 
-      // 3. Ad (vinculado ao post existente)
+      // 3. Ad — object_story_id é o post composto da timeline: {page_id}_{post_id}
       const adResp = await axios.post(`${FB_API}/act_${adAccountId}/ads`, {
         name:         `Ad: ${title.slice(0, 70)}`,
         adset_id:     adsetId,
-        creative:     { object_story_id: `${pageId}_${pub.facebook_post_id}` },
+        creative:     { object_story_id: storyId },
         status:       'ACTIVE',
         access_token: adsToken,
       }, { headers: { 'Content-Type': 'application/json' } });
@@ -1146,9 +1153,10 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       console.log(`[boost-post] Campanha criada: ${campaignId} | pub: ${publication_id}`);
       res.json({ ok: true, campaign_id: campaignId, adset_id: adsetId, ad_id: adId, ad_url: adUrl, targeting });
     } catch (err) {
-      const apiErr = err.response?.data?.error?.message || err.message;
-      console.error('[boost-post]', apiErr);
-      res.status(500).json({ error: apiErr });
+      const metaErr = err.response?.data?.error;
+      const apiErr  = metaErr?.message || err.message;
+      console.error('[boost-post] erro:', apiErr, metaErr ? JSON.stringify(metaErr) : '');
+      res.status(500).json({ error: apiErr, meta_error: metaErr || null });
     }
   });
 
