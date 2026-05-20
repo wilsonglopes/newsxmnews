@@ -1100,55 +1100,59 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       const endUnix              = startUnix + (parseInt(duration_days) * 86400);
       const FB_API               = 'https://graph.facebook.com/v20.0';
 
-      console.log(`[boost-post] storyId=${storyId} pageId=${pageId} budget=${dailyBudgetCentavos} days=${duration_days}`);
+      // Garante que adAccountId não tem prefixo act_ duplicado
+      const cleanAccountId = String(adAccountId).replace(/^act_/, '');
+      console.log(`[boost-post] storyId=${storyId} pageId=${pageId} budget=${dailyBudgetCentavos} days=${duration_days} account=${cleanAccountId}`);
 
       // Helper: form-urlencoded (padrão obrigatório da Meta Marketing API)
-      const fbPost = (endpoint, fields) => {
+      const fbPost = async (endpoint, fields) => {
         const p = new URLSearchParams();
         for (const [k, v] of Object.entries(fields)) {
           p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
         }
-        return axios.post(endpoint, p.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        const r = await axios.post(endpoint, p.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        return r;
       };
 
-      // 1. Campanha — CBO com bid_strategy na campanha (obrigatório em v20+)
-      const campResp = await fbPost(`${FB_API}/act_${adAccountId}/campaigns`, {
+      // 1. Campanha — OUTCOME_ENGAGEMENT sem bid_strategy explícito (usa LOWEST_COST automático)
+      const campResp = await fbPost(`${FB_API}/act_${cleanAccountId}/campaigns`, {
         name:                  `Boost: ${title.slice(0, 70)}`,
         objective:             'OUTCOME_ENGAGEMENT',
         status:                'ACTIVE',
         special_ad_categories: '[]',
-        daily_budget:          dailyBudgetCentavos,
-        bid_strategy:          'LOWEST_COST_WITHOUT_CAP',
         access_token:          adsToken,
       });
+      console.log('[boost-post] camp resp:', JSON.stringify(campResp.data));
 
       const campaignId = campResp.data?.id;
       if (!campaignId) throw new Error('Falha ao criar campanha: ' + JSON.stringify(campResp.data));
 
-      // 2. AdSet — sem orçamento/bid_strategy próprios (CBO gerencia pela campanha)
-      const adsetResp = await fbPost(`${FB_API}/act_${adAccountId}/adsets`, {
+      // 2. AdSet — orçamento diário no adset (não CBO), optimization_goal IMPRESSIONS (mais compatível v20)
+      const adsetResp = await fbPost(`${FB_API}/act_${cleanAccountId}/adsets`, {
         name:              `AdSet: ${title.slice(0, 70)}`,
         campaign_id:       campaignId,
         start_time:        startUnix,
         end_time:          endUnix,
         billing_event:     'IMPRESSIONS',
-        optimization_goal: 'POST_ENGAGEMENT',
+        optimization_goal: 'IMPRESSIONS',
+        daily_budget:      dailyBudgetCentavos,
         targeting,
-        promoted_object:   { page_id: pageId },
         access_token:      adsToken,
       });
+      console.log('[boost-post] adset resp:', JSON.stringify(adsetResp.data));
 
       const adsetId = adsetResp.data?.id;
       if (!adsetId) throw new Error('Falha ao criar AdSet: ' + JSON.stringify(adsetResp.data));
 
       // 3. Ad — object_story_id é o post composto da timeline: {page_id}_{post_id}
-      const adResp = await fbPost(`${FB_API}/act_${adAccountId}/ads`, {
+      const adResp = await fbPost(`${FB_API}/act_${cleanAccountId}/ads`, {
         name:         `Ad: ${title.slice(0, 70)}`,
         adset_id:     adsetId,
         creative:     { object_story_id: storyId },
         status:       'ACTIVE',
         access_token: adsToken,
       });
+      console.log('[boost-post] ad resp:', JSON.stringify(adResp.data));
 
       const adId = adResp.data?.id;
       if (!adId) throw new Error('Falha ao criar Ad: ' + JSON.stringify(adResp.data));
@@ -1164,8 +1168,12 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
     } catch (err) {
       const metaErr = err.response?.data?.error;
       const apiErr  = metaErr?.message || err.message;
-      console.error('[boost-post] erro:', apiErr, metaErr ? JSON.stringify(metaErr) : '');
-      res.status(500).json({ error: apiErr, meta_error: metaErr || null });
+      console.error('[boost-post] ERRO COMPLETO:', JSON.stringify(err.response?.data || err.message));
+      res.status(500).json({
+        error: apiErr,
+        meta_error: metaErr || null,
+        meta_error_data: err.response?.data || null,
+      });
     }
   });
 
