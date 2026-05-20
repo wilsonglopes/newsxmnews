@@ -1132,7 +1132,7 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       const campaignId = campResp.data?.id;
       if (!campaignId) throw new Error('Falha ao criar campanha: ' + JSON.stringify(campResp.data));
 
-      // 2. AdSet — PAUSED, SEM orçamento (CBO gerencia pela campanha), SEM bid_strategy
+      // 2. AdSet — PAUSED, SEM orçamento (CBO gerencia pela campanha), promoted_object obrigatório
       const adsetResp = await fbPost(`${FB_API}/act_${cleanAccountId}/adsets`, {
         name:              `AdSet: ${title.slice(0, 70)}`,
         campaign_id:       campaignId,
@@ -1141,6 +1141,7 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         end_time:          endUnix,
         billing_event:     'IMPRESSIONS',
         optimization_goal: 'POST_ENGAGEMENT',
+        promoted_object:   { page_id: pageId },
         targeting,
         access_token:      adsToken,
       });
