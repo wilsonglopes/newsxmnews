@@ -917,8 +917,18 @@
   {
     "name": "Correio do Povo",
     "slug": "correiodopovo",
-    "type": "sitemap",
-    "url": "https://www.correiodopovo.com.br/sitemap_news.xml",
+    "type": "api",
+    "url": "https://www.correiodopovo.com.br/cmlink/desenvolver.json-7.5778",
+    "api_article_base": "https://www.correiodopovo.com.br",
+    "api_scroll_pagination": true,
+    "api_pages": 3,
+    "api_field_map": {
+      "title": "titulo",
+      "url": "link",
+      "image": "foto",
+      "published_at": "publicationDate",
+      "summary": "descricao"
+    },
     "active": true,
     "category": "regional",
     "extract_body_image": false,

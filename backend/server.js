@@ -710,29 +710,65 @@ async function atualizarLogFonte(slug, erro) {
 // ─── Busca via JSON API própria ───────────────────────────────────────────────
 async function buscarAPI(source) {
   const url = source.url;
-  const resp = await axios.get(url, {
-    timeout: 15000,
-    params: { limit: source.api_limit || 20 },
-    headers: { 'Accept': 'application/json', 'User-Agent': '' },
-  });
-  const items = resp.data?.data || resp.data?.items || resp.data || [];
+  const fm = source.api_field_map || {};
+  const params = source.api_scroll_pagination
+    ? { scroll: 'true', page: 1 }
+    : { limit: source.api_limit || 20 };
+
+  let items = [];
+  if (source.api_scroll_pagination) {
+    const totalPages = source.api_pages || 1;
+    for (let page = 1; page <= totalPages; page++) {
+      const r = await axios.get(url, {
+        timeout: 15000,
+        params: { scroll: 'true', page },
+        headers: { 'Accept': 'application/json', 'User-Agent': '' },
+      });
+      const pageItems = r.data?.data || r.data?.items || r.data || [];
+      if (!pageItems.length) break;
+      items = items.concat(pageItems);
+    }
+  } else {
+    const resp = await axios.get(url, {
+      timeout: 15000,
+      params,
+      headers: { 'Accept': 'application/json', 'User-Agent': '' },
+    });
+    items = resp.data?.data || resp.data?.items || resp.data || [];
+  }
   const baseUrl = source.api_article_base || new URL(url).origin;
   const slugPath = source.api_slug_path || '/materia/';
 
-  return items.filter(a => a.isPublished !== false).map(a => ({
-    id:           md5(a.slug || String(a.id) || a.title || ''),
-    source:       source.name,
-    source_slug:  source.slug,
-    category:     source.category,
-    title:        (a.title || '').trim(),
-    summary:      a.excerpt || a.metaDescription || '',
-    url:          `${baseUrl}${slugPath}${a.slug}`,
-    image:        a.coverImage || null,
-    published_at: normalizarData(a.publishedAt || a.published_at),
-    content:      a.body || '',
-    tags:         Array.isArray(a.tags) ? a.tags : [],
-    author:       a.author?.name || null,
-  }));
+  return items.filter(a => a.isPublished !== false).map(a => {
+    const title   = ((fm.title       ? a[fm.title]          : null) || a.title           || '').trim();
+    const rawUrl  =  (fm.url         ? a[fm.url]            : null) || '';
+    const rawImg  =  (fm.image       ? a[fm.image]          : null) || a.coverImage       || null;
+    const rawDate =  (fm.published_at ? a[fm.published_at]  : null) || a.publishedAt || a.published_at || '';
+    const summary =  (fm.summary     ? a[fm.summary]        : null) || a.excerpt || a.metaDescription || '';
+
+    const articleUrl = rawUrl
+      ? (rawUrl.startsWith('http') ? rawUrl : `${baseUrl}${rawUrl}`)
+      : `${baseUrl}${slugPath}${a.slug}`;
+
+    const image = rawImg
+      ? (rawImg.startsWith('http') ? rawImg : `${baseUrl}${rawImg}`)
+      : null;
+
+    return {
+      id:           md5(rawUrl || a.slug || String(a.id) || title || ''),
+      source:       source.name,
+      source_slug:  source.slug,
+      category:     source.category,
+      title,
+      summary,
+      url:          articleUrl,
+      image,
+      published_at: normalizarData(rawDate),
+      content:      a.body || '',
+      tags:         Array.isArray(a.tags) ? a.tags : [],
+      author:       a.author?.name || null,
+    };
+  });
 }
 
 // ─── Busca RSS via Cloudflare Worker (para fontes bloqueadas na Oracle Cloud) ──
