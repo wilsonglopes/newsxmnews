@@ -1133,11 +1133,12 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         campaign_id:       campaignId,
         start_time:        startUnix,
         end_time:          endUnix,
-        billing_event:     'IMPRESSIONS',
-        optimization_goal: 'POST_ENGAGEMENT',
-        daily_budget:      dailyBudgetCentavos,
+        billing_event:                  'IMPRESSIONS',
+        optimization_goal:              'POST_ENGAGEMENT',
+        daily_budget:                   dailyBudgetCentavos,
+        is_adset_budget_sharing_enabled: false,
         targeting,
-        access_token:      adsToken,
+        access_token:                   adsToken,
       });
       console.log('[boost-post] adset resp:', JSON.stringify(adsetResp.data));
 
