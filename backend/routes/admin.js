@@ -1111,13 +1111,14 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         return axios.post(endpoint, p.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
       };
 
-      // 1. Campanha — daily_budget na campanha ativa CBO automaticamente em v20+
+      // 1. Campanha — CBO com bid_strategy na campanha (obrigatório em v20+)
       const campResp = await fbPost(`${FB_API}/act_${adAccountId}/campaigns`, {
         name:                  `Boost: ${title.slice(0, 70)}`,
         objective:             'OUTCOME_ENGAGEMENT',
         status:                'ACTIVE',
         special_ad_categories: '[]',
         daily_budget:          dailyBudgetCentavos,
+        bid_strategy:          'LOWEST_COST_WITHOUT_CAP',
         access_token:          adsToken,
       });
 
