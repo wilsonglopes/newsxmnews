@@ -1114,25 +1114,25 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         return r;
       };
 
-      // ESTRATÉGIA: criar tudo como PAUSED primeiro, depois ativar — abordagem mais segura
-      // Usa objetivo legado OUTCOME_ENGAGEMENT (v20 obrigatório) + bid_strategy explícito (evita herança da conta)
+      // ESTRATÉGIA: CBO completo — orçamento e bid_strategy NA CAMPANHA (Meta exige juntos)
+      // Criar tudo como PAUSED primeiro, depois ativar
 
-      // 1. Campanha — PAUSED, sem CBO, define bid_strategy explícito pra evitar herdar da conta
+      // 1. Campanha — CBO: daily_budget + bid_strategy na campanha
       const campResp = await fbPost(`${FB_API}/act_${cleanAccountId}/campaigns`, {
-        name:                            `Boost: ${title.slice(0, 70)}`,
-        objective:                       'OUTCOME_ENGAGEMENT',
-        status:                          'PAUSED',
-        special_ad_categories:           '[]',
-        is_adset_budget_sharing_enabled: false,
-        bid_strategy:                    'LOWEST_COST_WITHOUT_CAP',
-        access_token:                    adsToken,
+        name:                  `Boost: ${title.slice(0, 70)}`,
+        objective:             'OUTCOME_ENGAGEMENT',
+        status:                'PAUSED',
+        special_ad_categories: '[]',
+        daily_budget:          dailyBudgetCentavos,
+        bid_strategy:          'LOWEST_COST_WITHOUT_CAP',
+        access_token:          adsToken,
       });
       console.log('[boost-post] camp resp:', JSON.stringify(campResp.data));
 
       const campaignId = campResp.data?.id;
       if (!campaignId) throw new Error('Falha ao criar campanha: ' + JSON.stringify(campResp.data));
 
-      // 2. AdSet — PAUSED, orçamento no adset, optimization_goal POST_ENGAGEMENT
+      // 2. AdSet — PAUSED, SEM orçamento (CBO gerencia pela campanha), SEM bid_strategy
       const adsetResp = await fbPost(`${FB_API}/act_${cleanAccountId}/adsets`, {
         name:              `AdSet: ${title.slice(0, 70)}`,
         campaign_id:       campaignId,
@@ -1141,7 +1141,6 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         end_time:          endUnix,
         billing_event:     'IMPRESSIONS',
         optimization_goal: 'POST_ENGAGEMENT',
-        daily_budget:      dailyBudgetCentavos,
         targeting,
         access_token:      adsToken,
       });
