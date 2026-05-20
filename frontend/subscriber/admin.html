@@ -157,13 +157,12 @@
     .pub-tabela-wrap td { padding: .65rem .85rem; color: #374151; vertical-align: middle; }
     .pub-tabela-wrap td.titulo-pub { color: var(--text); font-weight: 500; max-width: 400px; }
 
-    /* ══ BARRA FONTE ══════════════════════════════════════════════════════════ */
-    .fonte-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; }
-    .fonte-bar:last-child { border-bottom: none; }
-    .fonte-bar-name { font-size: .83rem; font-weight: 500; flex: 1; }
-    .fonte-bar-track { flex: 1; background: #f1f5f9; border-radius: 4px; height: 6px; overflow: hidden; }
-    .fonte-bar-fill { height: 100%; background: var(--red); border-radius: 4px; transition: width .5s; }
-    .fonte-bar-count { font-size: .75rem; color: var(--muted); min-width: 32px; text-align: right; }
+    /* ══ RANKING FONTE ═══════════════════════════════════════════════════════ */
+    .fonte-rank-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid #f1f5f9; font-size: .82rem; }
+    .fonte-rank-row:last-child { border-bottom: none; }
+    .fonte-rank-num { font-size: .72rem; color: #cbd5e1; font-weight: 700; min-width: 18px; text-align: right; }
+    .fonte-rank-name { flex: 1; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fonte-rank-count { font-size: .8rem; font-weight: 700; color: var(--text); min-width: 38px; text-align: right; }
 
     /* ══ BOTÕES ═══════════════════════════════════════════════════════════════ */
     .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: .83rem; font-weight: 500; cursor: pointer; border: none; font-family: var(--font); transition: opacity .15s, background .15s, box-shadow .15s; }
@@ -474,23 +473,40 @@ Portal<span class="logo-news">News</span>
         </div>
       </div>
 
-      <div class="panels-grid">
+      <!-- Linha 1: 3 colunas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
 
-        <!-- Fontes mais ativas -->
+        <!-- Artigos por fonte (ranking simples) -->
         <div class="panel">
           <div class="panel-header">
             <span class="panel-title">📡 Artigos por fonte</span>
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:6px">
               <span class="badge badge-gray" id="db-total-fontes">—</span>
-              <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.72rem">
+              <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden">
                 <button id="db-toggle-hoje" onclick="dbToggleFontes('hoje')"
-                  style="padding:3px 10px;background:#dc2626;color:#fff;border:none;cursor:pointer;font-size:.72rem;font-family:var(--font)">Hoje</button>
+                  style="padding:2px 9px;background:#dc2626;color:#fff;border:none;cursor:pointer;font-size:.72rem;font-family:var(--font)">Hoje</button>
                 <button id="db-toggle-total" onclick="dbToggleFontes('total')"
-                  style="padding:3px 10px;background:transparent;color:var(--muted);border:none;cursor:pointer;font-size:.72rem;font-family:var(--font)">Total</button>
+                  style="padding:2px 9px;background:transparent;color:var(--muted);border:none;cursor:pointer;font-size:.72rem;font-family:var(--font)">Total</button>
               </div>
             </div>
           </div>
-          <div class="panel-body" id="db-fontes-body">
+          <div class="panel-body" style="max-height:320px;overflow-y:auto" id="db-fontes-body">
+            <div class="loading"><span class="spin"></span>Carregando…</div>
+          </div>
+        </div>
+
+        <!-- Publicações por portal -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🌐 Publicações por portal</span>
+            <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden">
+              <button id="db-psite-hoje" onclick="dbTogglePubsSite('hoje')"
+                style="padding:2px 9px;background:#dc2626;color:#fff;border:none;cursor:pointer;font-size:.72rem;font-family:var(--font)">Hoje</button>
+              <button id="db-psite-total" onclick="dbTogglePubsSite('total')"
+                style="padding:2px 9px;background:transparent;color:var(--muted);border:none;cursor:pointer;font-size:.72rem;font-family:var(--font)">Total</button>
+            </div>
+          </div>
+          <div class="panel-body" style="max-height:320px;overflow-y:auto" id="db-psite-body">
             <div class="loading"><span class="spin"></span>Carregando…</div>
           </div>
         </div>
@@ -501,7 +517,7 @@ Portal<span class="logo-news">News</span>
             <span class="panel-title">✅ Últimas publicações</span>
             <a class="btn btn-ghost btn-sm" onclick="irPara('publicacoes')">Ver todas</a>
           </div>
-          <div class="panel-body">
+          <div class="panel-body" style="max-height:320px;overflow-y:auto">
             <table class="data-table" id="db-pubs-table">
               <tbody><tr><td class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
             </table>
@@ -510,16 +526,33 @@ Portal<span class="logo-news">News</span>
 
       </div>
 
-      <!-- Clientes recentes -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">👥 Clientes</span>
-          <button class="btn btn-primary btn-sm" onclick="irPara('clientes')">Gerenciar</button>
+      <!-- Linha 2: publicações por dia + clientes -->
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:24px">
+
+        <!-- Publicações por dia -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">📅 Publicações por dia</span>
+            <span class="badge badge-gray">últimos 30 dias</span>
+          </div>
+          <div class="panel-body" style="max-height:320px;overflow-y:auto">
+            <table class="data-table" id="db-pubs-dia-table">
+              <thead><tr><th>Data</th><th style="text-align:right">Publicações</th></tr></thead>
+              <tbody><tr><td colspan="2" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+            </table>
+          </div>
         </div>
-        <div class="panel-body">
-          <table class="data-table" id="db-clientes-table">
-            <thead>
-              <tr><th>Nome</th><th>Email</th><th>Plano</th><th>Status</th><th>Desde</th></tr>
+
+        <!-- Clientes recentes -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">👥 Clientes</span>
+            <button class="btn btn-primary btn-sm" onclick="irPara('clientes')">Gerenciar</button>
+          </div>
+          <div class="panel-body">
+            <table class="data-table" id="db-clientes-table">
+              <thead>
+                <tr><th>Nome</th><th>Email</th><th>Plano</th><th>Status</th><th>Desde</th></tr>
             </thead>
             <tbody><tr><td colspan="5" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
           </table>
@@ -2075,7 +2108,7 @@ async function carregarDashboard() {
     document.getElementById('st-pubs-semana').textContent   = stats.pubsWeek?.toLocaleString('pt-BR') ?? '—';
     document.getElementById('st-fontes').textContent        = `${stats.activeSources}/${stats.totalSources}`;
     document.getElementById('st-total-artigos').textContent = stats.totalArticles?.toLocaleString('pt-BR') ?? '—';
-    document.getElementById('st-sites').textContent         = allSites.length ?? '—';
+    document.getElementById('st-sites').textContent         = stats.totalCatalogSites ?? '—';
 
     const qPend = stats.queuePending ?? 0;
     const qErr  = stats.queueErrors  ?? 0;
@@ -2085,6 +2118,8 @@ async function carregarDashboard() {
     if (filaCard) filaCard.style.outline = qErr > 0 ? '2px solid #dc2626' : '';
 
     dbRenderFontes('hoje');
+    dbRenderPubsSite('hoje');
+    dbRenderPubsByDay();
 
     const tbody = document.querySelector('#db-pubs-table tbody');
     if (!pubs || !pubs.length) {
@@ -2123,15 +2158,14 @@ function dbRenderFontes(modo) {
     ? (_dbStatsCache.bySourceToday || []).filter(s => s.total > 0)
     : (_dbStatsCache.bySource       || []).filter(s => s.total > 0);
 
-  const maxTotal = Math.max(...dados.map(s => s.total), 1);
-  const label    = modo === 'hoje' ? 'fontes ativas hoje' : 'fontes com artigos';
+  const label = modo === 'hoje' ? 'fontes ativas hoje' : 'fontes com artigos';
   document.getElementById('db-total-fontes').textContent = `${dados.length} ${label}`;
-  document.getElementById('db-fontes-body').innerHTML = dados.slice(0, 20).map(s => `
-    <div class="fonte-bar">
-      <div class="fonte-bar-name">${s.name}</div>
-      <div class="fonte-bar-track"><div class="fonte-bar-fill" style="width:${(s.total/maxTotal*100).toFixed(0)}%"></div></div>
-      <div class="fonte-bar-count">${s.total}</div>
-    </div>`).join('') || '<div class="empty">Sem dados para hoje</div>';
+  document.getElementById('db-fontes-body').innerHTML = dados.slice(0, 25).map((s, i) => `
+    <div class="fonte-rank-row">
+      <span class="fonte-rank-num">${i + 1}</span>
+      <span class="fonte-rank-name" title="${s.name}">${s.name}</span>
+      <span class="fonte-rank-count">${s.total.toLocaleString('pt-BR')}</span>
+    </div>`).join('') || '<div class="empty" style="padding:14px">Sem dados para hoje</div>';
 
   document.getElementById('db-toggle-hoje').style.background  = modo === 'hoje'  ? '#dc2626' : 'transparent';
   document.getElementById('db-toggle-hoje').style.color       = modo === 'hoje'  ? '#fff'    : 'var(--muted)';
@@ -2140,6 +2174,45 @@ function dbRenderFontes(modo) {
 }
 
 function dbToggleFontes(modo) { dbRenderFontes(modo); }
+
+function dbRenderPubsSite(modo) {
+  if (!_dbStatsCache) return;
+  const dados = modo === 'hoje'
+    ? (_dbStatsCache.pubsBySiteToday || [])
+    : (_dbStatsCache.pubsBySiteTotal || []);
+
+  document.getElementById('db-psite-body').innerHTML = dados.length
+    ? dados.map((s, i) => `
+      <div class="fonte-rank-row">
+        <span class="fonte-rank-num">${i + 1}</span>
+        <span class="fonte-rank-name" title="${s.site_name}">${s.site_name}</span>
+        <span class="fonte-rank-count">${s.total.toLocaleString('pt-BR')}</span>
+      </div>`).join('')
+    : '<div class="empty" style="padding:14px">Sem publicações hoje</div>';
+
+  document.getElementById('db-psite-hoje').style.background  = modo === 'hoje'  ? '#dc2626' : 'transparent';
+  document.getElementById('db-psite-hoje').style.color       = modo === 'hoje'  ? '#fff'    : 'var(--muted)';
+  document.getElementById('db-psite-total').style.background = modo === 'total' ? '#dc2626' : 'transparent';
+  document.getElementById('db-psite-total').style.color      = modo === 'total' ? '#fff'    : 'var(--muted)';
+}
+
+function dbTogglePubsSite(modo) { dbRenderPubsSite(modo); }
+
+function dbRenderPubsByDay() {
+  if (!_dbStatsCache) return;
+  const dias = _dbStatsCache.pubsByDay || [];
+  const tbody = document.querySelector('#db-pubs-dia-table tbody');
+  if (!tbody) return;
+  tbody.innerHTML = dias.length
+    ? dias.map(d => {
+        const [ano, mes, dia] = d.day.split('-');
+        return `<tr>
+          <td style="font-size:.83rem">${dia}/${mes}/${ano}</td>
+          <td style="text-align:right;font-size:.83rem;font-weight:600">${d.total.toLocaleString('pt-BR')}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="2" class="empty">Sem dados</td></tr>';
+}
 
 // ══ PUBLICAR (tabela) ════════════════════════════════════════════════════════
 

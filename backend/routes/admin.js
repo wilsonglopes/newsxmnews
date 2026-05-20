@@ -37,16 +37,17 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   // GET /api/admin/stats
   router.get('/stats', async (req, res) => {
     try {
-      const [totalArt, hojeArt, totalSubs, pubsHoje, pubsSemana, filaStats] = await Promise.all([
+      const [totalArt, hojeArt, totalSubs, pubsHoje, pubsSemana, filaStats, totalPortais] = await Promise.all([
         pool.query('SELECT COUNT(*) FROM articles'),
         pool.query("SELECT COUNT(*) FROM articles WHERE DATE(fetched_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date"),
         pool.query('SELECT COUNT(*) FROM subscribers WHERE active = true'),
         pool.query("SELECT COUNT(*) FROM publications WHERE DATE(published_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date"),
         pool.query("SELECT COUNT(*) FROM publications WHERE published_at >= now() - interval '7 days'"),
         pool.query("SELECT COUNT(*) FILTER (WHERE status='pending') AS pending, COUNT(*) FILTER (WHERE status='error') AS errors FROM autopub_queue"),
+        pool.query('SELECT COUNT(*) FROM sites_catalog WHERE active = true'),
       ]);
 
-      const [bySourceHoje, bySourceTotal] = await Promise.all([
+      const [bySourceHoje, bySourceTotal, pubsBySiteHoje, pubsBySiteTotal, pubsByDay] = await Promise.all([
         pool.query(`
           SELECT so.name, so.slug, so.category, COUNT(a.id)::int AS total
           FROM sources so
@@ -63,6 +64,31 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
           GROUP BY so.id, so.name, so.slug, so.category
           ORDER BY total DESC
         `),
+        pool.query(`
+          SELECT COALESCE(sc.name, ss.name) AS site_name, COUNT(p.id)::int AS total
+          FROM publications p
+          JOIN subscriber_sites ss ON ss.id = p.site_id
+          LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
+          WHERE DATE(p.published_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+          GROUP BY COALESCE(sc.name, ss.name)
+          ORDER BY total DESC
+        `),
+        pool.query(`
+          SELECT COALESCE(sc.name, ss.name) AS site_name, COUNT(p.id)::int AS total
+          FROM publications p
+          JOIN subscriber_sites ss ON ss.id = p.site_id
+          LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
+          GROUP BY COALESCE(sc.name, ss.name)
+          ORDER BY total DESC
+        `),
+        pool.query(`
+          SELECT (DATE(published_at AT TIME ZONE 'America/Sao_Paulo'))::text AS day,
+                 COUNT(*)::int AS total
+          FROM publications
+          WHERE published_at >= NOW() - interval '30 days'
+          GROUP BY 1
+          ORDER BY 1 DESC
+        `),
       ]);
 
       res.json({
@@ -73,10 +99,14 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
         queuePending:       parseInt(filaStats.rows[0].pending),
         queueErrors:        parseInt(filaStats.rows[0].errors),
         activeSubscribers:  parseInt(totalSubs.rows[0].count),
+        totalCatalogSites:  parseInt(totalPortais.rows[0].count),
         activeSources:      sources.filter(s => s.active).length,
         totalSources:       sources.length,
         bySource:           bySourceTotal.rows,
         bySourceToday:      bySourceHoje.rows,
+        pubsBySiteToday:    pubsBySiteHoje.rows,
+        pubsBySiteTotal:    pubsBySiteTotal.rows,
+        pubsByDay:          pubsByDay.rows,
       });
     } catch (err) {
       console.error('[admin/stats]', err.message);
