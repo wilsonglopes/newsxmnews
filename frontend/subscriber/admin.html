@@ -4816,22 +4816,22 @@ function abrirModalBoost(pubId, fbPostUrl, title, chapeu, summary) {
   document.getElementById('mb-post-url').textContent  = fbPostUrl ? 'Ver post no Facebook ↗' : '';
   document.getElementById('mb-budget').value          = '';
   document.getElementById('mb-days').value            = '7';
-  document.getElementById('mb-targeting-box').style.display = 'none';
-  document.getElementById('mb-targeting-preview').textContent = '';
+  document.getElementById('mb-age-min').value         = '18';
+  document.getElementById('mb-age-max').value         = '65';
+  document.getElementById('mb-gender-m').checked      = true;
+  document.getElementById('mb-gender-f').checked      = true;
+  const st = document.getElementById('mb-targeting-status');
+  st.textContent = '⟳ IA analisando…'; st.style.color = '#6b7280';
   document.getElementById('mb-btn-criar').disabled    = false;
   document.getElementById('mb-btn-criar').textContent = '🚀 Criar Campanha';
 
-  // Pré-carrega sugestão de targeting via IA
   _boostCarregarTargeting(title, chapeu, summary);
 
   document.getElementById('modal-boost').classList.remove('hidden');
 }
 
 async function _boostCarregarTargeting(title, chapeu, summary) {
-  const box     = document.getElementById('mb-targeting-box');
-  const preview = document.getElementById('mb-targeting-preview');
-  box.style.display = 'block';
-  preview.textContent = '⟳ IA analisando artigo…';
+  const st = document.getElementById('mb-targeting-status');
   try {
     const r = await fetch(`${BACKEND}/api/admin/boost-targeting-preview`, {
       method: 'POST',
@@ -4839,12 +4839,14 @@ async function _boostCarregarTargeting(title, chapeu, summary) {
       body: JSON.stringify({ title, chapeu, summary }),
     });
     if (!r.ok) throw new Error('erro');
-    const data = await r.json();
-    const t = data.targeting || {};
-    const generos = (t.genders || [1,2]).length === 2 ? 'Todos' : (t.genders?.[0] === 1 ? 'Homens' : 'Mulheres');
-    preview.textContent = `Público: ${t.age_min || 18}–${t.age_max || 65} anos · ${generos} · Brasil`;
+    const { targeting: t = {} } = await r.json();
+    document.getElementById('mb-age-min').value    = t.age_min || 18;
+    document.getElementById('mb-age-max').value    = t.age_max || 65;
+    document.getElementById('mb-gender-m').checked = (t.genders || [1,2]).includes(1);
+    document.getElementById('mb-gender-f').checked = (t.genders || [1,2]).includes(2);
+    st.textContent = '✓ sugestão da IA'; st.style.color = '#16a34a';
   } catch {
-    preview.textContent = 'Público: 18–65 anos · Todos · Brasil (padrão)';
+    st.textContent = '(padrão)'; st.style.color = '#6b7280';
   }
 }
 
@@ -4854,6 +4856,15 @@ async function criarCampanhaBoost() {
   if (!budget || budget < 6) return toast('Orçamento mínimo: R$ 6,00 por dia.', 'erro');
   if (!days   || days   < 1) return toast('Duração mínima: 1 dia.', 'erro');
 
+  const ageMin  = parseInt(document.getElementById('mb-age-min').value) || 18;
+  const ageMax  = parseInt(document.getElementById('mb-age-max').value) || 65;
+  const genders = [];
+  if (document.getElementById('mb-gender-m').checked) genders.push(1);
+  if (document.getElementById('mb-gender-f').checked) genders.push(2);
+  if (!genders.length) return toast('Selecione ao menos um gênero.', 'erro');
+
+  const targeting = { age_min: ageMin, age_max: ageMax, genders, geo_locations: { countries: ['BR'] } };
+
   const btn = document.getElementById('mb-btn-criar');
   btn.disabled    = true;
   btn.textContent = '⟳ Criando campanha…';
@@ -4862,7 +4873,7 @@ async function criarCampanhaBoost() {
     const r = await fetch(`${BACKEND}/api/admin/boost-post`, {
       method: 'POST',
       headers: { ...authHeader(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ publication_id: _boostPubId, daily_budget_brl: budget, duration_days: days }),
+      body: JSON.stringify({ publication_id: _boostPubId, daily_budget_brl: budget, duration_days: days, targeting }),
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error || `HTTP ${r.status}`); }
     const data = await r.json();
@@ -4921,9 +4932,28 @@ fetch(`${BACKEND}/api/admin/all-sites`, { headers: authHeader() })
         </div>
       </div>
 
-      <div id="mb-targeting-box" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;margin-top:4px">
-        <div style="font-size:.75rem;font-weight:600;color:#1d4ed8;margin-bottom:4px">Público sugerido pela IA</div>
-        <div id="mb-targeting-preview" style="font-size:.82rem;color:#374151"></div>
+      <div id="mb-targeting-box" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:8px">
+        <div style="font-size:.75rem;font-weight:600;color:#1d4ed8;margin-bottom:8px">
+          Público <span id="mb-targeting-status" style="font-weight:400;color:#6b7280">⟳ IA analisando…</span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:70px;margin-bottom:0">
+            <label style="font-size:.75rem">Idade mín.</label>
+            <input type="number" id="mb-age-min" min="13" max="65" value="18" style="width:100%" />
+          </div>
+          <div class="form-group" style="flex:1;min-width:70px;margin-bottom:0">
+            <label style="font-size:.75rem">Idade máx.</label>
+            <input type="number" id="mb-age-max" min="13" max="65" value="65" style="width:100%" />
+          </div>
+          <div class="form-group" style="flex:2;min-width:150px;margin-bottom:0">
+            <label style="font-size:.75rem">Gênero</label>
+            <div style="display:flex;gap:14px;margin-top:6px">
+              <label style="font-size:.82rem;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="mb-gender-m" checked /> Masculino</label>
+              <label style="font-size:.82rem;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="mb-gender-f" checked /> Feminino</label>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:.73rem;color:#6b7280;margin-top:8px">📍 Localização: Brasil (fixo)</div>
       </div>
     </div>
     <div class="modal-footer">

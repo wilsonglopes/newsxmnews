@@ -1029,7 +1029,7 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
 
   // POST /api/admin/boost-post — cria campanha Meta Ads para impulsionar post existente
   router.post('/boost-post', async (req, res) => {
-    const { publication_id, daily_budget_brl, duration_days } = req.body || {};
+    const { publication_id, daily_budget_brl, duration_days, targeting: targetingOverride } = req.body || {};
     if (!publication_id || !daily_budget_brl || !duration_days) {
       return res.status(400).json({ error: 'publication_id, daily_budget_brl e duration_days são obrigatórios.' });
     }
@@ -1069,7 +1069,7 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       const chapeu  = pub.rewritten_chapeu  || pub.category         || '';
       const summary = pub.rewritten_summary || pub.original_summary || '';
 
-      const targeting            = await sugerirTargeting(title, chapeu, summary);
+      const targeting            = targetingOverride || await sugerirTargeting(title, chapeu, summary);
       const dailyBudgetCentavos  = Math.round(parseFloat(daily_budget_brl) * 100);
       const nowUnix              = Math.floor(Date.now() / 1000);
       const endUnix              = nowUnix + (parseInt(duration_days) * 86400);
