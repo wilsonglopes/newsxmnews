@@ -60,6 +60,8 @@ const ALLOWED_HOSTS = [
   'osul.com.br',
   // PRF Acre (Polícia Rodoviária Federal — Plone gov.br)
   'www.gov.br',
+  // TJ Acre (Tribunal de Justiça do Acre — WordPress)
+  'tjac.jus.br', 'www.tjac.jus.br',
 ];
 
 // GET /api/proxy-image?url=<encoded>

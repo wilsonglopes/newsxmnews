@@ -963,5 +963,24 @@
     "extract_body_image": false,
     "content_selector": "#parent-fieldname-text",
     "featured_image_selector": null
+  },
+  {
+    "name": "TJ Acre",
+    "slug": "tj-acre",
+    "type": "scraping",
+    "url": "https://www.tjac.jus.br/category/noticias/",
+    "active": true,
+    "category": "judicial",
+    "scraping": {
+      "itemSelector": "article.noticia-item",
+      "titleSelector": "h1",
+      "linkSelector": "a.noticia-description",
+      "imageSelector": "img.wp-post-image",
+      "dateSelector": "time strong",
+      "linkFilter": "tjac\\.jus\\.br/202[5-9]/"
+    },
+    "extract_body_image": false,
+    "content_selector": "div.entry",
+    "featured_image_selector": null
   }
 ]
