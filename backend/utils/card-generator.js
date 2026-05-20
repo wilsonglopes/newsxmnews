@@ -147,7 +147,9 @@ async function baixarImagem(url) {
         maxRedirects: 5,
       });
       const ct = r.headers['content-type'] || '';
-      if (!ct.startsWith('image/')) throw new Error(`Resposta não é imagem: ${ct}`);
+      // Telegram retorna application/octet-stream pra fotos do bot; aceita e deixa Sharp validar
+      const ctOk = ct.startsWith('image/') || ct === 'application/octet-stream' || ct === '';
+      if (!ctOk) throw new Error(`Resposta não é imagem: ${ct}`);
       const buf = Buffer.from(r.data);
       if (buf.length < 1000) throw new Error(`Imagem muito pequena (${buf.length} bytes) — provavelmente bloqueada`);
       return buf;
