@@ -1111,32 +1111,31 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         return axios.post(endpoint, p.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
       };
 
-      // 1. Campanha
+      // 1. Campanha — orçamento na campanha (CBO) para evitar is_adset_budget_sharing_enabled
       const campResp = await fbPost(`${FB_API}/act_${adAccountId}/campaigns`, {
-        name:                  `Boost: ${title.slice(0, 70)}`,
-        objective:             'OUTCOME_ENGAGEMENT',
-        status:                'ACTIVE',
-        special_ad_categories: '[]',
-        access_token:          adsToken,
+        name:                   `Boost: ${title.slice(0, 70)}`,
+        objective:              'OUTCOME_ENGAGEMENT',
+        status:                 'ACTIVE',
+        special_ad_categories:  '[]',
+        daily_budget:           dailyBudgetCentavos,
+        budget_rebalance_flag:  'true',
+        access_token:           adsToken,
       });
 
       const campaignId = campResp.data?.id;
       if (!campaignId) throw new Error('Falha ao criar campanha: ' + JSON.stringify(campResp.data));
 
-      // 2. AdSet
+      // 2. AdSet — sem orçamento próprio (CBO gerencia pela campanha)
       const adsetResp = await fbPost(`${FB_API}/act_${adAccountId}/adsets`, {
-        name:                            `AdSet: ${title.slice(0, 70)}`,
-        campaign_id:                     campaignId,
-        daily_budget:                    dailyBudgetCentavos,
-        start_time:                      startUnix,
-        end_time:                        endUnix,
-        bid_strategy:                    'LOWEST_COST_WITHOUT_CAP',
-        billing_event:                   'IMPRESSIONS',
-        optimization_goal:               'POST_ENGAGEMENT',
-        is_adset_budget_sharing_enabled: 'false',
+        name:              `AdSet: ${title.slice(0, 70)}`,
+        campaign_id:       campaignId,
+        start_time:        startUnix,
+        end_time:          endUnix,
+        billing_event:     'IMPRESSIONS',
+        optimization_goal: 'POST_ENGAGEMENT',
         targeting,
-        promoted_object:                 { page_id: pageId },
-        access_token:                    adsToken,
+        promoted_object:   { page_id: pageId },
+        access_token:      adsToken,
       });
 
       const adsetId = adsetResp.data?.id;
