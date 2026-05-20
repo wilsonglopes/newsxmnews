@@ -58,6 +58,8 @@ const ALLOWED_HOSTS = [
   'correiodopovo.com.br',
   // O Sul
   'osul.com.br',
+  // PRF Acre (Polícia Rodoviária Federal — Plone gov.br)
+  'www.gov.br',
 ];
 
 // GET /api/proxy-image?url=<encoded>
