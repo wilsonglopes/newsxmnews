@@ -1114,31 +1114,31 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         return r;
       };
 
-      // 1. Campanha — OUTCOME_ENGAGEMENT sem bid_strategy explícito (usa LOWEST_COST automático)
+      // 1. Campanha — OUTCOME_ENGAGEMENT, sem CBO, is_adset_budget_sharing_enabled:false obrigatório
       const campResp = await fbPost(`${FB_API}/act_${cleanAccountId}/campaigns`, {
-        name:                  `Boost: ${title.slice(0, 70)}`,
-        objective:             'OUTCOME_ENGAGEMENT',
-        status:                'ACTIVE',
-        special_ad_categories: '[]',
-        access_token:          adsToken,
+        name:                            `Boost: ${title.slice(0, 70)}`,
+        objective:                       'OUTCOME_ENGAGEMENT',
+        status:                          'ACTIVE',
+        special_ad_categories:           '[]',
+        is_adset_budget_sharing_enabled: false,
+        access_token:                    adsToken,
       });
       console.log('[boost-post] camp resp:', JSON.stringify(campResp.data));
 
       const campaignId = campResp.data?.id;
       if (!campaignId) throw new Error('Falha ao criar campanha: ' + JSON.stringify(campResp.data));
 
-      // 2. AdSet — orçamento diário no adset (não CBO), optimization_goal IMPRESSIONS (mais compatível v20)
+      // 2. AdSet — orçamento diário no adset, optimization_goal POST_ENGAGEMENT
       const adsetResp = await fbPost(`${FB_API}/act_${cleanAccountId}/adsets`, {
         name:              `AdSet: ${title.slice(0, 70)}`,
         campaign_id:       campaignId,
         start_time:        startUnix,
         end_time:          endUnix,
-        billing_event:                  'IMPRESSIONS',
-        optimization_goal:              'POST_ENGAGEMENT',
-        daily_budget:                   dailyBudgetCentavos,
-        is_adset_budget_sharing_enabled: false,
+        billing_event:     'IMPRESSIONS',
+        optimization_goal: 'POST_ENGAGEMENT',
+        daily_budget:      dailyBudgetCentavos,
         targeting,
-        access_token:                   adsToken,
+        access_token:      adsToken,
       });
       console.log('[boost-post] adset resp:', JSON.stringify(adsetResp.data));
 
