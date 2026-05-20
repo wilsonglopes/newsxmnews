@@ -122,19 +122,40 @@ function montarSvgTextos(chapeu, resumo) {
 </svg>`);
 }
 
-// Baixa imagem da URL — Wikimedia exige UA identificável; outros aceitam UA vazio
+const UA_BOT     = 'XIXO-News-Bot/1.0 (contato: wilsonglopes@gmail.com)';
+const UA_BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+// Baixa imagem — tenta primeiro com UA de bot, depois com UA de browser se falhar
 async function baixarImagem(url) {
-  const isWikimedia = /wikimedia|wikipedia/i.test(url);
-  const headers = isWikimedia
-    ? { 'User-Agent': 'XIXO-News-Bot/1.0 (contato: wilsonglopes@gmail.com)' }
-    : { 'User-Agent': '' };
-  const r = await axios.get(url, {
-    responseType: 'arraybuffer',
-    timeout: 20000,
-    headers,
-    maxRedirects: 5,
-  });
-  return Buffer.from(r.data);
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    throw new Error(`URL de imagem inválida: "${url}"`);
+  }
+
+  const tentativas = [
+    { 'User-Agent': UA_BOT },
+    { 'User-Agent': UA_BROWSER },
+    { 'User-Agent': UA_BROWSER, 'Referer': new URL(url).origin + '/' },
+  ];
+
+  let lastErr;
+  for (const headers of tentativas) {
+    try {
+      const r = await axios.get(url, {
+        responseType: 'arraybuffer',
+        timeout: 20000,
+        headers,
+        maxRedirects: 5,
+      });
+      const ct = r.headers['content-type'] || '';
+      if (!ct.startsWith('image/')) throw new Error(`Resposta não é imagem: ${ct}`);
+      const buf = Buffer.from(r.data);
+      if (buf.length < 1000) throw new Error(`Imagem muito pequena (${buf.length} bytes) — provavelmente bloqueada`);
+      return buf;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
 }
 
 // ─── Gerador principal ──────────────────────────────────────────────────────
@@ -146,12 +167,30 @@ async function gerarCard({ chapeu, resumo, imageUrl }) {
     const original = await baixarImagem(imageUrl);
     fotoBuffer = await sharp(original)
       .resize(CARD.fotoArea.w, CARD.fotoArea.h, { fit: 'cover', position: 'centre' })
+      .jpeg({ quality: 95 })
       .toBuffer();
   } catch (err) {
-    // Sem foto → fundo cinza
+    console.warn(`[card-generator] falha ao baixar imagem "${imageUrl}": ${err.message}`);
+    // Fallback: gradiente azul-escuro (melhor visual que cinza sólido)
     fotoBuffer = await sharp({
-      create: { width: CARD.fotoArea.w, height: CARD.fotoArea.h, channels: 3, background: '#1e293b' },
-    }).png().toBuffer();
+      create: { width: CARD.fotoArea.w, height: CARD.fotoArea.h, channels: 3, background: '#0f172a' },
+    })
+      .composite([{
+        input: Buffer.from(
+          `<svg width="${CARD.fotoArea.w}" height="${CARD.fotoArea.h}" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#1e3a5f"/>
+                <stop offset="100%" stop-color="#0f172a"/>
+              </linearGradient>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#g)"/>
+          </svg>`
+        ),
+        top: 0, left: 0,
+      }])
+      .png()
+      .toBuffer();
   }
 
   // 2) Cria canvas 1080x1080 com a foto no topo
