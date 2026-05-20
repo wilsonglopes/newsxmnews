@@ -676,12 +676,15 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
                p.rewritten_title, p.rewritten_body,
                p.rewritten_chapeu, p.rewritten_summary, p.rewritten_tags,
                p.external_post_url, p.published_at,
+               p.facebook_post_id, p.facebook_post_url,
+               p.meta_ad_id, p.meta_ad_url,
                sub.name AS subscriber_name,
                ss.name AS site_name, ss.site_url,
                a.title AS original_title,
                a.image_url AS article_image_url,
                a.external_url AS article_external_url,
-               so.name AS article_source_name
+               a.summary AS article_summary,
+               so.name AS article_source_name, so.category AS article_category
         FROM publications p
         JOIN subscribers sub ON sub.id = p.subscriber_id
         LEFT JOIN subscriber_sites ss ON ss.id = p.site_id
@@ -973,6 +976,160 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
       `);
       res.json({ stats: statsRows[0], items });
     } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // META ADS — IMPULSIONAR POST
+  // ════════════════════════════════════════════════════════════════════════════
+
+  function extrairJsonIA(texto) {
+    if (!texto) return null;
+    let r = null;
+    try { r = JSON.parse(texto.trim()); } catch {}
+    if (!r) { try { const m = texto.match(/\{[\s\S]*\}/); if (m) r = JSON.parse(m[0]); } catch {} }
+    if (!r) { try { const m = texto.match(/```(?:json)?\s*([\s\S]*?)\s*```/); if (m) r = JSON.parse(m[1]); } catch {} }
+    return r;
+  }
+
+  async function sugerirTargeting(title, chapeu, summary) {
+    const systemPrompt = `Você é especialista em Meta Ads Brasil. Analise o artigo e retorne SOMENTE JSON com targeting:
+{"age_min":número,"age_max":número,"genders":[1,2],"geo_locations":{"countries":["BR"]}}
+genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOMENTE JSON, sem texto.`;
+    const userContent = `Chapéu: ${chapeu}\nTítulo: ${title}\nResumo: ${summary}`;
+    try {
+      const axios = require('axios');
+      const key = process.env.GEMINI_KEY || '';
+      if (!key) throw new Error('no key');
+      const resp = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        {
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userContent }] }],
+          generationConfig: { maxOutputTokens: 200 },
+        },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
+      );
+      const texto = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const json = extrairJsonIA(texto);
+      if (json?.age_min && json?.age_max) return json;
+    } catch {}
+    return { age_min: 18, age_max: 65, genders: [1, 2], geo_locations: { countries: ['BR'] } };
+  }
+
+  // POST /api/admin/boost-targeting-preview — retorna sugestão de targeting sem criar campanha
+  router.post('/boost-targeting-preview', async (req, res) => {
+    const { title = '', chapeu = '', summary = '' } = req.body || {};
+    try {
+      const targeting = await sugerirTargeting(title, chapeu, summary);
+      res.json({ targeting });
+    } catch (err) {
+      res.json({ targeting: { age_min: 18, age_max: 65, genders: [1, 2], geo_locations: { countries: ['BR'] } } });
+    }
+  });
+
+  // POST /api/admin/boost-post — cria campanha Meta Ads para impulsionar post existente
+  router.post('/boost-post', async (req, res) => {
+    const { publication_id, daily_budget_brl, duration_days } = req.body || {};
+    if (!publication_id || !daily_budget_brl || !duration_days) {
+      return res.status(400).json({ error: 'publication_id, daily_budget_brl e duration_days são obrigatórios.' });
+    }
+
+    const settings    = lerSettings();
+    const adsToken    = settings.meta_ads_token    || process.env.META_ADS_TOKEN    || '';
+    const adAccountId = settings.meta_ad_account_id || process.env.META_AD_ACCOUNT_ID || '';
+
+    if (!adsToken || !adAccountId) {
+      return res.status(400).json({ error: 'meta_ads_token e meta_ad_account_id não configurados. Acesse Configurações → Meta Ads.' });
+    }
+
+    try {
+      const axios = require('axios');
+
+      const { rows: pubs } = await pool.query(`
+        SELECT p.id, p.facebook_post_id, p.facebook_post_url,
+               p.rewritten_title, p.rewritten_chapeu, p.rewritten_summary,
+               a.title AS original_title, a.summary AS original_summary,
+               so.category
+        FROM publications p
+        LEFT JOIN articles a  ON a.id  = p.article_id
+        LEFT JOIN sources  so ON so.id = a.source_id
+        WHERE p.id = $1
+      `, [publication_id]);
+
+      const pub = pubs[0];
+      if (!pub)                   return res.status(404).json({ error: 'Publicação não encontrada.' });
+      if (!pub.facebook_post_id)  return res.status(400).json({ error: 'Esta publicação não tem post do Facebook associado.' });
+
+      // Extrai page_id da URL: https://www.facebook.com/{page_id}_{post_id}
+      const urlMatch = (pub.facebook_post_url || '').match(/facebook\.com\/(\d+)_/);
+      const pageId   = urlMatch?.[1];
+      if (!pageId) return res.status(400).json({ error: 'Não foi possível extrair o Page ID da URL do post.' });
+
+      const title   = pub.rewritten_title   || pub.original_title   || 'Artigo';
+      const chapeu  = pub.rewritten_chapeu  || pub.category         || '';
+      const summary = pub.rewritten_summary || pub.original_summary || '';
+
+      const targeting            = await sugerirTargeting(title, chapeu, summary);
+      const dailyBudgetCentavos  = Math.round(parseFloat(daily_budget_brl) * 100);
+      const nowUnix              = Math.floor(Date.now() / 1000);
+      const endUnix              = nowUnix + (parseInt(duration_days) * 86400);
+      const FB_API               = 'https://graph.facebook.com/v20.0';
+
+      // 1. Campanha
+      const campResp = await axios.post(`${FB_API}/act_${adAccountId}/campaigns`, {
+        name:                   `Boost: ${title.slice(0, 70)}`,
+        objective:              'OUTCOME_ENGAGEMENT',
+        status:                 'ACTIVE',
+        special_ad_categories:  [],
+        access_token:           adsToken,
+      }, { headers: { 'Content-Type': 'application/json' } });
+
+      const campaignId = campResp.data?.id;
+      if (!campaignId) throw new Error('Falha ao criar campanha: ' + JSON.stringify(campResp.data));
+
+      // 2. AdSet
+      const adsetResp = await axios.post(`${FB_API}/act_${adAccountId}/adsets`, {
+        name:               `AdSet: ${title.slice(0, 70)}`,
+        campaign_id:        campaignId,
+        daily_budget:       dailyBudgetCentavos,
+        start_time:         nowUnix,
+        end_time:           endUnix,
+        bid_strategy:       'LOWEST_COST_WITHOUT_CAP',
+        billing_event:      'IMPRESSIONS',
+        optimization_goal:  'POST_ENGAGEMENT',
+        targeting,
+        promoted_object:    { page_id: pageId },
+        access_token:       adsToken,
+      }, { headers: { 'Content-Type': 'application/json' } });
+
+      const adsetId = adsetResp.data?.id;
+      if (!adsetId) throw new Error('Falha ao criar AdSet: ' + JSON.stringify(adsetResp.data));
+
+      // 3. Ad (vinculado ao post existente)
+      const adResp = await axios.post(`${FB_API}/act_${adAccountId}/ads`, {
+        name:         `Ad: ${title.slice(0, 70)}`,
+        adset_id:     adsetId,
+        creative:     { object_story_id: `${pageId}_${pub.facebook_post_id}` },
+        status:       'ACTIVE',
+        access_token: adsToken,
+      }, { headers: { 'Content-Type': 'application/json' } });
+
+      const adId = adResp.data?.id;
+      if (!adId) throw new Error('Falha ao criar Ad: ' + JSON.stringify(adResp.data));
+
+      const adUrl = `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${adAccountId}&campaign_ids=${campaignId}`;
+      await pool.query(
+        `UPDATE publications SET meta_ad_id = $1, meta_ad_url = $2 WHERE id = $3`,
+        [campaignId, adUrl, publication_id]
+      );
+
+      console.log(`[boost-post] Campanha criada: ${campaignId} | pub: ${publication_id}`);
+      res.json({ ok: true, campaign_id: campaignId, adset_id: adsetId, ad_id: adId, ad_url: adUrl, targeting });
+    } catch (err) {
+      const apiErr = err.response?.data?.error?.message || err.message;
+      console.error('[boost-post]', apiErr);
+      res.status(500).json({ error: apiErr });
+    }
   });
 
   // GET /api/admin/financial

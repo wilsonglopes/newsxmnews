@@ -4667,6 +4667,18 @@ async function carregarPublicacoes() {
       const fonteCell = p.article_source_name
         ? `<span style="font-size:.78rem;color:var(--text)">${p.article_source_name}</span>`
         : '<span style="font-size:.78rem;color:var(--muted)">—</span>';
+
+      let btnBoost = '';
+      if (p.facebook_post_id && p.meta_ad_id) {
+        btnBoost = `<a href="${p.meta_ad_url||'#'}" target="_blank" class="btn btn-ghost btn-sm" style="margin-left:4px;color:#1877f2" title="Ver campanha no Meta Ads">📊 Campanha</a>`;
+      } else if (p.facebook_post_id) {
+        const title   = (p.rewritten_title   || p.original_title  || '').replace(/'/g, "\\'");
+        const chapeu  = (p.rewritten_chapeu  || p.article_category || '').replace(/'/g, "\\'");
+        const summary = (p.rewritten_summary || p.article_summary  || '').replace(/'/g, "\\'");
+        const fbUrl   = (p.facebook_post_url || '').replace(/'/g, "\\'");
+        btnBoost = `<button class="btn btn-sm" style="margin-left:4px;background:#1877f2;color:#fff;border:none" onclick="abrirModalBoost('${p.id}','${fbUrl}','${title}','${chapeu}','${summary}')">⚡ Impulsionar</button>`;
+      }
+
       return `
       <tr>
         <td style="max-width:260px"><strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.rewritten_title||''}">${p.rewritten_title || p.original_title || '—'}</strong></td>
@@ -4675,7 +4687,7 @@ async function carregarPublicacoes() {
         <td style="font-size:.82rem;color:var(--muted)">${p.site_name||'—'}</td>
         <td><span class="badge ${p.status==='published'?'badge-green':'badge-red'}">${p.status}</span></td>
         <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">${p.published_at ? new Date(p.published_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
-        <td style="white-space:nowrap">${btnVer}${btnRepublicar}</td>
+        <td style="white-space:nowrap">${btnVer}${btnRepublicar}${btnBoost}</td>
       </tr>`;
     }).join('');
   } catch(e) { console.error(e); }
@@ -4793,6 +4805,79 @@ document.addEventListener('keydown', e => {
   });
 });
 
+// ══ META ADS — IMPULSIONAR POST ══════════════════════════════════════════════
+
+let _boostPubId = null;
+
+function abrirModalBoost(pubId, fbPostUrl, title, chapeu, summary) {
+  _boostPubId = pubId;
+  document.getElementById('mb-titulo').textContent    = title || '—';
+  document.getElementById('mb-post-url').href         = fbPostUrl || '#';
+  document.getElementById('mb-post-url').textContent  = fbPostUrl ? 'Ver post no Facebook ↗' : '';
+  document.getElementById('mb-budget').value          = '';
+  document.getElementById('mb-days').value            = '7';
+  document.getElementById('mb-targeting-box').style.display = 'none';
+  document.getElementById('mb-targeting-preview').textContent = '';
+  document.getElementById('mb-btn-criar').disabled    = false;
+  document.getElementById('mb-btn-criar').textContent = '🚀 Criar Campanha';
+
+  // Pré-carrega sugestão de targeting via IA
+  _boostCarregarTargeting(title, chapeu, summary);
+
+  document.getElementById('modal-boost').classList.remove('hidden');
+}
+
+async function _boostCarregarTargeting(title, chapeu, summary) {
+  const box     = document.getElementById('mb-targeting-box');
+  const preview = document.getElementById('mb-targeting-preview');
+  box.style.display = 'block';
+  preview.textContent = '⟳ IA analisando artigo…';
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/boost-targeting-preview`, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, chapeu, summary }),
+    });
+    if (!r.ok) throw new Error('erro');
+    const data = await r.json();
+    const t = data.targeting || {};
+    const generos = (t.genders || [1,2]).length === 2 ? 'Todos' : (t.genders?.[0] === 1 ? 'Homens' : 'Mulheres');
+    preview.textContent = `Público: ${t.age_min || 18}–${t.age_max || 65} anos · ${generos} · Brasil`;
+  } catch {
+    preview.textContent = 'Público: 18–65 anos · Todos · Brasil (padrão)';
+  }
+}
+
+async function criarCampanhaBoost() {
+  const budget = parseFloat(document.getElementById('mb-budget').value);
+  const days   = parseInt(document.getElementById('mb-days').value);
+  if (!budget || budget < 6) return toast('Orçamento mínimo: R$ 6,00 por dia.', 'erro');
+  if (!days   || days   < 1) return toast('Duração mínima: 1 dia.', 'erro');
+
+  const btn = document.getElementById('mb-btn-criar');
+  btn.disabled    = true;
+  btn.textContent = '⟳ Criando campanha…';
+
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/boost-post`, {
+      method: 'POST',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ publication_id: _boostPubId, daily_budget_brl: budget, duration_days: days }),
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error || `HTTP ${r.status}`); }
+    const data = await r.json();
+
+    fecharModal('modal-boost');
+    toast('Campanha criada com sucesso!', 'sucesso');
+    if (data.ad_url) window.open(data.ad_url, '_blank');
+    carregarPublicacoes();
+  } catch (e) {
+    btn.disabled    = false;
+    btn.textContent = '🚀 Criar Campanha';
+    toast('Erro: ' + e.message, 'erro');
+  }
+}
+
 // ══ INIT ═════════════════════════════════════════════════════════════════════
 carregarDashboard();
 // Pré-carrega sites para que "Criar Post" funcione mesmo sem passar pela aba Publicar
@@ -4809,5 +4894,44 @@ fetch(`${BACKEND}/api/admin/all-sites`, { headers: authHeader() })
   })
   .catch(() => {});
 </script>
+
+<!-- Modal Impulsionar Meta Ads -->
+<div class="overlay hidden" id="modal-boost">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3>Impulsionar no Meta Ads</h3>
+      <button class="modal-close" onclick="fecharModal('modal-boost')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px">
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:4px">Artigo selecionado</div>
+        <div id="mb-titulo" style="font-weight:600;font-size:.9rem;line-height:1.4"></div>
+        <a id="mb-post-url" href="#" target="_blank" style="font-size:.75rem;color:#2563eb;margin-top:4px;display:inline-block"></a>
+      </div>
+
+      <div style="display:flex;gap:12px">
+        <div class="form-group" style="flex:1">
+          <label>Orçamento diário (R$)</label>
+          <input type="number" id="mb-budget" min="6" step="1" placeholder="Ex: 20" style="width:100%" />
+          <small style="color:var(--muted)">Mínimo: R$ 6,00/dia</small>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Duração (dias)</label>
+          <input type="number" id="mb-days" min="1" max="30" value="7" style="width:100%" />
+        </div>
+      </div>
+
+      <div id="mb-targeting-box" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;margin-top:4px">
+        <div style="font-size:.75rem;font-weight:600;color:#1d4ed8;margin-bottom:4px">Público sugerido pela IA</div>
+        <div id="mb-targeting-preview" style="font-size:.82rem;color:#374151"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-boost')">Cancelar</button>
+      <button class="btn btn-primary" id="mb-btn-criar" onclick="criarCampanhaBoost()">🚀 Criar Campanha</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

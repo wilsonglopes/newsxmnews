@@ -464,6 +464,8 @@ async function criarIndicesBanco() {
   await tryMigrate('sites_catalog.instagram_username',    `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS instagram_username VARCHAR(100)`);
   await tryMigrate('publications.instagram_post_id',      `ALTER TABLE publications ADD COLUMN IF NOT EXISTS instagram_post_id VARCHAR(100)`);
   await tryMigrate('publications.instagram_post_url',     `ALTER TABLE publications ADD COLUMN IF NOT EXISTS instagram_post_url TEXT`);
+  await tryMigrate('publications.meta_ad_id',             `ALTER TABLE publications ADD COLUMN IF NOT EXISTS meta_ad_id VARCHAR(100)`);
+  await tryMigrate('publications.meta_ad_url',            `ALTER TABLE publications ADD COLUMN IF NOT EXISTS meta_ad_url TEXT`);
 
   await tryMigrate('autopub_queue table', `
     CREATE TABLE IF NOT EXISTS autopub_queue (
