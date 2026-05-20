@@ -910,13 +910,14 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   // GET /api/admin/autopub-stats — estatísticas rápidas do autopub
   router.get('/autopub-stats', async (req, res) => {
     try {
+      const hoje_br = `DATE(processed_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
       const { rows } = await pool.query(`
         SELECT
-          COUNT(*)                                                                    AS total_geral,
-          COUNT(*) FILTER (WHERE processed_at >= now() - interval '24 hours')        AS hoje_total,
-          COUNT(*) FILTER (WHERE status = 'ok'   AND processed_at >= now() - interval '24 hours') AS hoje_ok,
-          COUNT(*) FILTER (WHERE status = 'erro' AND processed_at >= now() - interval '24 hours') AS hoje_erro,
-          MAX(processed_at)                                                           AS ultima_rodada
+          COUNT(*)                                                     AS total_geral,
+          COUNT(*) FILTER (WHERE ${hoje_br})                           AS hoje_total,
+          COUNT(*) FILTER (WHERE status = 'ok'   AND ${hoje_br})      AS hoje_ok,
+          COUNT(*) FILTER (WHERE status = 'erro' AND ${hoje_br})      AS hoje_erro,
+          MAX(processed_at)                                            AS ultima_rodada
         FROM autopub_log
       `);
       res.json(rows[0]);
@@ -951,7 +952,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
         SELECT
           COUNT(*) FILTER (WHERE status = 'pending')                               AS pending,
           COUNT(*) FILTER (WHERE status = 'processing')                            AS processing,
-          COUNT(*) FILTER (WHERE status = 'done' AND processed_at >= CURRENT_DATE) AS done_today,
+          COUNT(*) FILTER (WHERE status = 'done' AND DATE(processed_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date) AS done_today,
           COUNT(*) FILTER (WHERE status = 'error')                                 AS error_total,
           COUNT(*) FILTER (WHERE status = 'done')                                  AS done_total
         FROM autopub_queue
