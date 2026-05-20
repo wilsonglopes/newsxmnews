@@ -41,15 +41,17 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
           blogger_blog_id, webhook_url, webhook_secret, post_format, ai_prompt,
-          facebook_enabled, facebook_page_id, facebook_page_token } = req.body || {};
+          facebook_enabled, facebook_page_id, facebook_page_token,
+          autopub_enabled } = req.body || {};
   if (!name || !platform) return res.status(400).json({ error: 'name e platform são obrigatórios.' });
   try {
     const { rows } = await pool.query(
       `INSERT INTO sites_catalog
          (name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
           blogger_blog_id, webhook_url, webhook_secret, post_format, ai_prompt,
-          facebook_enabled, facebook_page_id, facebook_page_token)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          facebook_enabled, facebook_page_id, facebook_page_token,
+          autopub_enabled)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING id, name, platform, site_url, post_format, active, created_at`,
       [
         name, platform, site_url || null, xixo_api_key || null, wp_username || null,
@@ -59,6 +61,7 @@ router.post('/', async (req, res) => {
         facebook_enabled === true || facebook_enabled === 'true',
         facebook_page_id || null,
         facebook_page_token ? encryptToken(facebook_page_token) : null,
+        autopub_enabled === undefined ? true : (autopub_enabled === true || autopub_enabled === 'true'),
       ]
     );
     res.status(201).json(rows[0]);
@@ -73,7 +76,7 @@ router.put('/:id', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
           blogger_blog_id, webhook_url, webhook_secret, post_format, active, ai_prompt,
           facebook_enabled, facebook_page_id, facebook_page_token,
-          instagram_enabled } = req.body || {};
+          instagram_enabled, autopub_enabled } = req.body || {};
   try {
     const sets = []; const vals = []; let p = 1;
     if (name        !== undefined) { sets.push(`name = $${p++}`);        vals.push(name); }
@@ -98,6 +101,7 @@ router.put('/:id', async (req, res) => {
       vals.push(encryptToken(facebook_page_token));
     }
     if (instagram_enabled !== undefined) { sets.push(`instagram_enabled = $${p++}`); vals.push(instagram_enabled === true || instagram_enabled === 'true'); }
+    if (autopub_enabled   !== undefined) { sets.push(`autopub_enabled = $${p++}`);   vals.push(autopub_enabled === true || autopub_enabled === 'true'); }
     if (!sets.length) return res.status(400).json({ error: 'Nada para atualizar.' });
     vals.push(req.params.id);
     const { rows } = await pool.query(

@@ -226,6 +226,7 @@ async function rodarProdutor() {
     JOIN sites_catalog sc ON sc.id = ss.site_id
     JOIN subscribers   s  ON s.id  = ss.subscriber_id
     WHERE ss.active = true AND s.active = true
+      AND COALESCE(sc.autopub_enabled, true) = true
       AND EXISTS (SELECT 1 FROM autopub_rules ar WHERE ar.catalog_id = sc.id)
     ORDER BY sc.id, ss.created_at
   `);
@@ -304,6 +305,7 @@ async function processarProximoItem() {
       WHERE q.status = 'pending'
         AND q.attempts < $1
         AND q.enqueued_at > NOW() - make_interval(hours => $2::int)
+        AND COALESCE(sc.autopub_enabled, true) = true
       ORDER BY q.enqueued_at ASC
       LIMIT 1
       FOR UPDATE SKIP LOCKED

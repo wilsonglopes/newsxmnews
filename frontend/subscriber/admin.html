@@ -1816,10 +1816,14 @@ Portal<span class="logo-news">News</span>
       <!-- Publicação Automática — fontes e categorias por fonte -->
       <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden;margin-top:4px">
         <div style="padding:12px 14px;background:#f0fdf4">
-          <div style="font-weight:600;color:#166534">Publicação automática</div>
-          <div style="font-size:.78rem;color:#4b7c5f;margin-top:2px">Selecione as fontes, categoria fixa e marque 📘 para postar no Facebook automaticamente. Sem categoria = IA categoriza.</div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:#166534">
+            <input type="checkbox" id="mcat-autopub-enabled" onchange="toggleAutopubFields()" />
+            Ativar publicação automática para este site
+          </label>
+          <div style="font-size:.78rem;color:#4b7c5f;margin-top:4px">Quando desmarcado, as fontes e categorias abaixo ficam salvas, mas o autopub ignora este site. Útil para pausar sem perder configuração.</div>
         </div>
-        <div style="padding:12px 14px;background:#fff;border-top:1px solid #86efac">
+        <div id="mcat-autopub-fields" style="padding:12px 14px;background:#fff;border-top:1px solid #86efac">
+          <div style="font-size:.78rem;color:#4b7c5f;margin-bottom:8px">Selecione as fontes, categoria fixa e marque 📘 para postar no Facebook automaticamente. Sem categoria = IA categoriza.</div>
           <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">
             <input type="text" id="mcat-fontes-filtro" placeholder="Filtrar fontes…" oninput="filtrarFontesCatalog()" style="flex:1;padding:5px 9px;border:1px solid var(--border);border-radius:5px;font-size:.83rem" />
             <button type="button" onclick="selecionarTodasFontesCatalog(true)" style="font-size:.75rem;padding:4px 8px;border:1px solid #86efac;border-radius:5px;background:#f0fdf4;color:#166534;cursor:pointer">Todas</button>
@@ -4144,7 +4148,10 @@ async function carregarCatalog() {
         <td style="font-size:.8rem;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.site_url || '—'}</td>
         <td>${s.post_format || 'editorial'}</td>
         <td style="text-align:center">${s.subscribers_count ?? 0}</td>
-        <td>${s.active ? '<span class="badge badge-green">Ativo</span>' : '<span class="badge badge-red">Inativo</span>'}</td>
+        <td>
+          ${s.active ? '<span class="badge badge-green">Ativo</span>' : '<span class="badge badge-red">Inativo</span>'}
+          ${s.autopub_enabled === false ? '<span class="badge badge-red" style="margin-left:4px" title="Publicação automática pausada">⏸ Autopub</span>' : ''}
+        </td>
         <td>
           <button class="btn btn-ghost btn-sm" onclick="abrirModalCatalog('${s.id}')">Editar</button>
           <button class="btn btn-danger btn-sm" onclick="excluirCatalog('${s.id}','${s.name.replace(/'/g,"\\'")}')">✕</button>
@@ -4169,6 +4176,13 @@ function toggleFbFields() {
   if (typeof renderFontesCatalog === 'function' && Array.isArray(_todasFontes)) {
     renderFontesCatalog(getFontesCatalogIds());
   }
+}
+
+function toggleAutopubFields() {
+  const on = document.getElementById('mcat-autopub-enabled').checked;
+  const fields = document.getElementById('mcat-autopub-fields');
+  fields.style.opacity        = on ? '1' : '0.5';
+  fields.style.pointerEvents  = on ? 'auto' : 'none';
 }
 
 function abrirTutorialFB() {
@@ -4238,8 +4252,10 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-fb-page-id').value   = '';
   document.getElementById('mcat-fb-page-token').value = '';
   document.getElementById('mcat-fb-status').textContent = '';
+  document.getElementById('mcat-autopub-enabled').checked = true;
   esconderBlocoInstagram();
   toggleFbFields();
+  toggleAutopubFields();
   toggleCatalogPlatformFields();
   _todasFontes     = [];
   _catsCatalogSite = [];
@@ -4261,6 +4277,7 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-fb-enabled').checked = s.facebook_enabled === true;
       document.getElementById('mcat-fb-page-id').value   = s.facebook_page_id || '';
       document.getElementById('mcat-fb-page-token').value = s.facebook_page_token === '••••••••' ? '••••••••' : '';
+      document.getElementById('mcat-autopub-enabled').checked = s.autopub_enabled !== false;
       // Instagram: mostra o bloco se site tem IG salvo
       if (s.instagram_business_account_id) {
         mostrarBlocoInstagram(s.instagram_username, s.instagram_business_account_id);
@@ -4270,6 +4287,7 @@ async function abrirModalCatalog(siteId) {
       }
       toggleFbFields();
       toggleCatalogPlatformFields();
+      toggleAutopubFields();
     }
 
     // Carrega em paralelo: todas as fontes, regras autopub e categorias WP
@@ -4315,6 +4333,7 @@ async function salvarCatalog() {
     facebook_page_id:    document.getElementById('mcat-fb-page-id').value.trim() || null,
     facebook_page_token: document.getElementById('mcat-fb-page-token').value.trim() || null,
     instagram_enabled:   document.getElementById('mcat-ig-enabled')?.checked || false,
+    autopub_enabled:     document.getElementById('mcat-autopub-enabled').checked,
   };
   // Não enviar token se for o placeholder "••••••••" (significa "não mudar")
   if (body.facebook_page_token === '••••••••') delete body.facebook_page_token;
