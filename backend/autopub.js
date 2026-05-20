@@ -556,9 +556,9 @@ async function processarItem(item) {
 let _workerAtivo = true;
 
 async function workerLoop() {
-  console.log('[WORKER] Iniciado — 1 item a cada 30s.');
+  console.log('[WORKER] Iniciado — 1 item a cada 10s.');
   while (_workerAtivo) {
-    await new Promise(r => setTimeout(r, 30000));
+    await new Promise(r => setTimeout(r, 10000));
     if (!_workerAtivo) break;
     const settings = lerSettings();
     if (settings.autopub_enabled === false) continue;
