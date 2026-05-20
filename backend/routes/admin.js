@@ -1116,17 +1116,18 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
 
       // 2. AdSet
       const adsetResp = await axios.post(`${FB_API}/act_${adAccountId}/adsets`, {
-        name:               `AdSet: ${title.slice(0, 70)}`,
-        campaign_id:        campaignId,
-        daily_budget:       dailyBudgetCentavos,
-        start_time:         startUnix,
-        end_time:           endUnix,
-        bid_strategy:       'LOWEST_COST_WITHOUT_CAP',
-        billing_event:      'IMPRESSIONS',
-        optimization_goal:  'POST_ENGAGEMENT',
+        name:                           `AdSet: ${title.slice(0, 70)}`,
+        campaign_id:                    campaignId,
+        daily_budget:                   dailyBudgetCentavos,
+        start_time:                     startUnix,
+        end_time:                       endUnix,
+        bid_strategy:                   'LOWEST_COST_WITHOUT_CAP',
+        billing_event:                  'IMPRESSIONS',
+        optimization_goal:              'POST_ENGAGEMENT',
+        is_adset_budget_sharing_enabled: false,
         targeting,
-        promoted_object:    { page_id: pageId },
-        access_token:       adsToken,
+        promoted_object:                { page_id: pageId },
+        access_token:                   adsToken,
       }, { headers: { 'Content-Type': 'application/json' } });
 
       const adsetId = adsetResp.data?.id;
