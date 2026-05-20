@@ -1114,13 +1114,17 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         return r;
       };
 
-      // 1. Campanha — OUTCOME_ENGAGEMENT, sem CBO, is_adset_budget_sharing_enabled:false obrigatório
+      // ESTRATÉGIA: criar tudo como PAUSED primeiro, depois ativar — abordagem mais segura
+      // Usa objetivo legado OUTCOME_ENGAGEMENT (v20 obrigatório) + bid_strategy explícito (evita herança da conta)
+
+      // 1. Campanha — PAUSED, sem CBO, define bid_strategy explícito pra evitar herdar da conta
       const campResp = await fbPost(`${FB_API}/act_${cleanAccountId}/campaigns`, {
         name:                            `Boost: ${title.slice(0, 70)}`,
         objective:                       'OUTCOME_ENGAGEMENT',
-        status:                          'ACTIVE',
+        status:                          'PAUSED',
         special_ad_categories:           '[]',
         is_adset_budget_sharing_enabled: false,
+        bid_strategy:                    'LOWEST_COST_WITHOUT_CAP',
         access_token:                    adsToken,
       });
       console.log('[boost-post] camp resp:', JSON.stringify(campResp.data));
@@ -1128,10 +1132,11 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       const campaignId = campResp.data?.id;
       if (!campaignId) throw new Error('Falha ao criar campanha: ' + JSON.stringify(campResp.data));
 
-      // 2. AdSet — orçamento diário no adset, optimization_goal POST_ENGAGEMENT
+      // 2. AdSet — PAUSED, orçamento no adset, optimization_goal POST_ENGAGEMENT
       const adsetResp = await fbPost(`${FB_API}/act_${cleanAccountId}/adsets`, {
         name:              `AdSet: ${title.slice(0, 70)}`,
         campaign_id:       campaignId,
+        status:            'PAUSED',
         start_time:        startUnix,
         end_time:          endUnix,
         billing_event:     'IMPRESSIONS',
@@ -1145,15 +1150,21 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       const adsetId = adsetResp.data?.id;
       if (!adsetId) throw new Error('Falha ao criar AdSet: ' + JSON.stringify(adsetResp.data));
 
-      // 3. Ad — object_story_id é o post composto da timeline: {page_id}_{post_id}
+      // 3. Ad — PAUSED, object_story_id é o post composto da timeline: {page_id}_{post_id}
       const adResp = await fbPost(`${FB_API}/act_${cleanAccountId}/ads`, {
         name:         `Ad: ${title.slice(0, 70)}`,
         adset_id:     adsetId,
         creative:     { object_story_id: storyId },
-        status:       'ACTIVE',
+        status:       'PAUSED',
         access_token: adsToken,
       });
       console.log('[boost-post] ad resp:', JSON.stringify(adResp.data));
+
+      // 4. Ativar tudo agora que está validado pela Meta
+      await fbPost(`${FB_API}/${campaignId}`,           { status: 'ACTIVE', access_token: adsToken });
+      await fbPost(`${FB_API}/${adsetId}`,              { status: 'ACTIVE', access_token: adsToken });
+      await fbPost(`${FB_API}/${adResp.data?.id}`,      { status: 'ACTIVE', access_token: adsToken });
+      console.log('[boost-post] tudo ativado');
 
       const adId = adResp.data?.id;
       if (!adId) throw new Error('Falha ao criar Ad: ' + JSON.stringify(adResp.data));
