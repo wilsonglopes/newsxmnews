@@ -944,6 +944,26 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
     res.json(novo);
   });
 
+  // GET /api/admin/meta-ads-test — valida token + conta Meta Ads
+  router.get('/meta-ads-test', async (req, res) => {
+    const s         = lerSettings();
+    const token     = s.meta_ads_token     || process.env.META_ADS_TOKEN     || '';
+    const accountId = s.meta_ad_account_id || process.env.META_AD_ACCOUNT_ID || '';
+    if (!token || !accountId) {
+      return res.status(400).json({ error: 'Token e Ad Account ID não configurados.' });
+    }
+    try {
+      const axios = require('axios');
+      const r = await axios.get(`https://graph.facebook.com/v20.0/act_${accountId}`, {
+        params: { fields: 'name,account_status,currency', access_token: token },
+        timeout: 10000,
+      });
+      res.json(r.data);
+    } catch (err) {
+      res.status(400).json({ error: err.response?.data?.error?.message || err.message });
+    }
+  });
+
   // ════════════════════════════════════════════════════════════════════════════
   // FINANCEIRO
   // ════════════════════════════════════════════════════════════════════════════

@@ -877,6 +877,35 @@ Portal<span class="logo-news">News</span>
         </div>
       </div>
 
+      <!-- Meta Ads -->
+      <div class="panel" style="margin-bottom:20px">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+          <span style="font-size:1.2rem">📣</span>
+          <div>
+            <div style="font-weight:700;font-size:.95rem;color:var(--text)">Meta Ads</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Credenciais para impulsionar posts no Facebook</div>
+          </div>
+          <div id="cfg-metaads-status" style="margin-left:auto;font-size:.82rem"></div>
+        </div>
+        <div style="padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label>User Access Token (Long-Lived)</label>
+            <input type="password" id="cfg-meta-token" placeholder="Cole o token aqui para atualizar" style="width:100%" autocomplete="off" />
+            <small style="color:var(--muted)">Deixe em branco para manter o atual</small>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Ad Account ID</label>
+            <input type="text" id="cfg-meta-account" placeholder="Ex: 524635465183979" style="width:100%" />
+            <small style="color:var(--muted)">Somente números, sem "act_"</small>
+          </div>
+          <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center">
+            <button class="btn btn-primary btn-sm" onclick="salvarMetaAds()">Salvar</button>
+            <button class="btn btn-ghost btn-sm" onclick="testarMetaAds()">Testar conexão</button>
+            <span id="cfg-metaads-test" style="font-size:.82rem"></span>
+          </div>
+        </div>
+      </div>
+
       <!-- Log de autopublicação -->
       <div class="panel">
         <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
@@ -2440,6 +2469,9 @@ async function carregarConfiguracoes() {
     document.getElementById('cfg-autopub-max').value       = s.autopub_max_por_rodada || 3;
     document.getElementById('cfg-autopub-interval').value  = String(s.autopub_interval_minutos || 15);
     document.getElementById('cfg-autopub-horas').value     = s.autopub_max_horas ?? 2;
+    document.getElementById('cfg-meta-account').value      = s.meta_ad_account_id || '';
+    const tkEl = document.getElementById('cfg-meta-token');
+    tkEl.placeholder = s.meta_ads_token ? '••••••••••••• (configurado)' : 'Cole o token aqui para atualizar';
     document.getElementById('cfg-status').textContent = '';
   } catch (e) { console.warn('[carregarConfiguracoes]', e.message); }
   carregarAutopubLog();
@@ -2464,6 +2496,48 @@ async function salvarConfiguracoes() {
   } catch (e) {
     status.style.color = 'var(--red)';
     status.textContent = 'Erro: ' + e.message;
+  }
+}
+
+async function salvarMetaAds() {
+  const token   = document.getElementById('cfg-meta-token').value.trim();
+  const account = document.getElementById('cfg-meta-account').value.trim().replace(/^act_/i, '');
+  const status  = document.getElementById('cfg-metaads-status');
+  const body    = {};
+  if (token)   body.meta_ads_token      = token;
+  if (account) body.meta_ad_account_id  = account;
+  if (!Object.keys(body).length) return toast('Nenhuma alteração para salvar.', 'aviso');
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/settings`, {
+      method: 'PUT',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    document.getElementById('cfg-meta-token').value       = '';
+    document.getElementById('cfg-meta-token').placeholder = '••••••••••••• (configurado)';
+    status.style.color = '#16a34a'; status.textContent = '✓ Salvo';
+    setTimeout(() => { status.textContent = ''; }, 2500);
+  } catch (e) {
+    status.style.color = '#dc2626'; status.textContent = 'Erro: ' + e.message;
+  }
+}
+
+async function testarMetaAds() {
+  const result = document.getElementById('cfg-metaads-test');
+  result.textContent = '⟳ Testando…'; result.style.color = '#6b7280';
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/meta-ads-test`, { headers: authHeader() });
+    const d = await r.json();
+    if (r.ok && d.name) {
+      result.style.color = '#16a34a';
+      result.textContent = `✓ ${d.name} · ${d.currency} · status ${d.account_status === 1 ? 'ativo' : d.account_status}`;
+    } else {
+      result.style.color = '#dc2626';
+      result.textContent = '✗ ' + (d.error || 'Erro desconhecido');
+    }
+  } catch (e) {
+    result.style.color = '#dc2626'; result.textContent = '✗ ' + e.message;
   }
 }
 
