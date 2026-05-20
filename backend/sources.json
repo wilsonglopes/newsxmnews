@@ -922,6 +922,7 @@
     "api_article_base": "https://www.correiodopovo.com.br",
     "api_scroll_pagination": true,
     "api_pages": 3,
+    "api_date_timezone": "America/Sao_Paulo",
     "api_field_map": {
       "title": "titulo",
       "url": "link",

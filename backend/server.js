@@ -743,8 +743,14 @@ async function buscarAPI(source) {
     const title   = ((fm.title       ? a[fm.title]          : null) || a.title           || '').trim();
     const rawUrl  =  (fm.url         ? a[fm.url]            : null) || '';
     const rawImg  =  (fm.image       ? a[fm.image]          : null) || a.coverImage       || null;
-    const rawDate =  (fm.published_at ? a[fm.published_at]  : null) || a.publishedAt || a.published_at || '';
+    let   rawDate =  (fm.published_at ? a[fm.published_at]  : null) || a.publishedAt || a.published_at || '';
     const summary =  (fm.summary     ? a[fm.summary]        : null) || a.excerpt || a.metaDescription || '';
+
+    // Alguns CMSs retornam horário local (BRT) com sufixo Z errado — reinterpretar com timezone correto
+    if (source.api_date_timezone && rawDate) {
+      const tzOffset = source.api_date_timezone === 'America/Sao_Paulo' ? '-03:00' : '+00:00';
+      rawDate = new Date(rawDate.replace(/Z$|[+-]\d{2}:?\d{2}$/, '') + tzOffset).toISOString();
+    }
 
     const articleUrl = rawUrl
       ? (rawUrl.startsWith('http') ? rawUrl : `${baseUrl}${rawUrl}`)
