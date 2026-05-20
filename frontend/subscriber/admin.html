@@ -2168,7 +2168,8 @@ async function carregarDashboard() {
       }).join('');
     }
 
-    const clientes = await fetch(`${BACKEND}/api/admin/subscribers`, { headers: authHeader() }).then(r => r.json());
+    const _rCli   = await fetch(`${BACKEND}/api/admin/subscribers`, { headers: authHeader() });
+    const clientes = _rCli.ok ? await _rCli.json() : [];
     const tbCli = document.querySelector('#db-clientes-table tbody');
     tbCli.innerHTML = clientes.slice(0, 6).map(c => `
       <tr>
@@ -4420,7 +4421,9 @@ async function toggleTodasFontesMC(ativar) {
 
 async function carregarFinanceiro() {
   try {
-    const dados = await fetch(`${BACKEND}/api/admin/financial`, { headers: authHeader() }).then(r => r.json());
+    const _rFin = await fetch(`${BACKEND}/api/admin/financial`, { headers: authHeader() });
+    if (!_rFin.ok) return;
+    const dados = await _rFin.json();
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const em5Dias = new Date(hoje); em5Dias.setDate(em5Dias.getDate() + 5);
 
