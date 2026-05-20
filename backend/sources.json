@@ -31,7 +31,7 @@
     "name": "Agência Brasil",
     "slug": "agenciabrasil",
     "type": "rss",
-    "url": "https://agenciabrasil.ebc.com.br/rss.xml",
+    "url": "https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml",
     "active": true,
     "category": "nacional",
     "extract_body_image": false,
