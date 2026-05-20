@@ -1117,10 +1117,10 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       // ESTRATÉGIA: CBO completo — orçamento e bid_strategy NA CAMPANHA (Meta exige juntos)
       // Criar tudo como PAUSED primeiro, depois ativar
 
-      // 1. Campanha — CBO: daily_budget + bid_strategy na campanha
+      // 1. Campanha — OUTCOME_AWARENESS evita exigência de pixel/conversão (OUTCOME_ENGAGEMENT pede)
       const campResp = await fbPost(`${FB_API}/act_${cleanAccountId}/campaigns`, {
         name:                  `Boost: ${title.slice(0, 70)}`,
-        objective:             'OUTCOME_ENGAGEMENT',
+        objective:             'OUTCOME_AWARENESS',
         status:                'PAUSED',
         special_ad_categories: '[]',
         daily_budget:          dailyBudgetCentavos,
@@ -1132,7 +1132,7 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
       const campaignId = campResp.data?.id;
       if (!campaignId) throw new Error('Falha ao criar campanha: ' + JSON.stringify(campResp.data));
 
-      // 2. AdSet — PAUSED, SEM promoted_object (POST_ENGAGEMENT só funciona sem ele)
+      // 2. AdSet — REACH (alcance único, sem exigir pixel)
       const adsetResp = await fbPost(`${FB_API}/act_${cleanAccountId}/adsets`, {
         name:              `AdSet: ${title.slice(0, 70)}`,
         campaign_id:       campaignId,
@@ -1140,7 +1140,7 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
         start_time:        startUnix,
         end_time:          endUnix,
         billing_event:     'IMPRESSIONS',
-        optimization_goal: 'POST_ENGAGEMENT',
+        optimization_goal: 'REACH',
         targeting,
         access_token:      adsToken,
       });
