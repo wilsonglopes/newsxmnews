@@ -725,14 +725,17 @@
   {
     "name": "Pref. de Turvo",
     "slug": "pref-de-turvo",
-    "type": "rss",
-    "url": "https://turvo.sc.gov.br/feed/",
+    "type": "scraping",
+    "url": "https://turvo.sc.gov.br/noticias/",
     "active": true,
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
     "content_selector": ".entry-content",
-    "featured_image_selector": null
+    "featured_image_selector": null,
+    "scraping": {
+      "itemSelector": ".post-item"
+    }
   },
   {
     "name": "Pref. de Sangão",
