@@ -734,7 +734,8 @@
     "content_selector": ".entry-content",
     "featured_image_selector": null,
     "scraping": {
-      "itemSelector": ".post-item"
+      "itemSelector": ".post-item",
+      "titleSelector": ".post-title"
     }
   },
   {
