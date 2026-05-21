@@ -128,6 +128,8 @@ router.delete('/:id', async (req, res) => {
         error: `Este site está vinculado a ${rows[0].total} assinante(s). Remova os vínculos antes de excluir.`
       });
     }
+    await pool.query('DELETE FROM autopub_rules WHERE catalog_id = $1', [req.params.id]);
+    await pool.query('DELETE FROM autopub_queue WHERE catalog_id = $1', [req.params.id]);
     await pool.query('DELETE FROM sites_catalog WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
