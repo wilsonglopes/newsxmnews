@@ -4119,10 +4119,11 @@ async function deletarSiteCli(siteId, nome) {
   if (!confirm(`Remover o site "${nome}"?`)) return;
   const subId = document.getElementById('mc-id').value;
   try {
-    await fetch(`${BACKEND}/api/admin/subscribers/${subId}/sites/${siteId}`, { method: 'DELETE', headers: authHeader() });
+    const r = await fetch(`${BACKEND}/api/admin/subscribers/${subId}/sites/${siteId}`, { method: 'DELETE', headers: authHeader() });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `Erro ${r.status}`); }
     await carregarSitesCli();
     toast(`"${nome}" removido.`, 'sucesso');
-  } catch { toast('Erro ao remover.', 'erro'); }
+  } catch(e) { toast(e.message, 'erro'); }
 }
 
 // ══ CATÁLOGO CENTRAL DE SITES ════════════════════════════════════════════════
