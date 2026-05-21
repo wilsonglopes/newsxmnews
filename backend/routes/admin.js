@@ -857,7 +857,8 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
   // DELETE /api/admin/subscribers/:id/sites/:siteId
   router.delete('/subscribers/:id/sites/:siteId', async (req, res) => {
     try {
-      await pool.query('UPDATE publications SET site_id = NULL WHERE site_id = $1', [req.params.siteId]);
+      await pool.query('UPDATE publications   SET site_id = NULL WHERE site_id = $1', [req.params.siteId]);
+      await pool.query('UPDATE autopub_queue SET site_id = NULL WHERE site_id = $1', [req.params.siteId]);
       const { rowCount } = await pool.query('DELETE FROM subscriber_sites WHERE id = $1 AND subscriber_id = $2',
         [req.params.siteId, req.params.id]);
       if (!rowCount) return res.status(404).json({ error: 'Vínculo não encontrado.' });
