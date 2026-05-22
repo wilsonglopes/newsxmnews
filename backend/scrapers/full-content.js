@@ -232,8 +232,19 @@ async function fetchFullContent(url, source) {
     const cfProxy = require('../utils/cf-proxy');
     if (cfProxy.needsCFProxy(url) && cfProxy.isAvailable()) {
       console.log(`[full-content] sc.gov.br detectado, usando CF Worker: ${url}`);
-      const cfResp = await cfProxy.fetchViaCFProxy(url, { responseType: 'text', timeout: 25000 });
-      htmlDecoded = cfResp.data;
+      try {
+        const cfResp = await cfProxy.fetchViaCFProxy(url, { responseType: 'text', timeout: 25000 });
+        htmlDecoded = cfResp.data;
+        // Se CF Worker retornou JS redirect (< 500 chars), vai direto pro headless
+        if (!htmlDecoded || htmlDecoded.trim().length < 500) {
+          console.log(`[full-content] CF Worker retornou HTML mínimo (${(htmlDecoded||'').length}c), usando headless: ${url}`);
+          return await fetchWithHeadless(url);
+        }
+      } catch (e) {
+        // CF proxy falhou — tenta headless diretamente
+        console.log(`[full-content] CF Worker falhou (${e.message}), tentando headless: ${url}`);
+        return await fetchWithHeadless(url);
+      }
     } else {
       // Timeout maior para domínios governamentais reconhecidamente lentos
       const isSlowDomain = SLOW_DOMAINS.some(d => url.includes(d));
