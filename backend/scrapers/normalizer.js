@@ -95,7 +95,11 @@ const AD_PATTERNS    = [
 ];
 const SKIP_PREFIXES  = [
   'leia também', 'veja mais', 'leia mais', 'confira também',
-  'assine', 'clique aqui', 'acesse também', 'veja também', 'leia a matéria'
+  'assine', 'clique aqui', 'acesse também', 'veja também', 'leia a matéria',
+  // Rodapés de RSS WordPress
+  'o post ', 'the post ',
+  // Créditos de imagem (ex: "Imagem: Magnific", "Foto: João Silva")
+  'imagem:', 'foto:', 'crédito:', 'credito:', 'fotografia:',
 ];
 
 function isAdClass(cls) {
