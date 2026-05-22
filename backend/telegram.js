@@ -132,8 +132,10 @@ Retorne SOMENTE um JSON:
   if (!txt) throw new Error('Resposta vazia da IA.');
   const r = extrairJSON(txt);
   if (!r) throw new Error('IA não retornou JSON válido.');
+  const titulo = (r.titulo || r.title || '').trim();
   return {
-    title: r.titulo || r.title || '', chapeu: r.chapeu || '',
+    title: titulo ? titulo.charAt(0).toUpperCase() + titulo.slice(1).toLowerCase() : '',
+    chapeu: r.chapeu || '',
     summary: r.resumo || r.summary || '', body: r.corpo || r.body || '',
     tags: r.tags || [], category_ids: [],
   };
