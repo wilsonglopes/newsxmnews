@@ -264,17 +264,14 @@ async function fetchFullContent(url, source) {
 
     // Extrai data de publicação da página (usada para corrigir artigos sem data no listing)
     let published_at = null;
-    try {
-      const metaDate = $('meta[property="article:published_time"]').attr('content')
-                    || $('meta[name="DC.date.issued"]').attr('content');
-      if (metaDate) {
-        published_at = new Date(metaDate).toISOString();
-      } else {
-        const timeEl = $('time[datetime]').first().attr('datetime');
-        if (timeEl) published_at = new Date(timeEl).toISOString();
-      }
-      if (published_at && isNaN(new Date(published_at).getTime())) published_at = null;
-    } catch { published_at = null; }
+    const tryParseDate = s => {
+      if (!s) return null;
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    };
+    const metaDate = $('meta[property="article:published_time"]').attr('content')
+                  || $('meta[name="DC.date.issued"]').attr('content');
+    published_at = tryParseDate(metaDate);
 
     // Antes de remover atributos: converte data-src/data-lazy-src → src em <img>
     // (sites com lazy loading usam src vazio ou placeholder data: URI)
@@ -297,6 +294,12 @@ async function fetchFullContent(url, source) {
 
     // Remove lixo do DOM (meta tags no <head> NÃO são afetadas)
     $('script, style, nav, footer, .ad, .ads, aside, .comments, .related, iframe, noscript, .sidebar, .menu, .share, .social, .tags-list, .breadcrumb').remove();
+
+    // Fallback: <time datetime> no DOM já limpo (sem nav/footer/breadcrumb que poderiam ter datas erradas)
+    if (!published_at) {
+      const timeEl = $('time[datetime]').first().attr('datetime');
+      published_at = tryParseDate(timeEl);
+    }
 
     // ── Mozilla Readability — extração automática sem seletor manual ──────────
     // Funciona como o Modo Leitura do Firefox: identifica o artigo principal

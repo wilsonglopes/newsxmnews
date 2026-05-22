@@ -69,7 +69,7 @@ async function fetchWithHeadless(url) {
     puppeteer = require('puppeteer');
   } catch {
     console.warn('[headless] puppeteer não encontrado. Execute: npm install puppeteer');
-    return { body: null, image_url: null };
+    return { body: null, image_url: null, published_at: null };
   }
 
   let browser;
@@ -118,7 +118,7 @@ async function fetchWithHeadless(url) {
     }
 
     // Extrai og:image e data de publicação do <head>
-    const { image_url, published_at } = await page.evaluate(() => {
+    const { image_url, published_at: rawDate } = await page.evaluate(() => {
       const og = document.querySelector('meta[property="og:image"], meta[name="og:image"]');
       // Tenta article:published_time (Open Graph) primeiro, depois <time datetime>
       const metaDate = document.querySelector('meta[property="article:published_time"]');
@@ -132,6 +132,9 @@ async function fetchWithHeadless(url) {
         published_at: dateStr || null,
       };
     });
+    // Valida antes de retornar — datetime não-ISO (ex: "22 de maio de 2026") causaria RangeError no pg
+    const tryParseDate = s => { if (!s) return null; const d = new Date(s); return isNaN(d.getTime()) ? null : d.toISOString(); };
+    const published_at = tryParseDate(rawDate);
 
     // Extrai corpo do artigo — tenta os seletores em ordem
     const rawHtml = await page.evaluate(selectors => {
@@ -166,7 +169,7 @@ async function fetchWithHeadless(url) {
     }, HEADLESS_SELECTORS);
 
     if (!rawHtml || rawHtml.trim().length < 100) {
-      return { body: null, image_url: image_url || null };
+      return { body: null, image_url: image_url || null, published_at: published_at || null };
     }
 
     // Normaliza o HTML extraído (remove tags indevidas, links internos, etc.)
