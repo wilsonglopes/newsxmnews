@@ -203,7 +203,7 @@ router.get('/:id/full-content', async (req, res) => {
       category:                article.category,
       extract_body_image:      article.extract_body_image      || false,
     };
-    const { body, image_url } = await fetchFullContent(article.external_url, source);
+    const { body, image_url, published_at } = await fetchFullContent(article.external_url, source);
 
     // Persiste body e/ou image_url no banco conforme o que foi encontrado.
     // Se o body existente já é substancial (600+ chars) e o novo é menor, preserva o existente.
@@ -214,10 +214,19 @@ router.get('/:id/full-content', async (req, res) => {
       : (body || article.body || null);
     const novaImagem = image_url || article.image_url || null;
 
-    if (body || image_url) {
+    if (body || image_url || published_at) {
+      const sets = ['body = $1', 'image_url = $2'];
+      const vals = [novoBody, novaImagem];
+      // Atualiza published_at apenas se encontramos uma data válida da página
+      // (corrige artigos de listing sem data que receberam now() como fallback)
+      if (published_at) {
+        sets.push(`published_at = $${vals.length + 1}`);
+        vals.push(new Date(published_at));
+      }
+      vals.push(article.id);
       await pool.query(
-        'UPDATE articles SET body = $1, image_url = $2 WHERE id = $3',
-        [novoBody, novaImagem, article.id]
+        `UPDATE articles SET ${sets.join(', ')} WHERE id = $${vals.length}`,
+        vals
       );
     }
 

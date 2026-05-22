@@ -262,6 +262,20 @@ async function fetchFullContent(url, source) {
     const $ = cheerio.load(htmlDecoded);
     let rawHtml = '';
 
+    // Extrai data de publicação da página (usada para corrigir artigos sem data no listing)
+    let published_at = null;
+    try {
+      const metaDate = $('meta[property="article:published_time"]').attr('content')
+                    || $('meta[name="DC.date.issued"]').attr('content');
+      if (metaDate) {
+        published_at = new Date(metaDate).toISOString();
+      } else {
+        const timeEl = $('time[datetime]').first().attr('datetime');
+        if (timeEl) published_at = new Date(timeEl).toISOString();
+      }
+      if (published_at && isNaN(new Date(published_at).getTime())) published_at = null;
+    } catch { published_at = null; }
+
     // Antes de remover atributos: converte data-src/data-lazy-src → src em <img>
     // (sites com lazy loading usam src vazio ou placeholder data: URI)
     $('img').each((_, el) => {
@@ -393,12 +407,15 @@ async function fetchFullContent(url, source) {
       if (!image_url && headless.image_url) {
         image_url = headless.image_url;
       }
+      if (!published_at && headless.published_at) {
+        published_at = headless.published_at;
+      }
     }
 
-    return { body, image_url };
+    return { body, image_url, published_at };
 
   } catch {
-    return { body: null, image_url: null };
+    return { body: null, image_url: null, published_at: null };
   }
 }
 

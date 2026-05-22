@@ -117,10 +117,20 @@ async function fetchWithHeadless(url) {
       // Se o wait timeout, tenta mesmo assim com o que foi renderizado
     }
 
-    // Extrai og:image do <head> (presente mesmo com JS rendering)
-    const image_url = await page.evaluate(() => {
-      const el = document.querySelector('meta[property="og:image"], meta[name="og:image"]');
-      return el ? el.getAttribute('content') : null;
+    // Extrai og:image e data de publicação do <head>
+    const { image_url, published_at } = await page.evaluate(() => {
+      const og = document.querySelector('meta[property="og:image"], meta[name="og:image"]');
+      // Tenta article:published_time (Open Graph) primeiro, depois <time datetime>
+      const metaDate = document.querySelector('meta[property="article:published_time"]');
+      let dateStr = metaDate ? metaDate.getAttribute('content') : null;
+      if (!dateStr) {
+        const timeEl = document.querySelector('time[datetime]');
+        if (timeEl) dateStr = timeEl.getAttribute('datetime');
+      }
+      return {
+        image_url:    og ? og.getAttribute('content') : null,
+        published_at: dateStr || null,
+      };
     });
 
     // Extrai corpo do artigo — tenta os seletores em ordem
@@ -163,11 +173,11 @@ async function fetchWithHeadless(url) {
     const body = normalizeBody(rawHtml, url) || null;
 
     console.log(`[headless] ${url} → ${body ? body.replace(/<[^>]*>/g, '').trim().length + ' chars' : 'sem conteúdo'}`);
-    return { body, image_url: image_url || null };
+    return { body, image_url: image_url || null, published_at: published_at || null };
 
   } catch (err) {
     console.error('[headless] Erro ao carregar', url, ':', err.message);
-    return { body: null, image_url: null };
+    return { body: null, image_url: null, published_at: null };
   } finally {
     if (browser) {
       try { await browser.close(); } catch {}
