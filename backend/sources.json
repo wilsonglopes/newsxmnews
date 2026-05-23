@@ -311,7 +311,7 @@
     "name": "Pref. de Rio Branco",
     "slug": "riobranco",
     "type": "rss",
-    "url": "https://www.riobranco.ac.gov.br/feed/",
+    "url": "https://www.riobranco.ac.gov.br/principal/feed/",
     "active": true,
     "category": "prefeitura",
     "extract_body_image": false,
@@ -491,7 +491,7 @@
       "linkSelector": "a",
       "imageSelector": "img.imgnott",
       "dateSelector": "sub",
-      "linkFilter": "/noticia/\\d+"
+      "linkFilter": "criciuma\\.sc\\.gov\\.br/noticia/[^/]+/\\d+"
     },
     "extract_body_image": false,
     "content_selector": "#texto",
@@ -524,15 +524,6 @@
     "category": "prefeitura",
     "extract_body_image": true,
     "content_selector": null
-  },
-  {
-    "name": "Pref São João do Sul",
-    "slug": "saojoaodosul",
-    "type": "scraping",
-    "url": "https://saojoaodosul.atende.net/cidadao/noticia",
-    "active": true,
-    "category": "prefeitura",
-    "extract_body_image": true
   },
   {
     "name": "Pref. de Praia Grande",
