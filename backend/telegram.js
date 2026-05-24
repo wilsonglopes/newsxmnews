@@ -12,6 +12,57 @@ const { decryptToken }       = require('./connectors/encrypt');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
+// ─── Sentence case inteligente ────────────────────────────────────────────────
+// Converte para sentence case preservando:
+//   - Siglas em MAIÚSCULO (PRF, EUA, SC, COVID-19, SP-001)
+//   - Nomes próprios: a IA é instruída a mantê-los com inicial maiúscula;
+//     aqui apenas forçamos minúsculo nas stopwords e confiamos no restante.
+//   - Primeira palavra: sempre com inicial maiúscula.
+
+const STOPWORDS_PT = new Set([
+  'o','a','os','as','um','uma','uns','umas',
+  'de','do','da','dos','das','em','no','na','nos','nas',
+  'por','pela','pelo','pelas','pelos',
+  'com','para','que','e','ou','mas','se',
+  'ao','à','aos','às','até','após','ante','sobre',
+  'sob','entre','sem','contra','desde','durante','como',
+]);
+
+/**
+ * Aplica sentence case ao título preservando siglas e nomes próprios.
+ * Sigla: token ≥2 chars, todo em maiúsculo (ex: PRF, EUA, COVID-19).
+ * Nome próprio: a IA é instruída a retornar sentence case; aqui confiamos
+ * na capitalização que ela usou para palavras que não são stopwords.
+ */
+function sentenceCasePtBR(titulo) {
+  if (!titulo) return '';
+  const tokens = titulo.split(/(\s+)/);
+  let isFirst = true;
+  return tokens.map(tok => {
+    if (/^\s+$/.test(tok)) return tok; // preserva espaços
+
+    // Sigla: ≥2 chars, tudo maiúsculo, contém ao menos uma letra
+    if (tok.length >= 2 && tok === tok.toUpperCase() && /[A-ZÁÉÍÓÚÀÂÊÔÃÕÇÜÝ]/.test(tok)) {
+      if (isFirst) isFirst = false;
+      return tok;
+    }
+
+    if (isFirst) {
+      isFirst = false;
+      // Primeira palavra: força inicial maiúscula, restante como a IA enviou
+      return tok.charAt(0).toUpperCase() + tok.slice(1);
+    }
+
+    // Stopwords do português: sempre minúsculo no meio da frase
+    if (STOPWORDS_PT.has(tok.toLowerCase())) return tok.toLowerCase();
+
+    // Demais palavras: respeita o que a IA retornou
+    // (IA é instruída a usar sentence case → palavras comuns virão em minúsculo;
+    //  nomes próprios virão com inicial maiúscula → mantidos aqui)
+    return tok;
+  }).join('');
+}
+
 // ─── Sessões (em memória) ─────────────────────────────────────────────────────
 /*
   Estrutura da sessão (single-portal):
@@ -113,7 +164,7 @@ async function gerarArtigo(briefing, aiPrompt) {
   const sys = aiPrompt ||
     `Você é um jornalista profissional. Com base no briefing (textos, transcrições de áudio, descrições de fotos), escreva um artigo jornalístico completo.
 Retorne SOMENTE um JSON:
-{ "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE"), "titulo": string(máx 90 chars), "resumo": string(uma frase única curta e completa, máx 130 chars, OBRIGATORIAMENTE terminando com ponto final), "corpo": string(HTML ≥4 parágrafos em <p>), "tags": string[] }`;
+{ "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE"), "titulo": string(máx 90 chars, use sentence case: apenas a primeira palavra com inicial maiúscula; nomes próprios de pessoas, cidades e organizações mantêm inicial maiúscula; siglas ficam em MAIÚSCULO COMPLETO como PRF, EUA, SC, COVID), "resumo": string(uma frase única curta e completa, máx 130 chars, OBRIGATORIAMENTE terminando com ponto final), "corpo": string(HTML ≥4 parágrafos em <p>), "tags": string[] }`;
 
   let txt = '';
   if (provider === 'deepseek') {
@@ -134,7 +185,7 @@ Retorne SOMENTE um JSON:
   if (!r) throw new Error('IA não retornou JSON válido.');
   const titulo = (r.titulo || r.title || '').trim();
   return {
-    title: titulo ? titulo.charAt(0).toUpperCase() + titulo.slice(1).toLowerCase() : '',
+    title: sentenceCasePtBR(titulo),
     chapeu: r.chapeu || '',
     summary: r.resumo || r.summary || '', body: r.corpo || r.body || '',
     tags: r.tags || [], category_ids: [],
