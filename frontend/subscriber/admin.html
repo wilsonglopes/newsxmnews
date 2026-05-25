@@ -1958,6 +1958,41 @@ document.getElementById('sb-email').textContent = sub.email || '';
 function authHeader() { return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }; }
 function logout() { localStorage.removeItem('rb24_token'); localStorage.removeItem('rb24_subscriber'); location.href = 'login.html'; }
 
+// ── apiFetch — wrapper seguro para fetch() ────────────────────────────────────
+// REGRA: sempre usar apiFetch() em vez de fetch() diretamente para chamadas à API.
+// Motivo: fetch() não lança exceção em 4xx/5xx — sem esse wrapper a UI mostra
+// "sucesso" quando o servidor retornou erro, e o bug fica invisível.
+//
+// Uso:
+//   const data = await apiFetch('/api/articles', { headers: authHeader() });
+//   const res  = await apiFetch('/api/publish', { method:'POST', body:..., raw:true }); // raw=true → retorna Response
+//
+async function apiFetch(url, opts = {}) {
+  const { raw = false, ...fetchOpts } = opts;
+  const fullUrl = url.startsWith('http') ? url : `${BACKEND}${url}`;
+
+  let res;
+  try {
+    res = await fetch(fullUrl, fetchOpts);
+  } catch (e) {
+    // Erro de rede (sem conexão, CORS, etc.)
+    throw new Error(`Erro de rede: ${e.message}`);
+  }
+
+  if (!res.ok) {
+    // Tenta extrair mensagem de erro do JSON, senão usa status
+    let msg = `HTTP ${res.status}`;
+    try {
+      const body = await res.clone().json();
+      msg = body.error || body.message || body.msg || msg;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  if (raw) return res;
+  try { return await res.json(); } catch { return {}; }
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function toast(msg, tipo = '') {
   const el = document.createElement('div');
@@ -2035,9 +2070,9 @@ async function atualizarAutopub() {
 
   try {
     const [stats, cfg, log] = await Promise.all([
-      fetch(`${BACKEND}/api/admin/autopub-stats`, { headers: authHeader() }).then(r => r.json()),
-      fetch(`${BACKEND}/api/admin/settings`,      { headers: authHeader() }).then(r => r.json()),
-      fetch(`${BACKEND}/api/admin/autopub-log?limit=100`, { headers: authHeader() }).then(r => r.json()),
+      apiFetch('/api/admin/autopub-stats',      { headers: authHeader() }),
+      apiFetch('/api/admin/settings',           { headers: authHeader() }),
+      apiFetch('/api/admin/autopub-log?limit=100', { headers: authHeader() }),
     ]);
 
     // Badge de status
@@ -2129,9 +2164,9 @@ let _dbStatsCache = null;
 async function carregarDashboard() {
   try {
     const [stats, pubs, allSites] = await Promise.all([
-      fetch(`${BACKEND}/api/admin/stats`,               { headers: authHeader() }).then(r => r.json()),
-      fetch(`${BACKEND}/api/admin/recent-publications`, { headers: authHeader() }).then(r => r.json()),
-      fetch(`${BACKEND}/api/admin/all-sites`,           { headers: authHeader() }).then(r => r.json()),
+      apiFetch('/api/admin/stats',               { headers: authHeader() }),
+      apiFetch('/api/admin/recent-publications', { headers: authHeader() }),
+      apiFetch('/api/admin/all-sites',           { headers: authHeader() }),
     ]);
 
     _dbStatsCache = stats;

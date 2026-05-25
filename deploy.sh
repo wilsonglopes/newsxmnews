@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════════════════════
+# deploy.sh — Deploy padronizado do XIXO News
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Uso: bash deploy.sh
+#
+# O que faz:
+#   1. Detecta modificações locais no servidor → stash automático com label
+#   2. git pull origin main
+#   3. Valida sources.json e settings.json (JSON inválido aborta o deploy)
+#   4. pm2 restart xixo-news
+#   5. Health check em /api/health (aguarda até 30s)
+#   6. Envia resultado via Telegram para o admin
+#
+# Requisitos: git, pm2, python3, curl
+# ═══════════════════════════════════════════════════════════════════════════════
+
+set -euo pipefail
+
+# ── Configuração ───────────────────────────────────────────────────────────────
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$DIR/backend/.env"
+HEALTH_URL="http://localhost:3000/api/health"
+APP_NAME="xixo-news"
+BRANCH="main"
+MAX_WAIT_HEALTH=30   # segundos aguardando o processo subir
+
+# ── Cores ──────────────────────────────────────────────────────────────────────
+GRN='\033[0;32m'; YLW='\033[0;33m'; RED='\033[0;31m'; CYN='\033[0;36m'; RST='\033[0m'
+log()  { printf "${CYN}[%s]${RST} %s\n" "$(date +%H:%M:%S)" "$1"; }
+ok()   { printf "${GRN}[%s] ✅ %s${RST}\n" "$(date +%H:%M:%S)" "$1"; }
+warn() { printf "${YLW}[%s] ⚠️  %s${RST}\n" "$(date +%H:%M:%S)" "$1"; }
+err()  { printf "${RED}[%s] ❌ %s${RST}\n" "$(date +%H:%M:%S)" "$1"; }
+
+# ── Carregar credenciais do .env para notificação Telegram ─────────────────────
+TELEGRAM_TOKEN=""
+MONITOR_CHAT_ID=""
+if [ -f "$ENV_FILE" ]; then
+  while IFS='=' read -r key val; do
+    case "$key" in
+      TELEGRAM_TOKEN)   TELEGRAM_TOKEN="$val"  ;;
+      MONITOR_CHAT_ID)  MONITOR_CHAT_ID="$val" ;;
+    esac
+  done < <(grep -v '^#' "$ENV_FILE" | grep -v '^$')
+fi
+
+tg_send() {
+  [ -n "$TELEGRAM_TOKEN" ] && [ -n "$MONITOR_CHAT_ID" ] || return 0
+  curl -sS "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+    --data-urlencode "chat_id=${MONITOR_CHAT_ID}" \
+    --data-urlencode "text=$1" \
+    --data-urlencode "parse_mode=Markdown" \
+    -o /dev/null 2>&1 || true
+}
+
+# ── Início ─────────────────────────────────────────────────────────────────────
+cd "$DIR"
+log "🚀 Iniciando deploy XIXO News → branch: $BRANCH"
+echo ""
+
+# ── 1. Verificar e fazer stash de modificações locais ──────────────────────────
+if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+  STASH_LABEL="pre-deploy-$(date +%Y%m%d-%H%M%S)"
+  warn "Modificações locais detectadas:"
+  git status --short | sed 's/^/    /'
+  log "Fazendo stash: '$STASH_LABEL'"
+  git stash push -m "$STASH_LABEL"
+  warn "Stash salvo. Após validar o deploy, verifique com: git stash list"
+  echo ""
+fi
+
+# ── 2. Git pull ─────────────────────────────────────────────────────────────────
+log "📥 git pull origin $BRANCH..."
+PULL_OUTPUT=$(git pull origin "$BRANCH" 2>&1)
+echo "$PULL_OUTPUT" | sed 's/^/  /'
+
+COMMIT_MSG=$(git log -1 --format='%s (%h)' 2>/dev/null || echo 'commit desconhecido')
+ok "Pull concluído: $COMMIT_MSG"
+echo ""
+
+# ── 3. Validar arquivos de configuração ────────────────────────────────────────
+log "🔍 Validando arquivos de configuração..."
+JSON_PROBLEMS=0
+
+for f in "backend/sources.json" "backend/settings.json"; do
+  if [ -f "$DIR/$f" ]; then
+    if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$DIR/$f" 2>/dev/null; then
+      NFONTES=""
+      if [[ "$f" == *"sources"* ]]; then
+        NFONTES=" ($(python3 -c "import json; d=json.load(open('$DIR/$f')); print(sum(1 for s in d if s.get('active')))" 2>/dev/null || echo '?') ativas)"
+      fi
+      ok "$f válido${NFONTES}"
+    else
+      err "$f contém JSON INVÁLIDO — deploy abortado"
+      tg_send "❌ *Deploy abortado* — \`$f\` contém JSON inválido%0ACommit: $COMMIT_MSG"
+      exit 1
+    fi
+  fi
+done
+echo ""
+
+# ── 4. Reiniciar PM2 ──────────────────────────────────────────────────────────
+log "🔄 Reiniciando $APP_NAME via PM2..."
+pm2 restart "$APP_NAME" --update-env 2>&1 | tail -3 | sed 's/^/  /'
+echo ""
+
+# ── 5. Health check ──────────────────────────────────────────────────────────
+log "⏳ Aguardando processo subir (máx ${MAX_WAIT_HEALTH}s)..."
+ELAPSED=0
+HTTP_CODE="000"
+
+while [ "$HTTP_CODE" != "200" ] && [ $ELAPSED -lt $MAX_WAIT_HEALTH ]; do
+  sleep 3
+  ELAPSED=$((ELAPSED + 3))
+  HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" "$HEALTH_URL" 2>/dev/null || echo "000")
+  [ "$HTTP_CODE" != "200" ] && log "  aguardando... (${ELAPSED}s, HTTP $HTTP_CODE)"
+done
+
+if [ "$HTTP_CODE" = "200" ]; then
+  HEALTH_JSON=$(curl -sS "$HEALTH_URL" 2>/dev/null || echo '{}')
+  DB_STATUS=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('db','?'))" <<< "$HEALTH_JSON" 2>/dev/null || echo '?')
+  ART_1H=$(python3    -c "import json,sys; d=json.load(sys.stdin); print(d.get('articles',{}).get('last_1h','?'))" <<< "$HEALTH_JSON" 2>/dev/null || echo '?')
+  ART_24H=$(python3   -c "import json,sys; d=json.load(sys.stdin); print(d.get('articles',{}).get('last_24h','?'))" <<< "$HEALTH_JSON" 2>/dev/null || echo '?')
+  COM_ERRO=$(python3  -c "import json,sys; d=json.load(sys.stdin); print(d.get('sources',{}).get('com_erro','?'))"  <<< "$HEALTH_JSON" 2>/dev/null || echo '?')
+
+  ok "Health check OK em ${ELAPSED}s"
+  echo "  DB: $DB_STATUS | artigos/1h: $ART_1H | /24h: $ART_24H | fontes com erro: $COM_ERRO"
+  echo ""
+  ok "🎉 Deploy concluído com sucesso!"
+
+  tg_send "✅ *Deploy OK* — $(date '+%d/%m %H:%M')
+$COMMIT_MSG
+DB: $DB_STATUS | artigos/1h: $ART_1H | fontes com erro: $COM_ERRO"
+
+else
+  err "Health check FALHOU após ${ELAPSED}s (HTTP $HTTP_CODE)"
+  echo ""
+  echo "── Últimas 20 linhas de log PM2 ──────────────────────────────────────────────"
+  pm2 logs "$APP_NAME" --lines 20 --nostream 2>/dev/null || true
+  echo "──────────────────────────────────────────────────────────────────────────────"
+
+  tg_send "❌ *Deploy com problema*
+Health check retornou HTTP $HTTP_CODE após ${ELAPSED}s
+Commit: $COMMIT_MSG
+Verifique: \`pm2 logs xixo-news --lines 30\`"
+  exit 1
+fi

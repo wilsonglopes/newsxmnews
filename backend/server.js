@@ -624,6 +624,7 @@ async function migrarSitesParaCatalogo() {
 }
 
 // ─── Persistir artigos no banco (fire-and-forget, não bloqueia o cache) ──────
+const { isAllowed: isImageAllowed } = require('./utils/allowed-hosts');
 async function persistirArtigos(itens, sourceSlug, source) {
   if (!pool) return;
 
@@ -670,6 +671,14 @@ async function persistirArtigos(itens, sourceSlug, source) {
         );
         const isDup = sameDay.some(r => titleSimilarity(norm.title, r.title) >= 0.85);
         if (isDup) continue;
+      }
+
+      // ⚠️ Warning se imagem viria de domínio não mapeado (ficará sem imagem no frontend)
+      if (norm.image_url && !isImageAllowed(norm.image_url)) {
+        try {
+          const imgHost = new URL(norm.image_url).hostname;
+          console.warn(`[ALLOWED_HOSTS] ⚠️  ${sourceSlug}: imagem de "${imgHost}" não está em allowed-hosts.js — adicionar para exibir no frontend`);
+        } catch {}
       }
 
       await pool.query(`
@@ -880,6 +889,11 @@ async function limparArtigosAntigos() {
   }
 }
 
+// ─── Validação de configuração (roda antes de qualquer cron) ─────────────────
+const { validateSources, checkUrlsAsync } = require('./startup-validator');
+validateSources(sources); // síncrono — loga erros/avisos imediatamente
+setImmediate(() => checkUrlsAsync(sources).catch(() => {})); // async, não bloqueia
+
 // ─── Carga inicial e agendamento ──────────────────────────────────────────────
 criarIndicesBanco().catch(() => {});
 sincronizarFontesDB().catch(() => {});
@@ -901,6 +915,17 @@ iniciarBot();
 const { limparCardsAntigos } = require('./utils/card-generator');
 cron.schedule('0 3 * * *', () => limparCardsAntigos(7));
 limparCardsAntigos(7); // roda na inicialização também
+
+// ─── Monitor de saúde ─────────────────────────────────────────────────────────
+// Só ativa se banco configurado e MONITOR_CHAT_ID definido no .env
+if (pool && process.env.MONITOR_CHAT_ID) {
+  const { verificarSaude, relatorioDiario } = require('./monitor');
+  cron.schedule('0 */2 * * *',  () => verificarSaude().catch(e => console.error('[MONITOR]', e.message)));
+  cron.schedule('0 7 * * *',    () => relatorioDiario().catch(e => console.error('[MONITOR]', e.message)));
+  console.log('[MONITOR] Monitor de saúde ativo — alertas a cada 2h + resumo diário às 7h.');
+} else {
+  console.log('[MONITOR] Monitor desativado — defina MONITOR_CHAT_ID no .env para ativar.');
+}
 
 // ─── ROTAS ────────────────────────────────────────────────────────────────────
 
@@ -1002,6 +1027,60 @@ app.get('/api/test-card', async (req, res) => {
   }
 });
 
+
+// ─── Health check ─────────────────────────────────────────────────────────────
+// GET /api/health — usado pelo deploy.sh para smoke test pós-restart
+app.get('/api/health', async (req, res) => {
+  const status = {
+    status:    'ok',
+    timestamp: new Date().toISOString(),
+    uptime_s:  Math.floor(process.uptime()),
+    db:        pool ? 'unknown' : 'not_configured',
+    sources: {
+      total:  sources.length,
+      active: sources.filter(s => s.active).length,
+    },
+    cache: {
+      loaded: Object.values(cache).filter(c => c.data.length > 0).length,
+    },
+  };
+
+  if (pool) {
+    try {
+      await pool.query('SELECT 1');
+      status.db = 'ok';
+
+      const { rows } = await pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE fetched_at > NOW() - INTERVAL '1 hour')   AS last_1h,
+          COUNT(*) FILTER (WHERE fetched_at > NOW() - INTERVAL '24 hours') AS last_24h
+        FROM articles
+      `);
+      status.articles = {
+        last_1h:  parseInt(rows[0].last_1h)  || 0,
+        last_24h: parseInt(rows[0].last_24h) || 0,
+      };
+
+      const { rows: srcRows } = await pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE last_error IS NOT NULL)                                  AS com_erro,
+          COUNT(*) FILTER (WHERE last_fetched_at < NOW() - INTERVAL '1 hour')             AS sem_coleta_1h
+        FROM sources
+        WHERE active = true AND last_fetched_at IS NOT NULL
+      `);
+      status.sources.com_erro      = parseInt(srcRows[0].com_erro) || 0;
+      status.sources.sem_coleta_1h = parseInt(srcRows[0].sem_coleta_1h) || 0;
+
+    } catch (e) {
+      status.db     = 'error';
+      status.db_err = e.message;
+      status.status = 'degraded';
+    }
+  }
+
+  const httpCode = status.status === 'ok' ? 200 : 503;
+  res.status(httpCode).json(status);
+});
 
 // GET /api/proxy-image?url=... → proxy de imagens para contornar hotlink protection
 app.get('/api/proxy-image', async (req, res) => {

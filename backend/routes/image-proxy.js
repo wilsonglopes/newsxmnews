@@ -4,65 +4,8 @@ const express = require('express');
 const axios   = require('axios');
 const router  = express.Router();
 
-// Domínios permitidos para proxy (segurança — evita SSRF)
-const ALLOWED_HOSTS = [
-  // Portais de notícia
-  'nsctotal.com.br',
-  'metropoles.com', 'metroimg.com',
-  'cnnbrasil.com.br',
-  'jovempan.com.br', 'jpimg.com.br',
-  'ebc.com.br',
-  'agenciaesporte.com.br',
-  'ndmais.com.br',
-  'portalc1.com.br',
-  'danuzionews.com',
-  'enfoquesc.com.br',
-  'portaldoagronegocio.com.br',
-  'jarbasvieira.com',
-  'sommaior.com.br',
-  'brasilparalelo.com.br',
-  'lance.com.br', 'lncimg.lance.com.br',
-  // Globo / G1 / O Globo
-  'glbimg.com', 'oglobo.globo.com', 'g1.globo.com',
-  'oglobo.com', 's3.glbimg.com', 'i.s3.glbimg.com',
-  // Poder Legislativo Federal
-  'senado.leg.br',
-  'camara.leg.br',
-  // Assembleias legislativas
-  'alesc.sc.gov.br',
-  'al.rs.gov.br',
-  // Portais regionais do Acre
-  'folhadoacre.com.br',
-  'ecosdanoticia.net',
-  'contilnetnoticias.com.br',
-  'agazetadoacre.com',
-  'portalacre.com.br',
-  'nahoradanoticia.com.br',
-  // Prefeituras (.rs.gov.br, .sc.gov.br, .ac.gov.br, .sp.gov.br, atende.net)
-  'rs.gov.br',
-  'sc.gov.br',
-  'ac.gov.br',   // Rio Branco, Cruzeiro do Sul, e todas as demais prefeituras do Acre
-  'al.ac.leg.br', // Assembleia Legislativa do Acre
-  'sp.gov.br',   // Prefeituras SP e governo do estado (Praia Grande, etc.)
-  'atende.net',
-  // Clubes de futebol
-  'static.internacional.com.br',
-  // WordPress CDNs
-  'static.wixstatic.com',
-  'wp.com', 'i0.wp.com', 'i1.wp.com', 'i2.wp.com',
-  // O Cruzeiro Notícias
-  'ocruzeironoticias.com.br',
-  // Agora RS
-  'agorars.com', 'uploads.agorars.com',
-  // Correio do Povo
-  'correiodopovo.com.br',
-  // O Sul
-  'osul.com.br',
-  // PRF Acre (Polícia Rodoviária Federal — Plone gov.br)
-  'www.gov.br',
-  // TJ Acre (Tribunal de Justiça do Acre — WordPress)
-  'tjac.jus.br', 'www.tjac.jus.br',
-];
+// Lista centralizada de domínios permitidos — editar em backend/utils/allowed-hosts.js
+const { isAllowed } = require('../utils/allowed-hosts');
 
 // GET /api/proxy-image?url=<encoded>
 router.get('/', async (req, res) => {
@@ -73,10 +16,11 @@ router.get('/', async (req, res) => {
   let parsed;
   try { parsed = new URL(url); } catch { return res.status(400).send('url inválida'); }
 
-  // Verifica host permitido
-  const host = parsed.hostname.replace(/^www\./, '');
-  const allowed = ALLOWED_HOSTS.some(h => host === h || host.endsWith('.' + h));
-  if (!allowed) return res.status(403).send('host não permitido');
+  // Verifica host permitido (usar allowed-hosts.js — nunca duplicar a lista)
+  if (!isAllowed(url)) {
+    console.warn(`[image-proxy] host bloqueado: ${parsed.hostname} — adicionar em utils/allowed-hosts.js se legítimo`);
+    return res.status(403).send('host não permitido');
+  }
 
   // Só imagens
   if (!/\.(jpe?g|jfif|png|gif|webp|avif|svg)(\?.*)?$/i.test(parsed.pathname) &&
