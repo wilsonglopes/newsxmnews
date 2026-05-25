@@ -3070,6 +3070,23 @@ async function abrirArtigoModal(artigo) {
         artigo.image_url = data.image_url;
         imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(data.image_url)}`;
         imgEl.classList.remove('hidden');
+      } else if (artigo.bodyFetched) {
+        // Corpo carregado mas sem imagem — pode ser CDN ainda inicializando (ex: Agência Brasil).
+        // Agenda retry silencioso em 8s sem bloquear o usuário.
+        const _retryId = artigo.id;
+        setTimeout(async () => {
+          if (artigoSelecionado?.id !== _retryId) return; // usuário abriu outro artigo
+          if (artigoSelecionado.image_url) return;        // imagem já apareceu por outro caminho
+          try {
+            const retryData = await apiFetch(`/api/articles/${_retryId}/full-content?force=1`);
+            if (retryData.image_url && artigoSelecionado?.id === _retryId && !artigoSelecionado.image_url) {
+              artigoSelecionado.image_url = retryData.image_url;
+              artigo.image_url = retryData.image_url;
+              imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(retryData.image_url)}`;
+              imgEl.classList.remove('hidden');
+            }
+          } catch { /* silencioso — não interrompe experiência */ }
+        }, 8000);
       }
       // Aviso quando conteúdo é curto (portal RSS-only ou JS-heavy)
       const textoCorpo = corpo.innerText || '';

@@ -417,14 +417,19 @@ async function processarItem(item) {
       };
       let { body, image_url } = await fetchFullContent(artigo.external_url, sourceConf);
 
-      // Se a 1ª tentativa trouxe corpo mas não imagem, aguarda 2s e tenta de novo.
-      // Comum em matérias recém-publicadas onde o CDN ainda não cacheou og:image.
+      // Se a 1ª tentativa trouxe corpo mas não imagem, tenta mais vezes com delays crescentes.
+      // Comum em matérias recém-publicadas onde o CDN ainda não cacheou og:image
+      // ou o servidor da fonte estava sobrecarregado no momento da coleta.
       if (!image_url && artigo.external_url) {
-        console.log(`[WORKER] sem imagem na 1ª tentativa, retry em 2s: ${artigo.title?.slice(0, 50)}`);
-        await new Promise(r => setTimeout(r, 2000));
-        const retry = await fetchFullContent(artigo.external_url, sourceConf);
-        if (retry.image_url) image_url = retry.image_url;
-        if (!body && retry.body) body = retry.body;
+        const retryDelays = [5000, 12000]; // 5s e 12s — dá tempo ao CDN inicializar
+        for (const delay of retryDelays) {
+          if (image_url) break;
+          console.log(`[WORKER] sem imagem, retry em ${delay / 1000}s: ${artigo.title?.slice(0, 50)}`);
+          await new Promise(r => setTimeout(r, delay));
+          const retry = await fetchFullContent(artigo.external_url, sourceConf);
+          if (retry.image_url) image_url = retry.image_url;
+          if (!body && retry.body) body = retry.body;
+        }
       }
 
       if (body)      artigo.body      = body;
