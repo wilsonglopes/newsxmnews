@@ -47,7 +47,7 @@ _env_get() {
 TELEGRAM_TOKEN=""
 MONITOR_CHAT_ID=""
 if [ -f "$ENV_FILE" ]; then
-  TELEGRAM_TOKEN="$(_env_get TELEGRAM_TOKEN)"
+  TELEGRAM_TOKEN="$(_env_get TELEGRAM_BOT_TOKEN)"
   MONITOR_CHAT_ID="$(_env_get MONITOR_CHAT_ID)"
   _port="$(_env_get PORT)"
   [ -n "$_port" ] && SERVER_PORT="$_port"

@@ -24,7 +24,7 @@ const axios = require('axios');
  * @param {object} [opts]  - Opções extras para a API sendMessage
  */
 async function notifyAdmin(text, opts = {}) {
-  const token  = process.env.TELEGRAM_TOKEN;
+  const token  = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.MONITOR_CHAT_ID;
 
   if (!token || !chatId) return; // monitor não configurado — ignora silenciosamente
