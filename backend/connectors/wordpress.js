@@ -165,7 +165,12 @@ async function publishViaPlugin(site, rewritten, article) {
   // Fallback: se não houver wp_app_password, tenta a URL original; se inacessível, publica sem imagem.
   let imageUrlParaPlugin = article.image_url || '';
 
-  if (imageUrlParaPlugin && site.wp_app_password && site.wp_username) {
+  if (imageUrlParaPlugin && article.image_media_id) {
+    // Imagem já foi pré-carregada pelo frontend (Criar Post / image_media_id setado).
+    // Usar a URL diretamente — re-download+upload seria redundante e pode falhar se
+    // o WAF do WP bloquear requisições do VPS para sua própria mídia.
+    console.log(`[plugin] imagem pré-carregada (media_id=${article.image_media_id}), usando URL direta: ${imageUrlParaPlugin}`);
+  } else if (imageUrlParaPlugin && site.wp_app_password && site.wp_username) {
     try {
       const password  = decryptToken(site.wp_app_password);
       const wpAuth    = Buffer.from(`${site.wp_username}:${password}`).toString('base64');

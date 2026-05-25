@@ -1104,6 +1104,15 @@ Portal<span class="logo-news">News</span>
                 </div>
               </div>
 
+              <!-- Facebook / Instagram (visível só quando o site tem facebook_enabled) -->
+              <div id="acp-grupo-facebook" style="display:none;margin-bottom:1rem;padding:.75rem;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:var(--radius)">
+                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.83rem;font-weight:600;color:#3730a3">
+                  <input type="checkbox" id="acp-chk-facebook" style="width:15px;height:15px;accent-color:#3730a3">
+                  📘 Publicar no Facebook / Instagram
+                </label>
+                <div style="font-size:.72rem;color:#6366f1;margin-top:.2rem;padding-left:1.4rem">Card 1080×1080 gerado automaticamente</div>
+              </div>
+
               <button id="acp-btn-publicar" class="btn btn-primary"
                 style="width:100%;padding:.7rem;font-size:.9rem;justify-content:center" disabled>
                 ✓ Publicar
@@ -3800,6 +3809,17 @@ async function acpCarregarCategorias(siteId) {
     cont.innerHTML = '<span class="cat-placeholder">Erro ao buscar categorias</span>';
     btnPub.disabled = false;
   }
+
+  // Mostra/esconde checkbox de Facebook conforme config do site selecionado
+  const acpSiteConf = (allSitesCache || []).find(s => String(s.id) === String(siteId));
+  const acpFbGrupo  = document.getElementById('acp-grupo-facebook');
+  if (acpFbGrupo) {
+    acpFbGrupo.style.display = acpSiteConf?.facebook_enabled ? '' : 'none';
+    if (!acpSiteConf?.facebook_enabled) {
+      const chk = document.getElementById('acp-chk-facebook');
+      if (chk) chk.checked = false;
+    }
+  }
 }
 
 document.getElementById('acp-btn-publicar').addEventListener('click', async () => {
@@ -3837,18 +3857,21 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
     document.querySelectorAll('#acp-categorias input[type="checkbox"]:checked')
   ).map(i => Number(i.value)).filter(id => id > 0);
 
+  const publishToFb = document.getElementById('acp-chk-facebook')?.checked || false;
+
   const payload = {
-    site_id:        siteId,
-    chapeu:         document.getElementById('acp-chapeu').value.trim(),
+    site_id:             siteId,
+    chapeu:              document.getElementById('acp-chapeu').value.trim(),
     titulo,
-    resumo:         document.getElementById('acp-resumo').value.trim(),
+    resumo:              document.getElementById('acp-resumo').value.trim(),
     corpo,
-    tags:           document.getElementById('acp-tags').value.trim(),
-    category_ids:   categoryIds,
-    fonte_url:      document.getElementById('acp-fonte-url').value.trim(),
-    fonte_nome:     document.getElementById('acp-fonte-nome').value.trim(),
-    image_url:      imageUrl,
-    image_media_id: imageMediaId,
+    tags:                document.getElementById('acp-tags').value.trim(),
+    category_ids:        categoryIds,
+    fonte_url:           document.getElementById('acp-fonte-url').value.trim(),
+    fonte_nome:          document.getElementById('acp-fonte-nome').value.trim(),
+    image_url:           imageUrl,
+    image_media_id:      imageMediaId,
+    publish_to_facebook: publishToFb,
     // Fallback: upload falhou (ex: site sem wp_app_password) mas imagem está em memória.
     // Backend usará temp file no servidor — nenhuma credencial WP necessária.
     ...(!imageUrl && _acpImageData
@@ -3864,8 +3887,16 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
-    linkEl.innerHTML = `✔ Publicado! <a href="${data.post_url}" target="_blank" rel="noopener" style="color:var(--green)">${data.post_url}</a>`;
-    toast('Artigo publicado com sucesso!', 'sucesso');
+
+    // Monta status das redes sociais
+    const fbOk = data.facebook?.ok;
+    const igOk = data.instagram?.ok;
+    const socialMsg = publishToFb
+      ? (fbOk ? ` ✔ FB${igOk ? '+IG' : ''}` : ' ⚠️ FB falhou')
+      : '';
+
+    linkEl.innerHTML = `✔ Publicado!${socialMsg} <a href="${data.post_url}" target="_blank" rel="noopener" style="color:var(--green)">${data.post_url}</a>`;
+    toast('Artigo publicado com sucesso!' + (socialMsg ? ' ' + socialMsg.trim() : ''), 'sucesso');
   } catch (err) {
     linkEl.textContent = 'Erro: ' + err.message;
     toast('Erro ao publicar: ' + err.message, 'erro');

@@ -225,7 +225,8 @@ router.post('/manual', async (req, res) => {
   const { site_id, chapeu, titulo, resumo, corpo, tags, category_ids,
           image_url, image_media_id,
           image_base64, image_mime, image_name,
-          fonte_url, fonte_nome } = req.body || {};
+          fonte_url, fonte_nome,
+          publish_to_facebook } = req.body || {};
 
   if (!site_id || !titulo || !corpo) {
     return res.status(400).json({ error: 'site_id, titulo e corpo são obrigatórios.' });
@@ -246,7 +247,9 @@ router.post('/manual', async (req, res) => {
              COALESCE(sc.blogger_refresh_token, ss.blogger_refresh_token) AS blogger_refresh_token,
              COALESCE(sc.webhook_url, ss.webhook_url)         AS webhook_url,
              COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
-             COALESCE(sc.post_format, ss.post_format)         AS post_format
+             COALESCE(sc.post_format, ss.post_format)         AS post_format,
+             sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
+             sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
@@ -302,7 +305,96 @@ router.post('/manual', async (req, res) => {
       ]
     );
 
-    res.json({ success: true, post_url: result.post_url, post_id: result.post_id });
+    // ── Publicação no Facebook + Instagram (opcional) ─────────────────────────
+    let facebookResultManual  = null;
+    let instagramResultManual = null;
+    const wantsFacebookManual = publish_to_facebook === true || publish_to_facebook === 'true';
+
+    if (wantsFacebookManual && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
+      try {
+        const { gerarCard, gerarCardComUrl } = require('../utils/card-generator');
+        const { publicarFoto } = require('../connectors/facebook');
+        const { publicar: publicarInstagram } = require('../connectors/instagram');
+        const { decryptToken } = require('../connectors/encrypt');
+
+        const wantsInstagram = site.instagram_enabled && site.instagram_business_account_id;
+        const pageToken = decryptToken(site.facebook_page_token);
+
+        let cardBuffer, cardPublicUrl;
+        if (wantsInstagram) {
+          const r = await gerarCardComUrl({
+            chapeu:   rewritten.chapeu || '',
+            resumo:   rewritten.summary || '',
+            imageUrl: article.image_url || '',
+          });
+          cardBuffer    = r.buffer;
+          cardPublicUrl = r.publicUrl;
+        } else {
+          cardBuffer = await gerarCard({
+            chapeu:   rewritten.chapeu || '',
+            resumo:   rewritten.summary || '',
+            imageUrl: article.image_url || '',
+          });
+        }
+
+        try {
+          const fb = await publicarFoto(
+            { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
+            cardBuffer,
+            { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+          );
+          facebookResultManual = { ok: true, post_url: fb.post_url, photo_id: fb.photo_id };
+          try {
+            const pubSubscriberId = site.subscriber_id || req.subscriber.id;
+            await pool.query(
+              `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
+               WHERE subscriber_id = $3 AND site_id = $4 AND external_post_id = $5`,
+              [fb.photo_id || fb.post_id, fb.post_url, pubSubscriberId, site_id, result.post_id]
+            );
+          } catch (e) { console.warn('[manual/fb] grava ID:', e.message); }
+        } catch (fbErr) {
+          console.error('[manual/fb]', fbErr.message);
+          facebookResultManual = { ok: false, error: fbErr.message };
+        }
+
+        if (wantsInstagram && cardPublicUrl) {
+          try {
+            const ig = await publicarInstagram(
+              {
+                instagram_business_account_id: site.instagram_business_account_id,
+                facebook_page_token: pageToken,
+              },
+              cardPublicUrl,
+              { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+            );
+            instagramResultManual = { ok: true, post_url: ig.post_url, post_id: ig.post_id };
+            try {
+              const pubSubscriberId = site.subscriber_id || req.subscriber.id;
+              await pool.query(
+                `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
+                 WHERE subscriber_id = $3 AND site_id = $4 AND external_post_id = $5`,
+                [ig.post_id, ig.post_url, pubSubscriberId, site_id, result.post_id]
+              );
+            } catch (e) { console.warn('[manual/ig] grava ID:', e.message); }
+          } catch (igErr) {
+            console.error('[manual/ig]', igErr.message);
+            instagramResultManual = { ok: false, error: igErr.message };
+          }
+        }
+      } catch (err) {
+        console.error('[manual/social]', err.message);
+        if (!facebookResultManual)  facebookResultManual  = { ok: false, error: err.message };
+        if (!instagramResultManual) instagramResultManual = { ok: false, error: err.message };
+      }
+    }
+
+    res.json({
+      success:   true,
+      post_url:  result.post_url,
+      post_id:   result.post_id,
+      facebook:  facebookResultManual,
+      instagram: instagramResultManual,
+    });
   } catch (err) {
     const status = err.response?.status;
     const wpMsg  = err.response?.data?.message || err.response?.data?.error || JSON.stringify(err.response?.data);
