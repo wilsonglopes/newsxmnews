@@ -412,7 +412,18 @@ async function processarItem(item) {
         category:                artigo.source_category         || '',
         extract_body_image:      artigo.extract_body_image      || false,
       };
-      const { body, image_url } = await fetchFullContent(artigo.external_url, sourceConf);
+      let { body, image_url } = await fetchFullContent(artigo.external_url, sourceConf);
+
+      // Se a 1ª tentativa trouxe corpo mas não imagem, aguarda 2s e tenta de novo.
+      // Comum em matérias recém-publicadas onde o CDN ainda não cacheou og:image.
+      if (!image_url && artigo.external_url) {
+        console.log(`[WORKER] sem imagem na 1ª tentativa, retry em 2s: ${artigo.title?.slice(0, 50)}`);
+        await new Promise(r => setTimeout(r, 2000));
+        const retry = await fetchFullContent(artigo.external_url, sourceConf);
+        if (retry.image_url) image_url = retry.image_url;
+        if (!body && retry.body) body = retry.body;
+      }
+
       if (body)      artigo.body      = body;
       if (image_url) artigo.image_url = image_url;
       console.log(`[WORKER] após scraping: body=${((body || '').replace(/<[^>]*>/g, '').trim().length)}c image_url=${artigo.image_url || 'null'}`);

@@ -3009,7 +3009,11 @@ async function abrirArtigoModal(artigo) {
 
   const corpo = document.getElementById('map-corpo-leitura');
 
-  if (!artigo.bodyFetched) {
+  // Busca full-content se: corpo não foi buscado ainda OU imagem ainda não chegou
+  // (bodyFetched=true mas image_url null = 1ª chamada obteve corpo mas não imagem)
+  // imageAttempted impede loop infinito para fontes sem imagem na mesma sessão.
+  const precisaBuscar = !artigo.bodyFetched || (!artigo.image_url && !artigo.imageAttempted);
+  if (precisaBuscar) {
     corpo.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Carregando artigo completo…</div>';
     document.getElementById('modal-artigo-pub').classList.remove('hidden');
     try {
@@ -3018,7 +3022,8 @@ async function abrirArtigoModal(artigo) {
       // Só marca como "já buscado" se o conteúdo for substancial.
       // Corpo curto → re-fetch na próxima abertura, capturando config de fonte atualizada.
       const textoRetornado = (data.body || '').replace(/<[^>]*>/g, '').trim();
-      artigo.bodyFetched = textoRetornado.length >= 300;
+      artigo.bodyFetched   = textoRetornado.length >= 300;
+      artigo.imageAttempted = true; // não tenta mais na mesma sessão se não tiver imagem
       if (data.body) {
         artigo.body = data.body;
         corpo.innerHTML = limparBodyPreview(data.body);
@@ -3040,7 +3045,8 @@ async function abrirArtigoModal(artigo) {
           '</div>');
       }
     } catch {
-      artigo.bodyFetched = true;
+      artigo.bodyFetched    = true;
+      artigo.imageAttempted = false; // erro de rede: pode tentar imagem da próxima vez
       corpo.innerHTML = artigo.summary ? `<p>${artigo.summary}</p>` : '<p><em>Não foi possível carregar o conteúdo.</em></p>';
     }
   } else {
