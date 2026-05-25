@@ -37,8 +37,11 @@ err()  { printf "${RED}[%s] ❌ %s${RST}\n" "$(date +%H:%M:%S)" "$1"; }
 
 # ── Carregar variáveis do .env ─────────────────────────────────────────────────
 # Usa grep + sed para ser robusto a valores com '=' (tokens JWT, etc.)
+# grep retorna exit 1 quando não encontra — o '|| true' evita que set -e aborte
 _env_get() {
-  grep -E "^${1}=" "$ENV_FILE" 2>/dev/null | head -1 | sed "s/^${1}=//" | tr -d '"'"'"
+  local _val
+  _val=$(grep -E "^${1}=" "$ENV_FILE" 2>/dev/null | head -1 | sed "s/^${1}=//" | tr -d "\"'") || true
+  printf '%s' "$_val"
 }
 
 TELEGRAM_TOKEN=""
@@ -51,7 +54,6 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 HEALTH_URL="http://localhost:${SERVER_PORT}/api/health"
-log "Porta do servidor: $SERVER_PORT (health: $HEALTH_URL)"
 
 tg_send() {
   [ -n "$TELEGRAM_TOKEN" ] && [ -n "$MONITOR_CHAT_ID" ] || return 0
