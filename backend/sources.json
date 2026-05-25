@@ -526,24 +526,6 @@
     "content_selector": null
   },
   {
-    "name": "Pref. de Praia Grande",
-    "slug": "pref-de-praia-grande",
-    "type": "scraping",
-    "url": "https://www2.praiagrande.sp.gov.br/noticias",
-    "active": true,
-    "category": "prefeitura",
-    "scraping": {
-      "itemSelector": "a.card.type8",
-      "titleSelector": "h5.card-title",
-      "imageSelector": "figure.foto-noticia img",
-      "dateSelector": ".card-footer p",
-      "linkFilter": "/noticia/"
-    },
-    "extract_body_image": false,
-    "content_selector": "#texto",
-    "featured_image_selector": null
-  },
-  {
     "name": "Senado Federal",
     "slug": "www12",
     "type": "rss",
