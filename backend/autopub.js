@@ -334,12 +334,15 @@ async function processarProximoItem() {
     );
     console.log(`[WORKER] ✓ concluído: ${item.site_name} — ${item.id}`);
   } catch (e) {
-    const newStatus = item.attempts >= maxRetries ? 'error' : 'pending';
+    // item.attempts é o valor ANTES do "attempts + 1" feito na reserva,
+    // por isso comparamos com attempts + 1 (valor real após este ciclo).
+    const tentativasFeitas = item.attempts + 1;
+    const newStatus = tentativasFeitas >= maxRetries ? 'error' : 'pending';
     await pool.query(
       `UPDATE autopub_queue SET status = $1, error_message = $2, processed_at = now() WHERE id = $3`,
       [newStatus, e.message, item.id]
     );
-    console.error(`[WORKER] ✗ ${item.site_name} (${newStatus}): ${e.message}`);
+    console.error(`[WORKER] ✗ ${item.site_name} (tentativa ${tentativasFeitas}/${maxRetries} → ${newStatus}): ${e.message}`);
   }
 }
 
