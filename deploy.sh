@@ -21,10 +21,12 @@ set -euo pipefail
 # ── Configuração ───────────────────────────────────────────────────────────────
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$DIR/backend/.env"
-HEALTH_URL="http://localhost:3000/api/health"
 APP_NAME="xixo-news"
 BRANCH="main"
 MAX_WAIT_HEALTH=30   # segundos aguardando o processo subir
+
+# Porta padrão — sobrescrita pela variável PORT do .env se existir
+SERVER_PORT=3000
 
 # ── Cores ──────────────────────────────────────────────────────────────────────
 GRN='\033[0;32m'; YLW='\033[0;33m'; RED='\033[0;31m'; CYN='\033[0;36m'; RST='\033[0m'
@@ -33,17 +35,24 @@ ok()   { printf "${GRN}[%s] ✅ %s${RST}\n" "$(date +%H:%M:%S)" "$1"; }
 warn() { printf "${YLW}[%s] ⚠️  %s${RST}\n" "$(date +%H:%M:%S)" "$1"; }
 err()  { printf "${RED}[%s] ❌ %s${RST}\n" "$(date +%H:%M:%S)" "$1"; }
 
-# ── Carregar credenciais do .env para notificação Telegram ─────────────────────
+# ── Carregar variáveis do .env ─────────────────────────────────────────────────
 TELEGRAM_TOKEN=""
 MONITOR_CHAT_ID=""
 if [ -f "$ENV_FILE" ]; then
   while IFS='=' read -r key val; do
+    # Remove aspas e espaços extras do valor
+    val="${val//\"/}"
+    val="${val//\'/}"
+    val="${val%% *}"
     case "$key" in
       TELEGRAM_TOKEN)   TELEGRAM_TOKEN="$val"  ;;
       MONITOR_CHAT_ID)  MONITOR_CHAT_ID="$val" ;;
+      PORT)             SERVER_PORT="$val"      ;;
     esac
   done < <(grep -v '^#' "$ENV_FILE" | grep -v '^$')
 fi
+
+HEALTH_URL="http://localhost:${SERVER_PORT}/api/health"
 
 tg_send() {
   [ -n "$TELEGRAM_TOKEN" ] && [ -n "$MONITOR_CHAT_ID" ] || return 0
