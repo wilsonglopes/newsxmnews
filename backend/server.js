@@ -23,6 +23,15 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL !== 'postgresql://user:
 // ─── Normalização (Fase 3) ────────────────────────────────────────────────────
 const { normalizeArticle } = require('./scrapers/normalizer');
 
+// ─── Auth middleware (protege rotas inline do server.js) ──────────────────────
+const authMiddleware = require('./middleware/auth');
+
+// ─── Allowed hosts (SSRF protection) ─────────────────────────────────────────
+const { isAllowed } = require('./utils/allowed-hosts');
+
+// IPs privados/internos bloqueados no /api/article (anti-SSRF)
+const PRIVATE_IP_RE = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|::1|0\.0\.0\.0)/i;
+
 // Agente HTTPS que ignora erros de certificado (usado apenas para scraping de prefeituras)
 const agenteSemSSL = new https.Agent({ rejectUnauthorized: false });
 
@@ -1134,8 +1143,8 @@ app.get('/api/proxy-image', async (req, res) => {
   }
 });
 
-// GET /api/sources → lista de fontes com status
-app.get('/api/sources', (req, res) => {
+// GET /api/sources → lista de fontes com status (requer login)
+app.get('/api/sources', authMiddleware, (req, res) => {
   const resultado = sources.map(s => ({
     name:        s.name,
     slug:        s.slug,
@@ -1150,8 +1159,8 @@ app.get('/api/sources', (req, res) => {
   res.json(resultado);
 });
 
-// GET /api/feeds[?source=slug&category=cat&since=ISO] → notícias
-app.get('/api/feeds', (req, res) => {
+// GET /api/feeds[?source=slug&category=cat&since=ISO] → notícias (requer login)
+app.get('/api/feeds', authMiddleware, (req, res) => {
   const { source, category, since } = req.query;
 
   let itens = [];
@@ -1182,10 +1191,25 @@ app.get('/api/feeds', (req, res) => {
   res.json(itens);
 });
 
-// GET /api/article?url=... → conteúdo completo do artigo via scraping
-app.get('/api/article', async (req, res) => {
+// GET /api/article?url=... → conteúdo completo do artigo via scraping (requer login + anti-SSRF)
+app.get('/api/article', authMiddleware, async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'Parâmetro url é obrigatório.' });
+
+  // Validação anti-SSRF: bloqueia IPs internos e protocolos não-HTTP
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return res.status(400).json({ error: 'URL inválida.' });
+  }
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    return res.status(400).json({ error: 'Protocolo não permitido.' });
+  }
+  if (PRIVATE_IP_RE.test(parsedUrl.hostname)) {
+    console.warn(`[api/article] Bloqueado acesso a IP interno: ${parsedUrl.hostname}`);
+    return res.status(403).json({ error: 'URL não permitida.' });
+  }
 
   try {
     const resp = await axios.get(url, {
