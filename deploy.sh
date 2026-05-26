@@ -70,14 +70,15 @@ log "🚀 Iniciando deploy XIXO News → branch: $BRANCH"
 echo ""
 
 # ── 1. Verificar e fazer stash de modificações locais ──────────────────────────
-STASH_FEITO=0
+# Nota: backend/settings.json está no .gitignore — não é rastreado pelo git
+# e não aparecerá aqui. Suas configurações sobrevivem ao deploy automaticamente.
 if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
   STASH_LABEL="pre-deploy-$(date +%Y%m%d-%H%M%S)"
   warn "Modificações locais detectadas:"
   git status --short | sed 's/^/    /'
   log "Fazendo stash: '$STASH_LABEL'"
   git stash push -m "$STASH_LABEL"
-  STASH_FEITO=1
+  warn "Stash salvo. Após validar o deploy, verifique com: git stash list"
   echo ""
 fi
 
@@ -90,17 +91,11 @@ COMMIT_MSG=$(git log -1 --format='%s (%h)' 2>/dev/null || echo 'commit desconhec
 ok "Pull concluído: $COMMIT_MSG"
 echo ""
 
-# ── 2.5 Restaurar settings.json do stash (configuração de runtime do servidor) ─
-# settings.json não é versionado — cada servidor mantém sua própria versão.
-# Se havia um stash, restaura o settings.json de lá para não perder as configurações
-# do painel (autopub on/off, intervalo, etc.) que o usuário definiu.
-if [ "$STASH_FEITO" = "1" ]; then
-  if git show stash@{0}:backend/settings.json &>/dev/null; then
-    git checkout stash@{0} -- backend/settings.json 2>/dev/null && \
-      ok "settings.json restaurado do stash (configurações do servidor preservadas)" || \
-      warn "Não foi possível restaurar settings.json do stash"
-  fi
-  git stash drop 2>/dev/null || true
+# ── 2.5 Garantir settings.json (configuração de runtime — não versionado) ──────
+# Se por algum motivo o arquivo não existir, cria com valores padrão do example.
+if [ ! -f "$DIR/backend/settings.json" ] && [ -f "$DIR/backend/settings.json.example" ]; then
+  cp "$DIR/backend/settings.json.example" "$DIR/backend/settings.json"
+  warn "settings.json não encontrado — criado a partir do settings.json.example"
 fi
 echo ""
 
