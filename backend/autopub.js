@@ -501,11 +501,13 @@ async function processarItem(item) {
     ]
   );
 
-  // 4.1 Publica no Facebook + Instagram (se configurado e habilitado para esta fonte)
+  // 4.1 Publica no Facebook + Instagram (se configurado, habilitado e com imagem)
+  // Artigos sem imagem (ex: Assembleia Legislativa) geram card com fundo vazio — não publicar.
   const querPostarFB = site.facebook_enabled
     && item.publish_facebook
     && site.facebook_page_id
-    && site.facebook_page_token;
+    && site.facebook_page_token
+    && !!artigo.image_url;
 
   if (querPostarFB) {
     try {

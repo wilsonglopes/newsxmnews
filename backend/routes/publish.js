@@ -126,7 +126,14 @@ router.post('/', async (req, res) => {
     let instagramResult = null;
     const wantsFacebook = publish_to_facebook === true || publish_to_facebook === 'true';
 
-    if (wantsFacebook && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
+    // Artigos sem imagem geram card com fundo vazio — não publicar no FB/IG.
+    if (wantsFacebook && !article.image_url) {
+      console.log(`[publish/social] artigo sem imagem — pulando FB/IG para "${rewritten.title?.slice(0, 50)}"`);
+      facebookResult  = { ok: false, skipped: true, reason: 'sem_imagem' };
+      instagramResult = { ok: false, skipped: true, reason: 'sem_imagem' };
+    }
+
+    if (wantsFacebook && article.image_url && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
       try {
         const { gerarCard, gerarCardComUrl } = require('../utils/card-generator');
         const { publicarFoto } = require('../connectors/facebook');
@@ -310,7 +317,14 @@ router.post('/manual', async (req, res) => {
     let instagramResultManual = null;
     const wantsFacebookManual = publish_to_facebook === true || publish_to_facebook === 'true';
 
-    if (wantsFacebookManual && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
+    // Artigos sem imagem geram card com fundo vazio — não publicar no FB/IG.
+    if (wantsFacebookManual && !article.image_url) {
+      console.log(`[manual/social] artigo sem imagem — pulando FB/IG para "${rewritten.title?.slice(0, 50)}"`);
+      facebookResultManual  = { ok: false, skipped: true, reason: 'sem_imagem' };
+      instagramResultManual = { ok: false, skipped: true, reason: 'sem_imagem' };
+    }
+
+    if (wantsFacebookManual && article.image_url && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
       try {
         const { gerarCard, gerarCardComUrl } = require('../utils/card-generator');
         const { publicarFoto } = require('../connectors/facebook');

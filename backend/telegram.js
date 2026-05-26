@@ -382,8 +382,8 @@ async function gerarEPedirCategoria(bot, chatId, s, reporter) {
 }
 
 async function proximaEtapaAposCategoria(bot, chatId, s) {
-  // Se site tem Facebook, pergunta. Senão vai pra confirmação
-  if (s.selectedSite.facebook_enabled && s.selectedSite.facebook_page_id && s.selectedSite.facebook_page_token) {
+  // Só pergunta sobre FB/IG se o site tem configuração E há imagem (sem imagem o card fica vazio)
+  if (s.selectedSite.facebook_enabled && s.selectedSite.facebook_page_id && s.selectedSite.facebook_page_token && s.imageUrls.length > 0) {
     s.step = 'escolhendo_fb';
     const temIG = s.selectedSite.instagram_enabled && s.selectedSite.instagram_business_account_id;
     const igTxt = temIG ? ' + Instagram 📷' : '';
@@ -442,9 +442,13 @@ async function publicar(bot, chatId, s, reporter) {
     );
   } catch (dbErr) { console.warn('[TELEGRAM] histórico:', dbErr.message); }
 
-  // Facebook + Instagram (se reporter aceitou)
+  // Facebook + Instagram (se reporter aceitou e há imagem)
+  // Sem imagem o card fica com fundo vazio — não publicar.
   let fbInfo = '';
-  if (s.publishToFacebook && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
+  if (!imageUrl && s.publishToFacebook) {
+    fbInfo = '\n⚠️ Sem imagem — Facebook/Instagram não publicados.';
+  }
+  if (s.publishToFacebook && imageUrl && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
     const querPostarIG = site.instagram_enabled && site.instagram_business_account_id;
     const pageToken    = decryptToken(site.facebook_page_token);
 
