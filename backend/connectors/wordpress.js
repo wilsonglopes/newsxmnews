@@ -225,7 +225,7 @@ async function publishViaPlugin(site, rewritten, article) {
   };
 
   const res = await axios.post(`${baseUrl}/wp-json/xmn/v1/publish`, payload, {
-    timeout:    60000,
+    timeout:    120000,   // 2 min — plugin precisa de tempo para download_url() + sideload de imagens grandes
     httpsAgent: HTTPS_AGENT,
     headers: {
       'Content-Type': 'application/json',
