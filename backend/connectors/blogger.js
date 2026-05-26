@@ -29,12 +29,19 @@ async function publishToBlogger(site, rewritten, article) {
   let accessToken = decryptToken(site.blogger_access_token);
 
   // Monta o conteúdo HTML
+  // Remove <img>/<figure> do corpo — a imagem principal já é injetada explicitamente
+  // acima via article.image_url. Sem limpeza, imagens de "Leia Mais" e seções
+  // relacionadas da fonte ficam embutidas no post.
+  const bodyLimpo = (rewritten.body || '')
+    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, '')
+    .replace(/<img\b[^>]*\/?>/gi, '');
+
   let content = '';
   if (article.image_url) {
     content += `<img src="${article.image_url}" alt="${(rewritten.title || '').replace(/"/g, '&quot;')}" style="max-width:100%;height:auto;margin-bottom:1rem;">`;
   }
   if (rewritten.chapeu) content += `<p><strong>${rewritten.chapeu}</strong></p>`;
-  content += rewritten.body || '';
+  content += bodyLimpo;
 
   const tryPublish = async (token) => {
     const res = await fetch(

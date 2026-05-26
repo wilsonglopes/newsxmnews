@@ -240,11 +240,19 @@ async function publishViaPlugin(site, rewritten, article) {
 
   console.log(`[plugin] publicando post_format=${postFormat} image_url=${imageUrlParaPlugin || '(sem imagem)'} site=${site.name}`);
 
+  // Remove <img> e <figure> do corpo — a imagem principal vai SOMENTE via image_url/featured_media.
+  // Sem essa limpeza, imagens embutidas no HTML raspado (ex: "Leia Mais" de portais como CNN Brasil)
+  // ficam visíveis no corpo do post como thumbnails pequenos de outros artigos.
+  // Mesmo comportamento já adotado em publishToWordPress() para o caminho sem plugin.
+  const bodyLimpo = (rewritten.body || '')
+    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, '')
+    .replace(/<img\b[^>]*\/?>/gi, '');
+
   const payload = {
     title:          rewritten.title       || '',
     chapeu:         rewritten.chapeu      || '',
     summary:        rewritten.summary     || '',
-    body:           rewritten.body        || '',
+    body:           bodyLimpo,
     slug:           slugify(rewritten.title),
     source_url:     article.external_url  || '',
     source_name:    nomefonte,
