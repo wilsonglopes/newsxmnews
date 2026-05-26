@@ -37,5 +37,9 @@ senha*.txt
 artigo-*.html
 files.zip
 
+# Configurações de runtime — alteradas pelo painel, não devem ser versionadas
+# Use settings.json.example como referência para valores padrão
+backend/settings.json
+
 # Imagens grandes de referência de design
 modelo modal admin.png
