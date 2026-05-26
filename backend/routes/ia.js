@@ -7,6 +7,11 @@ const router  = express.Router();
 
 router.use(auth);
 
+// Regra inviolável injetada em QUALQUER prompt de reescrita
+// (mesma constante de autopub.js — mantidas sincronizadas)
+const REGRA_ANTICOPIA = `
+REGRA INVIOLÁVEL DE REESCRITA: PROIBIDO copiar frases ou trechos do texto original. Cada frase deve ser completamente reformulada com palavras e estruturas de frases diferentes. Escreva como se você conhecesse os fatos mas nunca tivesse lido o texto original — use seu próprio vocabulário e estilo jornalístico.`;
+
 function truncarSemEspacos(str, maxChars) {
   if (!str) return str;
   let count = 0;
@@ -55,10 +60,13 @@ router.post('/rewrite', async (req, res) => {
   const textoOriginal = content.replace(/<[^>]*>/g, '').trim();
   const nParas = (content.match(/<p[\s>]/gi) || []).length || Math.max(3, Math.ceil(textoOriginal.length / 400));
 
-  const promptSistema = ai_prompt ||
+  const promptBase = ai_prompt ||
     `Você é um editor de notícias profissional. Reescreva a matéria abaixo com linguagem jornalística clara e objetiva.
 Retorne SOMENTE um JSON com:
 { "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com <p> — OBRIGATÓRIO: mantenha extensão proporcional ao original; cubra TODOS os pontos e detalhes presentes no texto; use no mínimo ${nParas} parágrafos; NÃO comprima nem resuma em excesso), "tags": string[] }.`;
+
+  // Injeta regra anti-cópia em qualquer prompt — customizado ou padrão
+  const promptSistema = promptBase + REGRA_ANTICOPIA;
 
   try {
     let textoIA = '';
