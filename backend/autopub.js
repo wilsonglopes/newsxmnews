@@ -77,8 +77,12 @@ async function chamarIA(provider, systemPrompt, userContent, maxTokens = 4096) {
 
 // ── Reescreve artigo com IA ───────────────────────────────────────────────────
 
+// Regra inviolável injetada em QUALQUER prompt (customizado ou padrão)
+const REGRA_ANTICOPIA = `
+REGRA INVIOLÁVEL DE REESCRITA: PROIBIDO copiar frases ou trechos do texto original. Cada frase deve ser completamente reformulada com palavras e estruturas de frases diferentes. Escreva como se você conhecesse os fatos mas nunca tivesse lido o texto original — use seu próprio vocabulário e estilo jornalístico.`;
+
 async function reescreverArtigo(artigo, aiPrompt, provider) {
-  const promptSistema = aiPrompt ||
+  const promptBase = aiPrompt ||
     `Você é um editor de notícias profissional. Reescreva a matéria abaixo com linguagem jornalística clara e objetiva.
 REGRAS OBRIGATÓRIAS:
 - O campo "corpo" deve cobrir TODOS os pontos da matéria original com o mesmo nível de detalhe — NÃO resuma, reescreva.
@@ -86,6 +90,9 @@ REGRAS OBRIGATÓRIAS:
 - Cada parágrafo deve ser envolto em <p>...</p>.
 Retorne SOMENTE um JSON com:
 { "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com <p>, proporcional ao original), "tags": string[] }.`;
+
+  // Injeta regra anti-cópia em qualquer prompt — customizado ou padrão
+  const promptSistema = promptBase + REGRA_ANTICOPIA;
 
   const textoLimpo = (artigo.body || artigo.summary || '')
     .replace(/<[^>]*>/g, ' ')
