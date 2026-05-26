@@ -87,6 +87,19 @@ function normalizarUrlImagem(src, baseUrl) {
 }
 
 /**
+ * Verifica se uma URL de imagem deve ser ignorada.
+ * Retorna true para imagens indesejadas como emojis do WordPress, ícones, etc.
+ */
+function deveIgnorarImagem(url) {
+  if (!url) return true;
+  // WordPress emoji CDN — miniaturas 72×72px (📍 🔥 😀 etc.) usadas em posts
+  if (/s\.w\.org\/images\/core\/emoji\//i.test(url)) return true;
+  // Gravatar e avatares genéricos
+  if (/gravatar\.com\/avatar\//i.test(url)) return true;
+  return false;
+}
+
+/**
  * Extrai a imagem destacada da página do artigo.
  * Prioridade: og:image > twitter:image > primeira <img> grande no conteúdo.
  */
@@ -95,13 +108,13 @@ function extrairImagemDestacada($, bodyHtml, baseUrl) {
   const ogRaw = $('meta[property="og:image"]').attr('content') ||
                 $('meta[name="og:image"]').attr('content');
   const og = normalizarUrlImagem(ogRaw, baseUrl);
-  if (og) return og;
+  if (og && !deveIgnorarImagem(og)) return og;
 
   // 2. twitter:image
   const twRaw = $('meta[name="twitter:image"]').attr('content') ||
                 $('meta[property="twitter:image"]').attr('content');
   const tw = normalizarUrlImagem(twRaw, baseUrl);
-  if (tw) return tw;
+  if (tw && !deveIgnorarImagem(tw)) return tw;
 
   // 3. JSON-LD image
   try {
@@ -112,7 +125,7 @@ function extrairImagemDestacada($, bodyHtml, baseUrl) {
         const img = entry.image?.url || entry.image || entry.thumbnailUrl;
         if (img && typeof img === 'string') {
           const u = normalizarUrlImagem(img, baseUrl);
-          if (u) throw { found: u }; // break via throw
+          if (u && !deveIgnorarImagem(u)) throw { found: u }; // break via throw
         }
       }
     });
@@ -131,7 +144,7 @@ function extrairImagemDestacada($, bodyHtml, baseUrl) {
       const height = parseInt($b(el).attr('height') || '0', 10);
       if (width  > 0 && width  < 200) return;
       if (height > 0 && height < 150) return;
-      if (src) { found = src; return false; }
+      if (src && !deveIgnorarImagem(src)) { found = src; return false; }
     });
     if (found) return found;
   }
@@ -142,6 +155,8 @@ function extrairImagemDestacada($, bodyHtml, baseUrl) {
     const srcRaw = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-lazy-src') || '';
     const src    = normalizarUrlImagem(srcRaw, baseUrl);
     if (!src) return;
+    // Filtra emojis, gravatars e outras imagens indesejadas
+    if (deveIgnorarImagem(src)) return;
     // Filtra SVGs (geralmente ícones/logos)
     if (src.match(/\.svg(\?|$)/i)) return;
     // Filtra imagens de tema/template (WordPress, Drupal, etc.)
