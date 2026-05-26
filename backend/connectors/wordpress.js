@@ -161,82 +161,41 @@ async function publishViaPlugin(site, rewritten, article) {
   //   'standard'  → imagem apenas como featured_media (para temas que já a exibem, ex: Hello Elementor)
   const postFormat = site.post_format || 'editorial';
 
-  // Pré-upload da imagem: o backend baixa a imagem da fonte (VPS tem acesso) e sobe
-  // para a biblioteca de mídia do WP antes de chamar o plugin. O plugin recebe a URL
-  // já hospedada no próprio WP → download instantâneo, sem timeout por CDNs bloqueadas.
-  // Fallback: se não houver wp_app_password, tenta a URL original; se inacessível, publica sem imagem.
+  // Imagem para o plugin:
+  // - Autopub: passa image_url diretamente → plugin faz download_url() + set_post_thumbnail() internamente
+  // - Criar Post (pré-upload OK): image_media_id já existe no WP → plugin usa diretamente sem download
+  // - Criar Post (pré-upload falhou, image_base64 presente): cria temp file acessível via /api/uploads/
   let imageUrlParaPlugin = article.image_url || '';
 
   if (imageUrlParaPlugin && article.image_media_id) {
-    // Imagem já foi pré-carregada pelo frontend (Criar Post / image_media_id setado).
-    // Usar a URL diretamente — re-download+upload seria redundante e pode falhar se
-    // o WAF do WP bloquear requisições do VPS para sua própria mídia.
-    console.log(`[plugin] imagem pré-carregada (media_id=${article.image_media_id}), usando URL direta: ${imageUrlParaPlugin}`);
-  } else if (imageUrlParaPlugin && site.wp_app_password && site.wp_username) {
+    // Imagem já na biblioteca do WP — plugin usa image_media_id direto, sem download
+    console.log(`[plugin] imagem pré-carregada (media_id=${article.image_media_id}): ${imageUrlParaPlugin}`);
+  } else if (!imageUrlParaPlugin && article.image_base64) {
+    // Criar Post sem URL (upload-image falhou): serve a imagem via temp file no backend
     try {
-      const password  = decryptToken(site.wp_app_password);
-      const wpAuth    = Buffer.from(`${site.wp_username}:${password}`).toString('base64');
-      const wpHeaders = { Authorization: `Basic ${wpAuth}` };
-      const img = await resolveImageBuffer({ image_url: imageUrlParaPlugin });
-      if (img) {
-        const { id: mediaId, url: mediaUrl } = await uploadImageToWP(baseUrl, wpHeaders, img);
-        if (mediaUrl) {
-          console.log(`[plugin] pré-upload OK: ${imageUrlParaPlugin} → ${mediaUrl}`);
-          imageUrlParaPlugin = mediaUrl;
-        }
-      }
-    } catch (e) {
-      console.warn(`[plugin] pré-upload falhou (${e.message}), tentando URL original`);
-      // 403 = WAF bloqueia o VPS mas a URL é pública (browsers acessam normalmente)
-      // Só limpa a imagem se o erro não foi 403 e a URL também falha no HEAD
-      if (e.response?.status !== 403 && !/403/.test(e.message)) {
-        try {
-          await axios.head(imageUrlParaPlugin, { timeout: 4000, httpsAgent: HTTPS_AGENT,
-            headers: { 'User-Agent': 'Mozilla/5.0' } });
-        } catch {
-          console.warn(`[plugin] URL original inacessível, publicando sem imagem`);
-          imageUrlParaPlugin = '';
-        }
-      }
-    }
-  } else if (imageUrlParaPlugin || article.image_base64) {
-    // Sem credenciais WP: resolve imagem (base64 ou URL) e serve via temp file no backend.
-    // O plugin baixa do nosso servidor em vez da CDN original ou de memória do frontend.
-    try {
-      const imgSource = article.image_base64
-        ? { image_base64: article.image_base64, image_mime: article.image_mime, image_name: article.image_name }
-        : { image_url: imageUrlParaPlugin };
-      const img = await resolveImageBuffer(imgSource);
+      const img = await resolveImageBuffer({
+        image_base64: article.image_base64,
+        image_mime:   article.image_mime,
+        image_name:   article.image_name,
+      });
       if (img) {
         const backendUrl = (process.env.BACKEND_URL || '').replace(/\/$/, '');
         if (backendUrl && !backendUrl.includes('localhost')) {
-          // Salva em public/uploads/ (servido pelo nginx via location ^~ /api/uploads/)
           if (!fs.existsSync(PUBLIC_UPLOADS_DIR)) fs.mkdirSync(PUBLIC_UPLOADS_DIR, { recursive: true });
-          const ext      = img.fileName.split('.').pop() || 'jpg';
-          const tmpName  = `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-          const tmpPath  = path.join(PUBLIC_UPLOADS_DIR, tmpName);
+          const ext     = img.fileName.split('.').pop() || 'jpg';
+          const tmpName = `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+          const tmpPath = path.join(PUBLIC_UPLOADS_DIR, tmpName);
           fs.writeFileSync(tmpPath, img.buffer);
           imageUrlParaPlugin = `${backendUrl}/api/uploads/${tmpName}`;
-          // Limpa o arquivo temporário após 15 minutos
           setTimeout(() => { try { fs.unlinkSync(tmpPath); } catch {} }, 15 * 60 * 1000);
-          console.log(`[plugin] temp img: ${img.buffer.length} bytes → ${imageUrlParaPlugin}`);
+          console.log(`[plugin] temp img base64: ${img.buffer.length}b → ${imageUrlParaPlugin}`);
         }
-        // Em localhost (dev): usa URL original — plugin não consegue acessar localhost de fora
       }
     } catch (e) {
-      console.warn(`[plugin] temp img falhou (${e.message}), tentando URL original`);
-    }
-    // Verifica se URL final ainda é acessível; se não, publica sem imagem
-    if (imageUrlParaPlugin) {
-      try {
-        await axios.head(imageUrlParaPlugin, { timeout: 5000, httpsAgent: HTTPS_AGENT,
-          headers: { 'User-Agent': 'Mozilla/5.0' } });
-      } catch {
-        console.warn(`[plugin] URL final inacessível, publicando sem imagem`);
-        imageUrlParaPlugin = '';
-      }
+      console.warn(`[plugin] temp img falhou (${e.message}), publicando sem imagem`);
     }
   }
+  // Demais casos (autopub com image_url): plugin recebe a URL original e chama download_url() internamente
 
   console.log(`[plugin] publicando post_format=${postFormat} image_url=${imageUrlParaPlugin || '(sem imagem)'} site=${site.name}`);
 
