@@ -8,7 +8,9 @@ const FormData = require('form-data');
 const sharp    = require('sharp');
 const { decryptToken } = require('./encrypt');
 
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOADS_DIR     = path.join(__dirname, '..', 'uploads');
+// Diretório público (servido pelo nginx via /api/uploads/) — usado para temp files de imagem
+const PUBLIC_UPLOADS_DIR = path.join(__dirname, '..', 'public', 'uploads');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
@@ -208,12 +210,13 @@ async function publishViaPlugin(site, rewritten, article) {
       if (img) {
         const backendUrl = (process.env.BACKEND_URL || '').replace(/\/$/, '');
         if (backendUrl && !backendUrl.includes('localhost')) {
-          if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+          // Salva em public/uploads/ (servido pelo nginx via location ^~ /api/uploads/)
+          if (!fs.existsSync(PUBLIC_UPLOADS_DIR)) fs.mkdirSync(PUBLIC_UPLOADS_DIR, { recursive: true });
           const ext      = img.fileName.split('.').pop() || 'jpg';
           const tmpName  = `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-          const tmpPath  = path.join(UPLOADS_DIR, tmpName);
+          const tmpPath  = path.join(PUBLIC_UPLOADS_DIR, tmpName);
           fs.writeFileSync(tmpPath, img.buffer);
-          imageUrlParaPlugin = `${backendUrl}/uploads/${tmpName}`;
+          imageUrlParaPlugin = `${backendUrl}/api/uploads/${tmpName}`;
           // Limpa o arquivo temporário após 15 minutos
           setTimeout(() => { try { fs.unlinkSync(tmpPath); } catch {} }, 15 * 60 * 1000);
           console.log(`[plugin] temp img: ${img.buffer.length} bytes → ${imageUrlParaPlugin}`);
