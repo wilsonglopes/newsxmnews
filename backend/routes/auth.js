@@ -10,8 +10,56 @@ const router = express.Router();
 
 const JWT_EXPIRES = '7d';
 
+// ── Rate limiting de login (em memória) ───────────────────────────────────────
+// Estrutura: Map<ip, { attempts: number, blockedUntil: number|null, firstAttempt: number }>
+const loginAttempts = new Map();
+const MAX_ATTEMPTS  = 10;        // tentativas antes de bloquear
+const WINDOW_MS     = 15 * 60 * 1000; // janela de 15 minutos
+const BLOCK_MS      = 15 * 60 * 1000; // bloqueio de 15 minutos
+
+// Limpa entradas antigas a cada hora para não vazar memória
+setInterval(() => {
+  const agora = Date.now();
+  for (const [ip, entry] of loginAttempts) {
+    const expirado = entry.blockedUntil
+      ? agora > entry.blockedUntil
+      : agora - entry.firstAttempt > WINDOW_MS;
+    if (expirado) loginAttempts.delete(ip);
+  }
+}, 60 * 60 * 1000);
+
+function verificarRateLimit(req, res) {
+  const ip   = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const agora = Date.now();
+  const entry = loginAttempts.get(ip) || { attempts: 0, blockedUntil: null, firstAttempt: agora };
+
+  // Ainda bloqueado?
+  if (entry.blockedUntil && agora < entry.blockedUntil) {
+    const restanteSeg = Math.ceil((entry.blockedUntil - agora) / 1000);
+    res.status(429).json({ error: `Muitas tentativas. Aguarde ${restanteSeg}s para tentar novamente.` });
+    return false;
+  }
+
+  // Janela expirou — reinicia contagem
+  if (agora - entry.firstAttempt > WINDOW_MS) {
+    loginAttempts.set(ip, { attempts: 1, blockedUntil: null, firstAttempt: agora });
+    return true;
+  }
+
+  // Incrementa tentativa
+  entry.attempts += 1;
+  if (entry.attempts >= MAX_ATTEMPTS) {
+    entry.blockedUntil = agora + BLOCK_MS;
+    console.warn(`[auth] IP bloqueado por brute-force: ${ip} (${entry.attempts} tentativas)`);
+  }
+  loginAttempts.set(ip, entry);
+  return true;
+}
+
 // ── POST /api/auth/login ───────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
+  if (!verificarRateLimit(req, res)) return;
+
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -45,6 +93,10 @@ router.post('/login', async (req, res) => {
        WHERE subscriber_id = $1 AND active = true`,
       [subscriber.id]
     );
+
+    // Login bem-sucedido — limpa contador de tentativas do IP
+    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+    loginAttempts.delete(ip);
 
     // Gera JWT
     const payload = {
