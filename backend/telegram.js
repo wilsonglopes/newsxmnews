@@ -185,7 +185,7 @@ Retorne SOMENTE um JSON:
   if (!r) throw new Error('IA não retornou JSON válido.');
   const titulo = (r.titulo || r.title || '').trim();
   return {
-    title: sentenceCasePtBR(titulo),
+    title: titulo,
     chapeu: r.chapeu || '',
     summary: r.resumo || r.summary || '', body: r.corpo || r.body || '',
     tags: r.tags || [], category_ids: [],
