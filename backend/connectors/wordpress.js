@@ -238,17 +238,20 @@ async function publishViaPlugin(site, rewritten, article) {
   console.log(`[plugin] publicando post_format=${postFormat} image_url=${imageUrlParaPlugin || '(sem imagem)'} site=${site.name}`);
 
   const payload = {
-    title:       rewritten.title       || '',
-    chapeu:      rewritten.chapeu      || '',
-    summary:     rewritten.summary     || '',
-    body:        rewritten.body        || '',
-    slug:        slugify(rewritten.title),
-    source_url:  article.external_url  || '',
-    source_name: nomefonte,
-    image_url:   imageUrlParaPlugin,
-    post_format: postFormat,
-    tags:        rewritten.tags        || [],
-    category_ids: rewritten.category_ids?.length ? rewritten.category_ids : (rewritten.category_id ? [rewritten.category_id] : []),
+    title:          rewritten.title       || '',
+    chapeu:         rewritten.chapeu      || '',
+    summary:        rewritten.summary     || '',
+    body:           rewritten.body        || '',
+    slug:           slugify(rewritten.title),
+    source_url:     article.external_url  || '',
+    source_name:    nomefonte,
+    image_url:      imageUrlParaPlugin,
+    // Quando a imagem foi pré-carregada pelo backend (Criar Post), o media_id
+    // já existe na biblioteca do WP. O plugin usa diretamente sem novo download.
+    image_media_id: (imageUrlParaPlugin && article.image_media_id) ? article.image_media_id : 0,
+    post_format:    postFormat,
+    tags:           rewritten.tags        || [],
+    category_ids:   rewritten.category_ids?.length ? rewritten.category_ids : (rewritten.category_id ? [rewritten.category_id] : []),
   };
 
   const res = await axios.post(`${baseUrl}/wp-json/xmn/v1/publish`, payload, {

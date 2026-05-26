@@ -219,10 +219,11 @@ function xmn_handle_publish( WP_REST_Request $request ) {
     $slug        = sanitize_title(      $d['slug']        ?? '' );
     $source_url  = esc_url_raw(         $d['source_url']  ?? '' );
     $source_name = sanitize_text_field( $d['source_name'] ?? '' );
-    $image_url   = esc_url_raw(         $d['image_url']   ?? '' );
-    $post_format = sanitize_text_field( $d['post_format'] ?? 'editorial' );
-    $tags        = array_map( 'sanitize_text_field', (array) ( $d['tags']         ?? [] ) );
-    $cat_ids     = array_map( 'intval',               (array) ( $d['category_ids'] ?? [] ) );
+    $image_url      = esc_url_raw( $d['image_url']      ?? '' );
+    $image_media_id = intval(      $d['image_media_id'] ?? 0  );
+    $post_format    = sanitize_text_field( $d['post_format'] ?? 'editorial' );
+    $tags           = array_map( 'sanitize_text_field', (array) ( $d['tags']         ?? [] ) );
+    $cat_ids        = array_map( 'intval',               (array) ( $d['category_ids'] ?? [] ) );
 
     if ( ! $title ) {
         return new WP_REST_Response( [ 'error' => 'Título obrigatório.' ], 400 );
@@ -241,11 +242,17 @@ function xmn_handle_publish( WP_REST_Request $request ) {
         }
     }
 
-    // ── 2. Upload da imagem ───────────────────────────────────────────────────
+    // ── 2. Imagem destacada ───────────────────────────────────────────────────
     $featured_id  = 0;
     $embedded_img = $image_url;
 
-    if ( $image_url ) {
+    if ( $image_media_id > 0 ) {
+        // Caminho rápido: imagem já está na biblioteca de mídia do WP (pré-carregada
+        // pelo backend via /upload-image). Usar o media_id diretamente — sem download.
+        $featured_id  = $image_media_id;
+        $embedded_img = wp_get_attachment_url( $image_media_id ) ?: $image_url;
+    } elseif ( $image_url ) {
+        // Caminho padrão: backend envia URL externa; plugin baixa e faz sideload.
         require_once ABSPATH . 'wp-admin/includes/image.php';
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/media.php';
