@@ -131,7 +131,9 @@
       "linkSelector": "a",
       "imageSelector": "img",
       "linkFilter": "estado\\.sc\\.gov\\.br\\/noticias\\/[a-z][a-z0-9]*(-[a-z0-9]+){5,}\\/"
-    }
+    },
+    "headless": true,
+    "content_selector": ".entry-content"
   },
   {
     "name": "Governo do RS",
@@ -148,7 +150,9 @@
     "type": "rss",
     "url": "https://www.alesc.sc.gov.br/agenciaal/feed/",
     "active": true,
-    "category": "governo"
+    "category": "governo",
+    "headless": true,
+    "content_selector": ".entry-content"
   },
   {
     "name": "Assembleia RS",
@@ -220,7 +224,9 @@
       "linkSelector": "a.elementor-post__thumbnail__link",
       "imageSelector": ".elementor-post__thumbnail img",
       "linkFilter": "/202[56]/"
-    }
+    },
+    "headless": true,
+    "content_selector": ".entry-content"
   },
   {
     "name": "Pref. Torres",
@@ -272,7 +278,9 @@
     "url": "https://passodetorres.sc.gov.br/noticias",
     "active": false,
     "category": "prefeitura",
-    "_obs": "Site retorna 403 em todas as rotas"
+    "_obs": "Site retorna 403 em todas as rotas",
+    "headless": true,
+    "content_selector": ".entry-content"
   },
   {
     "name": "Pref. Bal. Gaivota",
@@ -281,7 +289,9 @@
     "url": "https://balneariogaivota.sc.gov.br/noticias",
     "active": false,
     "category": "prefeitura",
-    "_obs": "RSS com XML malformado; /noticias excede timeout (>20s)"
+    "_obs": "RSS com XML malformado; /noticias excede timeout (>20s)",
+    "headless": true,
+    "content_selector": ".entry-content"
   },
   {
     "name": "Pref. São João do Sul",
@@ -436,7 +446,7 @@
     "category": "prefeitura",
     "extract_body_image": false,
     "content_selector": null,
-    "featured_image_selector": "gallery-item-content item-content-regular image-item gallery-item-visible gallery-item gallery-item-preloaded grid-fit"
+    "featured_image_selector": null
   },
   {
     "name": "Pref. Rodrigues Alves",
@@ -495,7 +505,8 @@
     },
     "extract_body_image": false,
     "content_selector": "#texto",
-    "featured_image_selector": "#img-principal"
+    "featured_image_selector": "#img-principal",
+    "headless": true
   },
   {
     "name": "Pref. de Içara",
@@ -513,7 +524,8 @@
     },
     "extract_body_image": false,
     "content_selector": ".noticia_conteudo",
-    "featured_image_selector": ".noticia_imagem_principal img"
+    "featured_image_selector": ".noticia_imagem_principal img",
+    "headless": true
   },
   {
     "name": "Pref. de Santa Rosa do Sul",
