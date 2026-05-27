@@ -638,6 +638,7 @@ async function persistirArtigos(itens, sourceSlug, source) {
   if (!pool) return;
 
   let novos = 0;
+  const toEnrich = []; // artigos novos sem imagem no feed — scraping vai preencher
   try {
     // Busca o UUID da fonte pelo slug
     const { rows } = await pool.query(
@@ -708,11 +709,34 @@ async function persistirArtigos(itens, sourceSlug, source) {
         norm.published_at ? new Date(norm.published_at) : null,
       ]);
       novos++;
+      // Artigo novo sem imagem: enriquecer depois via scraping da página do artigo
+      if (!norm.image_url) toEnrich.push(norm.external_url);
     }
 
     if (novos > 0) console.log(`[DB] ${sourceSlug}: ${novos} artigos novos salvos`);
   } catch (err) {
     console.error(`[DB] Erro ao persistir artigos de ${sourceSlug}:`, err.message);
+  }
+
+  // Enriquece imagem via scraping para artigos novos que vieram sem imagem no feed.
+  // Sequencial (não paralelo) para não sobrecarregar o servidor/proxy.
+  // Cobre sc.gov.br e qualquer fonte cujo RSS não inclua featured image.
+  if (toEnrich.length > 0) {
+    const { fetchFullContent } = require('./scrapers/full-content');
+    (async () => {
+      for (const url of toEnrich.slice(0, 5)) {
+        try {
+          const { image_url: scraped } = await fetchFullContent(url, source);
+          if (scraped) {
+            await pool.query(
+              'UPDATE articles SET image_url = $1 WHERE external_url = $2 AND image_url IS NULL',
+              [scraped, url]
+            );
+            console.log(`[image-enrich] ${sourceSlug}: imagem recuperada para ${url}`);
+          }
+        } catch { /* imagem fica nula; autopub tenta novamente ao publicar */ }
+      }
+    })();
   }
 }
 
