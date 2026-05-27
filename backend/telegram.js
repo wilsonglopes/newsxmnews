@@ -458,7 +458,7 @@ async function publicar(bot, chatId, s, reporter) {
       if (querPostarIG) {
         const r = await gerarCardComUrl({
           chapeu:   article.chapeu || '',
-          resumo:   article.summary || '',
+          titulo:   article.title  || '',
           imageUrl: imageUrl || '',
         });
         cardBuffer    = r.buffer;
@@ -466,7 +466,7 @@ async function publicar(bot, chatId, s, reporter) {
       } else {
         cardBuffer = await gerarCard({
           chapeu:   article.chapeu || '',
-          resumo:   article.summary || '',
+          titulo:   article.title  || '',
           imageUrl: imageUrl || '',
         });
       }

@@ -521,7 +521,7 @@ async function processarItem(item) {
       if (querPostarIG) {
         const r = await gerarCardComUrl({
           chapeu:   reescrito.chapeu || artigo.chapeu || '',
-          resumo:   reescrito.summary || artigo.summary || '',
+          titulo:   reescrito.title  || artigo.title  || '',
           imageUrl: artigo.image_url || '',
         });
         cardBuffer    = r.buffer;
@@ -529,7 +529,7 @@ async function processarItem(item) {
       } else {
         cardBuffer = await gerarCard({
           chapeu:   reescrito.chapeu || artigo.chapeu || '',
-          resumo:   reescrito.summary || artigo.summary || '',
+          titulo:   reescrito.title  || artigo.title  || '',
           imageUrl: artigo.image_url || '',
         });
       }

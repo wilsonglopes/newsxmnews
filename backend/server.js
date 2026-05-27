@@ -1013,22 +1013,22 @@ app.get('/api/test-card', async (req, res) => {
   try {
     const articleId = req.query.article_id;
     let chapeu = req.query.chapeu || 'COPA DO MUNDO';
-    let resumo = req.query.resumo || 'Texto de exemplo do resumo.';
+    let titulo = req.query.titulo || 'Título de exemplo do card de notícias.';
     let imageUrl = req.query.image_url || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Luiz_In%C3%A1cio_Lula_da_Silva_and_George_W._Bush_20080709.jpg/1280px-Luiz_In%C3%A1cio_Lula_da_Silva_and_George_W._Bush_20080709.jpg';
 
     if (articleId) {
       const { rows } = await pool.query(
-        'SELECT chapeu, summary, image_url FROM articles WHERE id = $1',
+        'SELECT chapeu, title, image_url FROM articles WHERE id = $1',
         [articleId]
       );
       if (rows[0]) {
-        chapeu   = rows[0].chapeu   || chapeu;
-        resumo   = rows[0].summary  || resumo;
+        chapeu   = rows[0].chapeu    || chapeu;
+        titulo   = rows[0].title     || titulo;
         imageUrl = rows[0].image_url || imageUrl;
       }
     }
 
-    const buffer = await gerarCard({ chapeu, resumo, imageUrl });
+    const buffer = await gerarCard({ chapeu, titulo, imageUrl });
     res.type('image/jpeg').send(buffer);
   } catch (err) {
     console.error('[test-card]', err);

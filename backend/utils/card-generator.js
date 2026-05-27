@@ -75,8 +75,8 @@ function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
   return linhas;
 }
 
-// SVG dos textos (chapéu + resumo)
-function montarSvgTextos(chapeu, resumo) {
+// SVG dos textos (chapéu + título)
+function montarSvgTextos(chapeu, titulo) {
   // Chapéu: pega só a primeira palavra (1 palavra MAIÚSCULA, evita "INDÚSTRIA DE" etc)
   const chapeuRaw = (chapeu || '').trim();
   // Pega primeira palavra substantiva ignorando preposições/artigos curtos
@@ -88,22 +88,20 @@ function montarSvgTextos(chapeu, resumo) {
   }
   const chapeuTexto = escapeXml(chapeuFinal.toUpperCase());
 
-  // Pega só a primeira frase completa do resumo (garante ponto final, sem reticências)
-  const resumoLimpo = primeiraFrase(resumo || '');
   // 42 chars/linha (margem de segurança para fontes mais largas em pt-BR); 6 linhas de capacidade
-  const linhasResumo = quebrarLinhas(resumoLimpo, 42, 6);
+  const linhasTitulo = quebrarLinhas(titulo || '', 42, 6);
   const lineHeight = 80;
   const resumoY0 = CARD.resumoArea.y + 50;
 
   // Justificação: todas as linhas EXCETO a última recebem textLength=resumoArea.w
   // com lengthAdjust='spacing' (estica APENAS os espaços entre palavras — não distorce as letras)
-  const lastIdx = linhasResumo.length - 1;
-  const tspans = linhasResumo
+  const lastIdx = linhasTitulo.length - 1;
+  const tspans = linhasTitulo
     .map((l, i) => {
-      const palavras = l.trim().split(/\s+/);
+      const palavrasLinha = l.trim().split(/\s+/);
       const ehUltima = i === lastIdx;
       // Não justifica: última linha; linhas com 1 palavra só; linhas muito curtas (< 60% da largura)
-      const podeJustificar = !ehUltima && palavras.length > 1 && l.length >= 28;
+      const podeJustificar = !ehUltima && palavrasLinha.length > 1 && l.length >= 28;
       const attrs = podeJustificar
         ? `textLength="${CARD.resumoArea.w}" lengthAdjust="spacing"`
         : '';
@@ -162,7 +160,7 @@ async function baixarImagem(url) {
 
 // ─── Gerador principal ──────────────────────────────────────────────────────
 
-async function gerarCard({ chapeu, resumo, imageUrl }) {
+async function gerarCard({ chapeu, titulo, imageUrl }) {
   // 1) Baixa foto e ajusta pra área da foto
   let fotoBuffer;
   try {
@@ -204,7 +202,7 @@ async function gerarCard({ chapeu, resumo, imageUrl }) {
     .toBuffer();
 
   // 3) Sobrepõe template e textos
-  const svgTextos = montarSvgTextos(chapeu, resumo);
+  const svgTextos = montarSvgTextos(chapeu, titulo);
 
   const cardFinal = await sharp(canvas)
     .composite([

@@ -148,7 +148,7 @@ router.post('/', async (req, res) => {
         if (wantsInstagram) {
           const r = await gerarCardComUrl({
             chapeu:   rewritten.chapeu || article.chapeu || '',
-            resumo:   rewritten.summary || article.summary || '',
+            titulo:   rewritten.title  || article.title  || '',
             imageUrl: article.image_url || '',
           });
           cardBuffer    = r.buffer;
@@ -156,7 +156,7 @@ router.post('/', async (req, res) => {
         } else {
           cardBuffer = await gerarCard({
             chapeu:   rewritten.chapeu || article.chapeu || '',
-            resumo:   rewritten.summary || article.summary || '',
+            titulo:   rewritten.title  || article.title  || '',
             imageUrl: article.image_url || '',
           });
         }
@@ -338,7 +338,7 @@ router.post('/manual', async (req, res) => {
         if (wantsInstagram) {
           const r = await gerarCardComUrl({
             chapeu:   rewritten.chapeu || '',
-            resumo:   rewritten.summary || '',
+            titulo:   rewritten.title  || '',
             imageUrl: article.image_url || '',
           });
           cardBuffer    = r.buffer;
@@ -346,7 +346,7 @@ router.post('/manual', async (req, res) => {
         } else {
           cardBuffer = await gerarCard({
             chapeu:   rewritten.chapeu || '',
-            resumo:   rewritten.summary || '',
+            titulo:   rewritten.title  || '',
             imageUrl: article.image_url || '',
           });
         }
