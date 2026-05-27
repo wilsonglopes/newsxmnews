@@ -38,8 +38,9 @@ artigo-*.html
 files.zip
 
 # Configurações de runtime — alteradas pelo painel, não devem ser versionadas
-# Use settings.json.example como referência para valores padrão
+# Use settings.json.example / sources.default.json como referência
 backend/settings.json
+backend/sources.json
 
 # Imagens grandes de referência de design
 modelo modal admin.png

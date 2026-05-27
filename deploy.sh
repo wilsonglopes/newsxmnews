@@ -91,11 +91,16 @@ COMMIT_MSG=$(git log -1 --format='%s (%h)' 2>/dev/null || echo 'commit desconhec
 ok "Pull concluído: $COMMIT_MSG"
 echo ""
 
-# ── 2.5 Garantir settings.json (configuração de runtime — não versionado) ──────
-# Se por algum motivo o arquivo não existir, cria com valores padrão do example.
+# ── 2.5 Garantir arquivos de runtime (não versionados) ────────────────────────
+# settings.json e sources.json são gerenciados pelo painel — nunca sobrescritos.
+# Se não existirem (primeiro deploy), cria a partir dos arquivos de referência.
 if [ ! -f "$DIR/backend/settings.json" ] && [ -f "$DIR/backend/settings.json.example" ]; then
   cp "$DIR/backend/settings.json.example" "$DIR/backend/settings.json"
   warn "settings.json não encontrado — criado a partir do settings.json.example"
+fi
+if [ ! -f "$DIR/backend/sources.json" ] && [ -f "$DIR/backend/sources.default.json" ]; then
+  cp "$DIR/backend/sources.default.json" "$DIR/backend/sources.json"
+  warn "sources.json não encontrado — criado a partir do sources.default.json"
 fi
 echo ""
 
