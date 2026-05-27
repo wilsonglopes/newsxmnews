@@ -117,6 +117,14 @@ image_base64 → temp file em backend/public/uploads/
 - `/uploads/` → **NÃO funciona** (regex intercepta — 404)
 - `/api/uploads/` → **funciona** (`location ^~`)
 
+### `backend/utils/allowed-hosts.js` — proxy de imagens
+- **Ao cadastrar nova fonte:** adicionar domínio das imagens no mesmo commit
+- **Fontes existentes podem mudar de CDN silenciosamente** — monitorar warnings nos logs:
+  ```
+  [ALLOWED_HOSTS] ⚠️  agenciabrasil: imagem de "cdn.jsdelivr.net" não está em allowed-hosts.js
+  ```
+- Sem o domínio na lista: 403 silencioso → modal sem imagem → postagem sem foto
+
 ---
 
 ## 5. BANCO DE DADOS
@@ -210,3 +218,4 @@ image_base64 → temp file em backend/public/uploads/
 | 16 | FB/IG sem imagem | Card com fundo vazio publicado | Verificar `image_url` — 5 pontos no código |
 | 17 | settings.json versionado | Deploy sobrescrevia; autopub desligava | settings.json no `.gitignore` |
 | 18 | ERROR no histórico ≠ falha real | Timeout → ERROR, mas post existe no WP | Antes de investigar: checar se post existe |
+| 19 | CDN de fonte mudou silenciosamente | Agência Brasil migrou para `cdn.jsdelivr.net`; imagens bloqueadas por dias sem erro explícito | Monitorar `[ALLOWED_HOSTS] ⚠️` nos logs; arquivo correto: `allowed-hosts.js` |
