@@ -20,11 +20,15 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const BLOCK_TYPES = new Set(['image', 'stylesheet', 'font', 'media', 'ping', 'tracking']);
 
 // Seletores tentados em ordem para extrair o corpo do artigo após renderização JS.
-// Inclui seletores específicos de Wix + genéricos.
+// Inclui seletores específicos de Wix, Elementor + genéricos.
 const HEADLESS_SELECTORS = [
   // Wix Blog (público, sem autenticação)
   '[data-hook="post-description"]',
   '[class*="blog-post-page-font"]',
+  // Elementor WordPress page builder (ex: Prefeitura de Torres/RS)
+  '.elementor-widget-theme-post-content',
+  '.elementor-widget-text-editor .elementor-widget-container',
+  '.elementor-text-editor',
   // Genéricos — funcionam também em outros sites JS-rendered
   '[itemprop="articleBody"]',
   'article .entry-content',
@@ -53,6 +57,8 @@ function isJsRenderedSite(html) {
   // Sites que dependem de JS para carregar conteúdo (Angular, Vue, etc.)
   if (html.includes('ng-version='))                 return true;
   if (html.includes('data-server-rendered="true"')) return true;
+  // Elementor WordPress page builder — conteúdo renderizado via JS
+  if (html.includes('elementor-widget-container'))  return true;
   return false;
 }
 

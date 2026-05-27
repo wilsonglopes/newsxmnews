@@ -148,7 +148,7 @@
     "name": "Assembleia SC",
     "slug": "alesc",
     "type": "rss",
-    "url": "https://www.alesc.sc.gov.br/agenciaal/feed/",
+    "url": "https://www.alesc.sc.gov.br/agencia/feed/",
     "active": true,
     "category": "governo",
     "headless": true,
@@ -214,7 +214,7 @@
     "name": "Pref. Sombrio",
     "slug": "pref-sombrio",
     "type": "scraping",
-    "url": "https://sombrio.sc.gov.br/noticias",
+    "url": "https://www.sombrio.sc.gov.br/noticias",
     "active": true,
     "category": "prefeitura",
     "scraping": {
@@ -231,17 +231,14 @@
   {
     "name": "Pref. Torres",
     "slug": "pref-torres",
-    "type": "scraping",
-    "url": "https://torres.rs.gov.br/todas-as-noticias/",
+    "type": "rss",
+    "url": "https://torres.rs.gov.br/feed/",
     "active": true,
     "category": "prefeitura",
-    "scraping": {
-      "itemSelector": ".jet-listing-grid__item",
-      "titleSelector": ".elementor-cta__title",
-      "linkSelector": "a.elementor-cta",
-      "imageSelector": "img"
-    },
-    "extract_body_image": true
+    "extract_body_image": false,
+    "content_selector": ".elementor-widget-theme-post-content",
+    "featured_image_selector": null,
+    "_obs": "Site usa Elementor; RSS vazio exige fetchFullContent on-demand; headless ativado via isJsRenderedSite()"
   },
   {
     "name": "Pref. Arroio do Sal",
@@ -712,7 +709,7 @@
     "slug": "pref-de-turvo",
     "type": "scraping",
     "url": "https://turvo.sc.gov.br/noticias/",
-    "active": true,
+    "active": false,
     "headless": true,
     "category": "prefeitura",
     "extract_body_image": false,
@@ -721,7 +718,8 @@
     "scraping": {
       "itemSelector": ".post-item",
       "titleSelector": ".post-title"
-    }
+    },
+    "_obs": "Site permanentemente fora do ar (HTTP 410) desde 2026-05-27"
   },
   {
     "name": "Pref. de Sangão",

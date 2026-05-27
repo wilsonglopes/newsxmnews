@@ -558,6 +558,55 @@ async function sincronizarFontesDB() {
   }
 }
 
+// ─── Reparar imagens nulas em artigos recentes (sc.gov.br RSS) ────────────────
+// Fontes sc.gov.br RSS não incluem imagens no feed. O enriquecimento ao inserir
+// cobre novos artigos, mas artigos já no banco ficam com image_url = NULL.
+// Este job cobre artigos dos últimos 7 dias que ainda estão sem imagem.
+async function repararImagensNulas() {
+  if (!pool) return;
+  try {
+    const { rows } = await pool.query(`
+      SELECT a.id, a.external_url, so.slug, so.content_selector, so.featured_image_selector, so.extract_body_image
+      FROM articles a
+      JOIN sources so ON so.id = a.source_id
+      WHERE a.image_url IS NULL
+        AND so.url ILIKE '%sc.gov.br%'
+        AND so.type = 'rss'
+        AND a.published_at >= NOW() - INTERVAL '7 days'
+      ORDER BY a.published_at DESC
+      LIMIT 30
+    `);
+    if (!rows.length) return;
+    console.log(`[image-repair] ${rows.length} artigos sc.gov.br sem imagem — iniciando reparo em background`);
+    const { fetchFullContent } = require('./scrapers/full-content');
+    (async () => {
+      for (const art of rows) {
+        try {
+          const source = {
+            content_selector: art.content_selector || null,
+            featured_image_selector: art.featured_image_selector || null,
+            extract_body_image: art.extract_body_image || false,
+            url: art.external_url,
+          };
+          const { image_url } = await fetchFullContent(art.external_url, source);
+          if (image_url) {
+            await pool.query(
+              'UPDATE articles SET image_url = $1 WHERE id = $2 AND image_url IS NULL',
+              [image_url, art.id]
+            );
+            console.log(`[image-repair] ${art.slug}: imagem reparada → ${image_url.slice(0, 60)}`);
+          }
+        } catch { /* artigo individual falha — continua */ }
+        // Pausa entre requisições para não sobrecarregar CF Worker / Puppeteer
+        await new Promise(r => setTimeout(r, 1500));
+      }
+      console.log('[image-repair] Reparo concluído.');
+    })();
+  } catch (err) {
+    console.error('[image-repair] Erro:', err.message);
+  }
+}
+
 // ─── Migrar sites antigos (subscriber_sites sem site_id) para o sites_catalog ─
 // Roda no startup. Só processa linhas com site_id = NULL — idempotente.
 async function migrarSitesParaCatalogo() {
@@ -652,10 +701,12 @@ async function persistirArtigos(itens, sourceSlug, source) {
       // Normaliza o artigo antes de persistir
       const norm = normalizeArticle(item, source || { category: item.category });
 
-      // Rejeita artigos mais antigos que 45 dias
+      // Rejeita artigos mais antigos que 7 dias
+      // (2 dias era muito curto: falhas de deploy causavam perda de artigos de prefeituras
+      // que publicam a cada 3-5 dias — ex: Epitaciolândia, Plácido de Castro, Içara)
       if (norm.published_at) {
         const idadeMs = Date.now() - new Date(norm.published_at).getTime();
-        if (idadeMs > 2 * 86400000) continue;
+        if (idadeMs > 7 * 86400000) continue;
       }
 
       // Verifica se já existe pela URL
@@ -931,6 +982,9 @@ setImmediate(() => checkUrlsAsync(sources).catch(() => {})); // async, não bloq
 criarIndicesBanco().catch(() => {});
 sincronizarFontesDB().catch(() => {});
 migrarSitesParaCatalogo().catch(() => {});
+// Repara imagens nulas de artigos recentes de fontes sc.gov.br RSS
+// (fontes como Araranguá, Arroio do Silva, Sangão, etc. não têm imagem no feed)
+setTimeout(() => repararImagensNulas().catch(() => {}), 15000);
 atualizarTodasFontes();
 limparArtigosAntigos();
 cron.schedule('*/15 * * * *', atualizarTodasFontes);

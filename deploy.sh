@@ -102,6 +102,43 @@ if [ ! -f "$DIR/backend/sources.json" ] && [ -f "$DIR/backend/sources.default.js
   cp "$DIR/backend/sources.default.json" "$DIR/backend/sources.json"
   warn "sources.json não encontrado — criado a partir do sources.default.json"
 fi
+
+# ── 2.6 Mesclar correções do sources.default.json no sources.json de runtime ───
+# Aplica mudanças de url/type/scraping/seletores do default no runtime sem
+# perder fontes adicionadas pelo painel. Só force-desativa (nunca force-ativa).
+if [ -f "$DIR/backend/sources.json" ] && [ -f "$DIR/backend/sources.default.json" ]; then
+  MERGE_OUT=$(python3 - "$DIR/backend/sources.json" "$DIR/backend/sources.default.json" << 'PYEOF'
+import json, sys
+runtime_path, default_path = sys.argv[1], sys.argv[2]
+with open(runtime_path) as f: current = json.load(f)
+with open(default_path)  as f: defaults = json.load(f)
+def_map = {s['slug']: s for s in defaults}
+updated = 0
+MERGE_KEYS = ('url','type','scraping','headless','content_selector',
+              'featured_image_selector','extract_body_image','userAgent','_obs')
+for s in current:
+    d = def_map.get(s.get('slug'))
+    if not d: continue
+    for key in MERGE_KEYS:
+        if key in d and d.get(key) != s.get(key):
+            s[key] = d[key]; updated += 1
+    # Force-desativa: só quando default tem active=false (nunca force-ativa)
+    if d.get('active') == False and s.get('active') != False:
+        s['active'] = False; updated += 1
+# Adiciona fontes novas do default que não existem no runtime
+cur_slugs = {s.get('slug') for s in current}
+for d in defaults:
+    if d.get('slug') not in cur_slugs:
+        current.append(d); updated += 1
+with open(runtime_path, 'w') as f:
+    json.dump(current, f, ensure_ascii=False, indent=2)
+print(updated)
+PYEOF
+  )
+  if [ "$MERGE_OUT" -gt 0 ] 2>/dev/null; then
+    ok "sources.json: $MERGE_OUT campo(s) sincronizados do sources.default.json"
+  fi
+fi
 echo ""
 
 # ── 3. Validar arquivos de configuração ────────────────────────────────────────
