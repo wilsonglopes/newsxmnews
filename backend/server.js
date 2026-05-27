@@ -186,7 +186,7 @@ function mapearItensFeed(items, source) {
       item.mediaThumbnail?.$?.url        ||
       item.enclosure?.url                ||
       item['media:content']?.$?.url      ||
-      extrairImagemDoConteudo(item['content:encoded'] || item.content || '') ||
+      (source.extract_body_image ? extrairImagemDoConteudo(item['content:encoded'] || item.content || '') : null) ||
       null;
     const conteudo = item['content:encoded'] || item.content || item.contentSnippet || '';
     return {
