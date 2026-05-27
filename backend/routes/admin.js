@@ -679,7 +679,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
                p.facebook_post_id, p.facebook_post_url,
                p.meta_ad_id, p.meta_ad_url,
                sub.name AS subscriber_name,
-               ss.name AS site_name, ss.site_url,
+               COALESCE(sc.name, ss.name) AS site_name, ss.site_url,
                a.title AS original_title,
                a.image_url AS article_image_url,
                a.external_url AS article_external_url,
@@ -688,6 +688,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
         FROM publications p
         JOIN subscribers sub ON sub.id = p.subscriber_id
         LEFT JOIN subscriber_sites ss ON ss.id = p.site_id
+        LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
         LEFT JOIN articles a ON a.id = p.article_id
         LEFT JOIN sources so ON so.id = a.source_id
         ORDER BY p.published_at DESC
