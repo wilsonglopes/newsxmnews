@@ -7,7 +7,9 @@ const axios = require('axios');
 const https = require('https');
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
-const CF_PROXY_DOMAINS = ['.sc.gov.br', 'midiamax.com.br'];
+// Domínios sem ponto inicial — mesma convenção de allowed-hosts.js
+// Bug anterior: '.sc.gov.br' + '.' + d gerava '..sc.gov.br' que nunca casava
+const CF_PROXY_DOMAINS = ['sc.gov.br', 'midiamax.com.br'];
 
 function needsCFProxy(url) {
   try {
