@@ -219,3 +219,4 @@ image_base64 → temp file em backend/public/uploads/
 | 17 | settings.json versionado | Deploy sobrescrevia; autopub desligava | settings.json no `.gitignore` |
 | 18 | ERROR no histórico ≠ falha real | Timeout → ERROR, mas post existe no WP | Antes de investigar: checar se post existe |
 | 19 | CDN de fonte mudou silenciosamente | Agência Brasil migrou para `cdn.jsdelivr.net`; imagens bloqueadas por dias sem erro explícito | Monitorar `[ALLOWED_HOSTS] ⚠️` nos logs; arquivo correto: `allowed-hosts.js` |
+| 20 | `sources.json` sobrescrito no deploy | Estava no git; fontes adicionadas/desativadas pelo painel eram perdidas a cada deploy (stash nunca restaurado) | `sources.json` no `.gitignore`; `sources.default.json` como seed; deploy cria do default se não existir |
