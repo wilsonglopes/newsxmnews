@@ -66,6 +66,10 @@ const ALLOWED_HOSTS = [
   // ── Clubes de futebol ────────────────────────────────────────────────────────
   'static.internacional.com.br',
 
+  // ── CDNs genéricos ───────────────────────────────────────────────────────────
+  'cdn.jsdelivr.net',    // Agência Brasil usa este CDN para imagens
+  'img.youtube.com',     // thumbnails de vídeos do YouTube (ex: CNN Brasil)
+
   // ── WordPress / Wix CDNs ─────────────────────────────────────────────────────
   'static.wixstatic.com',
   'wp.com', 'i0.wp.com', 'i1.wp.com', 'i2.wp.com',
