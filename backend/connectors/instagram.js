@@ -80,6 +80,23 @@ async function publicar(site, imagePublicUrl, article) {
     throw new Error(fbErr ? `IG/media: ${fbErr.message} (code ${fbErr.code})` : `IG/media: ${err.message}`);
   }
 
+  // Etapa 1.5: aguarda container estar pronto (Instagram precisa processar a imagem)
+  // Sem isso: code 9007 "Media ID is not available" pois o container ainda não está FINISHED
+  for (let i = 0; i < 10; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      const s = await axios.get(`${GRAPH}/${creationId}`, {
+        params: { fields: 'status_code', access_token: token },
+        timeout: 10000,
+      });
+      const sc = s.data?.status_code;
+      if (sc === 'FINISHED') break;
+      if (sc === 'ERROR' || sc === 'EXPIRED') throw new Error(`IG container inválido: ${sc}`);
+    } catch (err) {
+      if (err.message.startsWith('IG container')) throw err;
+    }
+  }
+
   // Etapa 2: publica o container
   let mediaId;
   try {
