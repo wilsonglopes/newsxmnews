@@ -151,20 +151,20 @@ async function gerarArtigo(briefing, aiPrompt) {
 Retorne SOMENTE um JSON:
 { "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE"), "titulo": string(máx 90 chars, use sentence case: apenas a primeira palavra com inicial maiúscula; nomes próprios de pessoas, cidades e organizações mantêm inicial maiúscula; siglas ficam em MAIÚSCULO COMPLETO como PRF, EUA, SC, COVID), "resumo": string(uma frase única curta e completa, máx 130 chars, OBRIGATORIAMENTE terminando com ponto final), "corpo": string(HTML ≥4 parágrafos em <p>), "tags": string[] }`;
 
-  const r = await axios.post('https://api.deepseek.com/chat/completions',
+  const resp = await axios.post('https://api.deepseek.com/chat/completions',
     { model: 'deepseek-chat', messages: [{ role: 'system', content: sys }, { role: 'user', content: `BRIEFING:\n${briefing}` }], max_tokens: 4096, response_format: { type: 'json_object' } },
     { headers: { Authorization: `Bearer ${process.env.DEEPSEEK_KEY}` }, timeout: 60000 });
-  const txt = r.data?.choices?.[0]?.message?.content || '';
+  const txt = resp.data?.choices?.[0]?.message?.content || '';
 
   if (!txt) throw new Error('Resposta vazia da IA.');
-  const r = extrairJSON(txt);
-  if (!r) throw new Error('IA não retornou JSON válido.');
-  const titulo = (r.titulo || r.title || '').trim();
+  const resultado = extrairJSON(txt);
+  if (!resultado) throw new Error('IA não retornou JSON válido.');
+  const titulo = (resultado.titulo || resultado.title || '').trim();
   return {
     title: titulo,
-    chapeu: r.chapeu || '',
-    summary: r.resumo || r.summary || '', body: r.corpo || r.body || '',
-    tags: r.tags || [], category_ids: [],
+    chapeu: resultado.chapeu || '',
+    summary: resultado.resumo || resultado.summary || '', body: resultado.corpo || resultado.body || '',
+    tags: resultado.tags || [], category_ids: [],
   };
 }
 
