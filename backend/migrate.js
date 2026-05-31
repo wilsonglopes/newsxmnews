@@ -6,6 +6,7 @@ const pool = require('./db/connection');
   try {
     await pool.query('ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS plan_value DECIMAL(10,2) DEFAULT 0');
     await pool.query('ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS gemini_key TEXT');
+    await pool.query('ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS is_readonly BOOLEAN DEFAULT false');
 
     // Autopublicação
     await pool.query('ALTER TABLE subscriber_sites ADD COLUMN IF NOT EXISTS auto_publish BOOLEAN DEFAULT false');
