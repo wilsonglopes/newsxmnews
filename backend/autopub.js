@@ -501,7 +501,7 @@ async function processarItem(item) {
       const querPostarIG = site.instagram_enabled && site.instagram_business_account_id && item.publish_instagram;
       const pageToken    = decryptToken(site.facebook_page_token);
 
-      let cardBuffer, cardPublicUrl;
+      let cardBuffer, cardPublicUrl, cardFpath;
       if (querPostarIG) {
         const r = await gerarCardComUrl({
           chapeu:   reescrito.chapeu || artigo.chapeu || '',
@@ -510,6 +510,7 @@ async function processarItem(item) {
         });
         cardBuffer    = r.buffer;
         cardPublicUrl = r.publicUrl;
+        cardFpath     = r.fpath;
       } else {
         cardBuffer = await gerarCard({
           chapeu:   reescrito.chapeu || artigo.chapeu || '',
@@ -554,6 +555,9 @@ async function processarItem(item) {
           console.error(`[WORKER/IG] ✗ "${reescrito.title.slice(0, 50)}": ${igErr.message}`);
         }
       }
+
+      if (cardFpath) { try { require('fs').unlinkSync(cardFpath); } catch {} }
+
     } catch (socialErr) {
       console.error(`[WORKER/SOCIAL] ✗ "${reescrito.title.slice(0, 50)}": ${socialErr.message}`);
     }

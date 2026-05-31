@@ -144,7 +144,7 @@ router.post('/', async (req, res) => {
         const pageToken = decryptToken(site.facebook_page_token);
 
         // Se vai postar no IG também, salva o card em disco (precisa de URL pública)
-        let cardBuffer, cardPublicUrl;
+        let cardBuffer, cardPublicUrl, cardFpath;
         if (wantsInstagram) {
           const r = await gerarCardComUrl({
             chapeu:   rewritten.chapeu || article.chapeu || '',
@@ -153,6 +153,7 @@ router.post('/', async (req, res) => {
           });
           cardBuffer    = r.buffer;
           cardPublicUrl = r.publicUrl;
+          cardFpath     = r.fpath;
         } else {
           cardBuffer = await gerarCard({
             chapeu:   rewritten.chapeu || article.chapeu || '',
@@ -181,7 +182,7 @@ router.post('/', async (req, res) => {
           facebookResult = { ok: false, error: fbErr.message };
         }
 
-        // Instagram (só posta se FB foi OK ou independente do FB)
+        // Instagram
         if (wantsInstagram && cardPublicUrl) {
           try {
             const ig = await publicarInstagram(
@@ -205,6 +206,9 @@ router.post('/', async (req, res) => {
             instagramResult = { ok: false, error: igErr.message };
           }
         }
+
+        if (cardFpath) { try { require('fs').unlinkSync(cardFpath); } catch {} }
+
       } catch (err) {
         console.error('[publish/social]', err.message);
         if (!facebookResult)  facebookResult  = { ok: false, error: err.message };
@@ -334,7 +338,7 @@ router.post('/manual', async (req, res) => {
         const wantsInstagram = site.instagram_enabled && site.instagram_business_account_id;
         const pageToken = decryptToken(site.facebook_page_token);
 
-        let cardBuffer, cardPublicUrl;
+        let cardBuffer, cardPublicUrl, cardFpath;
         if (wantsInstagram) {
           const r = await gerarCardComUrl({
             chapeu:   rewritten.chapeu || '',
@@ -343,6 +347,7 @@ router.post('/manual', async (req, res) => {
           });
           cardBuffer    = r.buffer;
           cardPublicUrl = r.publicUrl;
+          cardFpath     = r.fpath;
         } else {
           cardBuffer = await gerarCard({
             chapeu:   rewritten.chapeu || '',
@@ -395,6 +400,9 @@ router.post('/manual', async (req, res) => {
             instagramResultManual = { ok: false, error: igErr.message };
           }
         }
+
+        if (cardFpath) { try { require('fs').unlinkSync(cardFpath); } catch {} }
+
       } catch (err) {
         console.error('[manual/social]', err.message);
         if (!facebookResultManual)  facebookResultManual  = { ok: false, error: err.message };
