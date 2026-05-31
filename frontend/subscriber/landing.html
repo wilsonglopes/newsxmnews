@@ -105,6 +105,32 @@
       font-weight: 800;
     }
 
+    .nav-login {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(251,253,255,0.28);
+      background: transparent;
+      color: rgba(251,253,255,0.88);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+      transition: background 180ms ease;
+    }
+
+    .nav-login:hover {
+      background: rgba(251,253,255,0.1);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .hero {
       min-height: 100svh;
       position: relative;
@@ -598,7 +624,10 @@
         <a href="#fluxo">Como funciona</a>
         <a href="#contato">Contato</a>
       </div>
-      <a class="nav-cta" href="mailto:contato@scatto.site?subject=Quero%20conhecer%20o%20Scatto">Falar com a equipe</a>
+      <div class="nav-actions">
+        <a class="nav-login" href="/subscriber/login.html">Entrar</a>
+        <a class="nav-cta" href="mailto:contato@scatto.site?subject=Quero%20conhecer%20o%20Scatto">Falar com a equipe</a>
+      </div>
     </div>
   </nav>
 
@@ -751,6 +780,10 @@
       <img src="/subscriber/logo_scatto_w.png" alt="Scatto" />
       <p>Scatto, automação editorial inteligente para portais de notícias.</p>
       <p><a href="mailto:contato@scatto.site">contato@scatto.site</a></p>
+      <p style="font-size:13px">
+        <a href="/subscriber/termos.html" style="color:rgba(251,253,255,0.5);text-decoration:none;margin-right:16px">Termos de Uso</a>
+        <a href="/subscriber/termos.html#privacidade" style="color:rgba(251,253,255,0.5);text-decoration:none">Política de Privacidade</a>
+      </p>
     </div>
   </footer>
 

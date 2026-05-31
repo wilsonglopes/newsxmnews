@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Termos de Uso e Política de Privacidade — Scatto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    * { margin: 0; }
+
+    :root {
+      --ink: #07111f;
+      --paper: #f6f9fb;
+      --blue: #0a64ff;
+      --text: #203148;
+      --muted: #66758a;
+      --line: rgba(7,17,31,0.1);
+      --white: #fbfdff;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--paper);
+      color: var(--text);
+      font-family: "Manrope", system-ui, sans-serif;
+      line-height: 1.7;
+    }
+
+    a { color: var(--blue); }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(7,17,31,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 0 24px;
+    }
+
+    .nav-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-inner img { width: 100px; }
+
+    .nav-back {
+      color: rgba(251,253,255,0.7);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-back:hover { color: #fff; }
+
+    .page {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 64px 24px 100px;
+    }
+
+    .page-title {
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin-bottom: 12px;
+    }
+
+    .page-meta {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 56px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .toc {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin-bottom: 56px;
+    }
+
+    .toc-title {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 16px;
+    }
+
+    .toc ol {
+      padding-left: 20px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .toc a {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .toc a:hover { color: var(--blue); }
+
+    h2 {
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: clamp(22px, 3vw, 30px);
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-top: 56px;
+      margin-bottom: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    h2:first-of-type { border-top: none; }
+
+    h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-top: 32px;
+      margin-bottom: 12px;
+    }
+
+    p {
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    ul, ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    li {
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    strong { color: var(--ink); }
+
+    .highlight {
+      background: rgba(10,100,255,0.06);
+      border-left: 3px solid var(--blue);
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin: 24px 0;
+    }
+
+    .highlight p { margin: 0; font-size: 15px; }
+
+    footer {
+      background: var(--ink);
+      padding: 32px 24px;
+      text-align: center;
+      color: rgba(251,253,255,0.5);
+      font-size: 13px;
+    }
+
+    footer a { color: rgba(251,253,255,0.7); }
+
+    @media (max-width: 600px) {
+      .toc { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/subscriber/landing.html">
+      <img src="/subscriber/logo_scatto_w.png" alt="Scatto" />
+    </a>
+    <a class="nav-back" href="/subscriber/landing.html">← Voltar ao site</a>
+  </div>
+</nav>
+
+<div class="page">
+
+  <h1 class="page-title">Termos de Uso e<br />Política de Privacidade</h1>
+  <p class="page-meta">Última atualização: 31 de maio de 2026 &nbsp;·&nbsp; Scatto Technology</p>
+
+  <div class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#termos">Termos de Uso</a></li>
+      <li><a href="#servico">Descrição do serviço</a></li>
+      <li><a href="#responsabilidades">Responsabilidades do contratante</a></li>
+      <li><a href="#propriedade">Propriedade intelectual</a></li>
+      <li><a href="#pagamento">Pagamento e cancelamento</a></li>
+      <li><a href="#limitacao">Limitação de responsabilidade</a></li>
+      <li><a href="#privacidade">Política de Privacidade</a></li>
+      <li><a href="#dados">Dados coletados</a></li>
+      <li><a href="#uso-dados">Uso dos dados</a></li>
+      <li><a href="#terceiros">Serviços de terceiros</a></li>
+      <li><a href="#contato-legal">Contato</a></li>
+    </ol>
+  </div>
+
+  <!-- ── TERMOS DE USO ── -->
+  <h2 id="termos">1. Termos de Uso</h2>
+  <p>Ao contratar ou utilizar os serviços da plataforma <strong>Scatto</strong>, o contratante declara ter lido, compreendido e concordado integralmente com estes Termos de Uso. Caso não concorde com qualquer disposição, recomendamos não utilizar o serviço.</p>
+  <p>Estes termos regem a relação entre a <strong>Scatto Technology</strong> e pessoas físicas ou jurídicas que contratam a plataforma de automação editorial.</p>
+
+  <h2 id="servico">2. Descrição do serviço</h2>
+  <p>O Scatto é uma plataforma de automação editorial que oferece:</p>
+  <ul>
+    <li>Coleta automatizada de conteúdo a partir de fontes configuradas (RSS, scraping, APIs e sitemaps)</li>
+    <li>Reescrita de conteúdo com inteligência artificial conforme parâmetros definidos pelo contratante</li>
+    <li>Publicação automatizada em sites WordPress via plugin próprio (Scatto Publisher)</li>
+    <li>Distribuição de conteúdo em redes sociais (Facebook e Instagram)</li>
+    <li>Painel de gerenciamento editorial com histórico, fila e monitoramento</li>
+    <li>Bot para repórteres via Telegram</li>
+  </ul>
+
+  <div class="highlight">
+    <p>O serviço é fornecido como ferramenta — o contratante é integralmente responsável pelo conteúdo publicado em seus portais e redes sociais.</p>
+  </div>
+
+  <h2 id="responsabilidades">3. Responsabilidades do contratante</h2>
+  <p>O contratante se compromete a:</p>
+  <ul>
+    <li>Utilizar a plataforma em conformidade com a legislação brasileira, incluindo a Lei de Direitos Autorais (Lei 9.610/98) e a Lei Geral de Proteção de Dados (LGPD)</li>
+    <li>Configurar apenas fontes de conteúdo para as quais possui autorização de uso ou que sejam de domínio público</li>
+    <li>Não utilizar a plataforma para publicação de conteúdo ilegal, difamatório, discriminatório ou que viole direitos de terceiros</li>
+    <li>Manter as credenciais de acesso (login, senhas, tokens de API) em sigilo</li>
+    <li>Revisar e ser responsável pelo conteúdo publicado automaticamente em seus portais</li>
+    <li>Notificar a Scatto em caso de uso não autorizado de sua conta</li>
+  </ul>
+
+  <h3>Fontes de conteúdo</h3>
+  <p>O contratante declara ter ciência de que a plataforma coleta conteúdo de fontes externas configuradas por ele mesmo. A Scatto não se responsabiliza por eventuais violações de direitos autorais decorrentes de fontes configuradas pelo contratante.</p>
+
+  <h2 id="propriedade">4. Propriedade intelectual</h2>
+  <p>A plataforma Scatto, incluindo seu código-fonte, interface, algoritmos e documentação, é propriedade exclusiva da Scatto Technology. É vedado ao contratante:</p>
+  <ul>
+    <li>Copiar, modificar, distribuir ou revender a plataforma ou qualquer parte dela</li>
+    <li>Realizar engenharia reversa do software</li>
+    <li>Sublicenciar o acesso a terceiros sem autorização expressa</li>
+  </ul>
+  <p>O conteúdo publicado pelo contratante por meio da plataforma permanece de propriedade do contratante ou de seus respectivos detentores de direitos.</p>
+
+  <h2 id="pagamento">5. Pagamento e cancelamento</h2>
+  <p>As condições de pagamento, valores e periodicidade são definidos no contrato específico firmado entre as partes.</p>
+  <ul>
+    <li>O cancelamento deve ser solicitado com antecedência mínima de 30 dias</li>
+    <li>Não há reembolso proporcional de períodos já pagos</li>
+    <li>O inadimplemento por mais de 15 dias pode resultar na suspensão do acesso</li>
+    <li>Após o cancelamento, os dados do contratante ficam disponíveis para exportação por 30 dias</li>
+  </ul>
+
+  <h2 id="limitacao">6. Limitação de responsabilidade</h2>
+  <p>A Scatto emprega esforços razoáveis para manter a plataforma disponível e estável, mas não garante disponibilidade ininterrupta. A Scatto não se responsabiliza por:</p>
+  <ul>
+    <li>Interrupções decorrentes de manutenção, falhas de infraestrutura de terceiros ou casos de força maior</li>
+    <li>Conteúdo publicado automaticamente que viole direitos de terceiros, quando a fonte foi configurada pelo contratante</li>
+    <li>Perdas indiretas, lucros cessantes ou danos emergentes resultantes do uso ou impossibilidade de uso da plataforma</li>
+    <li>Alterações em APIs de terceiros (WordPress, Meta, Telegram) que impactem o funcionamento da plataforma</li>
+  </ul>
+
+  <!-- ── POLÍTICA DE PRIVACIDADE ── -->
+  <h2 id="privacidade">7. Política de Privacidade</h2>
+  <p>Esta Política de Privacidade descreve como a <strong>Scatto Technology</strong> coleta, utiliza, armazena e protege as informações dos contratantes e usuários da plataforma, em conformidade com a <strong>Lei Geral de Proteção de Dados (LGPD — Lei 13.709/2018)</strong>.</p>
+
+  <h2 id="dados">8. Dados coletados</h2>
+
+  <h3>Dados cadastrais</h3>
+  <ul>
+    <li>Nome, e-mail e informações de contato fornecidas no cadastro</li>
+    <li>Dados da empresa (razão social, CNPJ) quando aplicável</li>
+    <li>Credenciais de acesso (senha armazenada com hash seguro)</li>
+  </ul>
+
+  <h3>Dados operacionais</h3>
+  <ul>
+    <li>URLs e configurações das fontes de conteúdo cadastradas</li>
+    <li>Credenciais de integração com WordPress, Facebook, Instagram e Telegram (armazenadas com criptografia)</li>
+    <li>Histórico de artigos coletados, reescritos e publicados</li>
+    <li>Logs de atividade e erros do sistema</li>
+  </ul>
+
+  <h3>Dados de uso</h3>
+  <ul>
+    <li>Endereço IP de acesso ao painel</li>
+    <li>Horários e frequência de acesso</li>
+    <li>Ações realizadas no painel (logs de auditoria)</li>
+  </ul>
+
+  <div class="highlight">
+    <p>A Scatto <strong>não coleta nem armazena</strong> dados pessoais de visitantes dos portais de notícias dos contratantes. Os dados processados são exclusivamente referentes à operação editorial da plataforma.</p>
+  </div>
+
+  <h2 id="uso-dados">9. Uso dos dados</h2>
+  <p>Os dados coletados são utilizados exclusivamente para:</p>
+  <ul>
+    <li>Autenticação e controle de acesso à plataforma</li>
+    <li>Operação dos serviços contratados (automação editorial)</li>
+    <li>Comunicação sobre o serviço (suporte, avisos de sistema)</li>
+    <li>Melhoria contínua da plataforma</li>
+    <li>Cumprimento de obrigações legais</li>
+  </ul>
+  <p>A Scatto <strong>não vende, aluga ou compartilha</strong> dados dos contratantes com terceiros para fins comerciais.</p>
+
+  <h3>Retenção de dados</h3>
+  <p>Os dados são mantidos enquanto o contrato estiver ativo. Após o cancelamento, os dados são retidos por 30 dias para possível exportação e, após esse prazo, são excluídos dos servidores ativos. Backups podem manter cópias por até 90 dias adicionais.</p>
+
+  <h3>Direitos do titular</h3>
+  <p>Conforme a LGPD, o contratante tem direito a:</p>
+  <ul>
+    <li>Acessar, corrigir ou excluir seus dados pessoais</li>
+    <li>Solicitar a portabilidade dos dados</li>
+    <li>Revogar o consentimento para tratamento de dados</li>
+    <li>Obter informações sobre com quem seus dados foram compartilhados</li>
+  </ul>
+  <p>Para exercer esses direitos, entre em contato pelo e-mail <a href="mailto:contato@scatto.site">contato@scatto.site</a>.</p>
+
+  <h2 id="terceiros">10. Serviços de terceiros</h2>
+  <p>A plataforma integra-se com serviços de terceiros cuja política de privacidade é independente:</p>
+  <ul>
+    <li><strong>WordPress</strong> — via API REST nos servidores do contratante</li>
+    <li><strong>Meta (Facebook/Instagram)</strong> — via Graph API para publicação de conteúdo</li>
+    <li><strong>Telegram</strong> — via Bot API para comunicação com repórteres</li>
+    <li><strong>Google Fonts</strong> — para carregamento de tipografia no painel</li>
+  </ul>
+  <p>A Scatto não controla as práticas de privacidade desses serviços e recomenda a leitura de suas respectivas políticas.</p>
+
+  <h2 id="contato-legal">11. Contato</h2>
+  <p>Para dúvidas sobre estes termos ou sobre o tratamento de dados:</p>
+  <ul>
+    <li><strong>E-mail:</strong> <a href="mailto:contato@scatto.site">contato@scatto.site</a></li>
+    <li><strong>Site:</strong> <a href="https://scatto.site">scatto.site</a></li>
+  </ul>
+  <p>A Scatto reserva-se o direito de atualizar estes termos periodicamente. Alterações relevantes serão comunicadas por e-mail aos contratantes com antecedência mínima de 15 dias.</p>
+
+</div>
+
+<footer>
+  <p>© 2026 Scatto Technology · <a href="mailto:contato@scatto.site">contato@scatto.site</a></p>
+</footer>
+
+</body>
+</html>
