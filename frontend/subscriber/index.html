@@ -44,14 +44,11 @@
       height: 100vh; z-index: 100; overflow-y: auto;
     }
     .sidebar-logo {
-      padding: 16px 20px; border-bottom: 1px solid #1e293b;
+      padding: 18px 20px 16px; border-bottom: 1px solid #1e293b;
       display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
     }
-    .sidebar-logo .logo-card {
-      background: #fff; border-radius: 8px; padding: 10px 12px;
-      width: 100%; display: flex; justify-content: center;
-    }
-    .sidebar-logo .logo-img { width: 100%; max-width: 170px; height: auto; display: block; }
+    /* Logo transparente; texto escuro vira branco no fundo escuro do menu */
+    .sidebar-logo .logo-img { width: 100%; max-width: 170px; height: auto; display: block; filter: brightness(0) invert(1); }
     .sidebar-logo .logo-news { color: var(--vermelho); }
     .sidebar-badge { background: var(--vermelho); color: #fff; font-size: .6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: .5px; margin-left: auto; font-family: var(--font-corpo); }
     .sidebar-section { padding: 14px 14px 4px; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #475569; }
@@ -436,7 +433,7 @@
 <!-- ══════════════════════════════ SIDEBAR ══════════════════════════════════ -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-card"><img src="logo_scatto.png" alt="Scatto — A Notícia Inteligente" class="logo-img"></div>
+    <img src="logo_scatto.png" alt="Scatto — A Notícia Inteligente" class="logo-img">
     <span class="sidebar-badge">Assinante</span>
   </div>
 
