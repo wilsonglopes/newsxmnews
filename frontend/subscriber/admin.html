@@ -1961,6 +1961,17 @@ const sub = (() => { try { return JSON.parse(localStorage.getItem('rb24_subscrib
 document.getElementById('sb-nome').textContent  = sub.name  || 'Admin';
 document.getElementById('sb-email').textContent = sub.email || '';
 
+// ── Modo visualização (conta de apresentação) ─────────────────────────────────
+// Conta com is_readonly: vê tudo mas o backend bloqueia qualquer alteração.
+let IS_READONLY = false;
+try { IS_READONLY = !!JSON.parse(atob(token.split('.')[1])).is_readonly; } catch {}
+if (IS_READONLY) {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1e293b;color:#fbbf24;text-align:center;padding:7px 12px;font-size:.85rem;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+  b.textContent = '🔒 Modo apresentação — visualização apenas. Nenhuma alteração será salva.';
+  document.addEventListener('DOMContentLoaded', () => { document.body.appendChild(b); document.body.style.paddingTop = '34px'; });
+}
+
 function authHeader() { return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }; }
 function logout() { localStorage.removeItem('rb24_token'); localStorage.removeItem('rb24_subscriber'); location.href = 'login.html'; }
 
@@ -1988,10 +1999,16 @@ async function apiFetch(url, opts = {}) {
   if (!res.ok) {
     // Tenta extrair mensagem de erro do JSON, senão usa status
     let msg = `HTTP ${res.status}`;
+    let body = null;
     try {
-      const body = await res.clone().json();
+      body = await res.clone().json();
       msg = body.error || body.message || body.msg || msg;
     } catch {}
+    // Modo visualização: backend bloqueou uma escrita — aviso amigável, sem erro feio
+    if (res.status === 403 && body && body.error === 'readonly') {
+      alert('🔒 Modo apresentação\n\nEsta é uma conta de visualização. Alterações estão desabilitadas.');
+      throw new Error('readonly');
+    }
     throw new Error(msg);
   }
 

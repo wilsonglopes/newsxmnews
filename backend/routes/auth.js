@@ -100,10 +100,11 @@ router.post('/login', async (req, res) => {
 
     // Gera JWT
     const payload = {
-      id:       subscriber.id,
-      email:    subscriber.email,
-      plan_id:  subscriber.plan_id,
-      is_admin: subscriber.is_admin || false,
+      id:          subscriber.id,
+      email:       subscriber.email,
+      plan_id:     subscriber.plan_id,
+      is_admin:    subscriber.is_admin || false,
+      is_readonly: subscriber.is_readonly || false,
     };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES });
 
@@ -114,6 +115,8 @@ router.post('/login', async (req, res) => {
         name:     subscriber.name,
         email:    subscriber.email,
         ai_prompt: subscriber.ai_prompt,
+        is_admin:    subscriber.is_admin || false,
+        is_readonly: subscriber.is_readonly || false,
         plan: {
           id:                        subscriber.plan_id,
           name:                      subscriber.plan_name,

@@ -1016,6 +1016,30 @@ if (pool && process.env.MONITOR_CHAT_ID) {
 
 // ─── ROTAS ────────────────────────────────────────────────────────────────────
 
+// Bloqueio global de escrita para contas "visualizador" (is_readonly no JWT).
+// Conta de apresentação/demo: vê tudo (perfil admin) mas não altera nada.
+// Ponto único — bloqueia POST/PUT/PATCH/DELETE antes de qualquer rota agir.
+app.use('/api', (req, res, next) => {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+  // Permite autenticar e encerrar sessão mesmo em modo visualização
+  if (req.path === '/auth/login' || req.path === '/auth/logout') return next();
+
+  const header = req.headers['authorization'] || '';
+  const tk = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!tk) return next(); // sem token: deixa a própria rota/authMiddleware tratar
+
+  try {
+    const payload = require('jsonwebtoken').verify(tk, process.env.JWT_SECRET);
+    if (payload.is_readonly) {
+      return res.status(403).json({
+        error: 'readonly',
+        message: 'Modo apresentação: alterações estão desabilitadas nesta conta.',
+      });
+    }
+  } catch { /* token inválido/expirado: deixa a rota tratar com seu próprio 401 */ }
+  next();
+});
+
 // Auth (login / logout / me)
 app.use('/api/auth', require('./routes/auth'));
 
