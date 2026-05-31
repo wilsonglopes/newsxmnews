@@ -142,43 +142,19 @@ async function buscarCategorias(site) {
 // ─── IA ───────────────────────────────────────────────────────────────────────
 
 async function transcreverAudio(buffer, mimeType) {
-  if (!process.env.GEMINI_KEY) throw new Error('Chave Gemini não configurada.');
-  const resp = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_KEY}`,
-    {
-      contents: [{
-        role: 'user',
-        parts: [
-          { inline_data: { mime_type: mimeType, data: buffer.toString('base64') } },
-          { text: 'Transcreva este áudio com fidelidade. Retorne apenas o texto transcrito, sem comentários.' },
-        ],
-      }],
-    },
-    { headers: { 'Content-Type': 'application/json' }, timeout: 60000 }
-  );
-  return resp.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+  throw new Error('Transcrição de áudio não disponível. Por favor, envie o texto digitado.');
 }
 
 async function gerarArtigo(briefing, aiPrompt) {
-  const provider = process.env.AI_PROVIDER || 'gemini';
   const sys = aiPrompt ||
     `Você é um jornalista profissional. Com base no briefing (textos, transcrições de áudio, descrições de fotos), escreva um artigo jornalístico completo.
 Retorne SOMENTE um JSON:
 { "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE"), "titulo": string(máx 90 chars, use sentence case: apenas a primeira palavra com inicial maiúscula; nomes próprios de pessoas, cidades e organizações mantêm inicial maiúscula; siglas ficam em MAIÚSCULO COMPLETO como PRF, EUA, SC, COVID), "resumo": string(uma frase única curta e completa, máx 130 chars, OBRIGATORIAMENTE terminando com ponto final), "corpo": string(HTML ≥4 parágrafos em <p>), "tags": string[] }`;
 
-  let txt = '';
-  if (provider === 'deepseek') {
-    const r = await axios.post('https://api.deepseek.com/chat/completions',
-      { model: 'deepseek-chat', messages: [{ role: 'system', content: sys }, { role: 'user', content: `BRIEFING:\n${briefing}` }], max_tokens: 4096, response_format: { type: 'json_object' } },
-      { headers: { Authorization: `Bearer ${process.env.DEEPSEEK_KEY}` }, timeout: 60000 });
-    txt = r.data?.choices?.[0]?.message?.content || '';
-  } else {
-    const r = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_KEY}`,
-      { system_instruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts: [{ text: `BRIEFING:\n${briefing}` }] }], generationConfig: { maxOutputTokens: 4096 } },
-      { headers: { 'Content-Type': 'application/json' }, timeout: 60000 });
-    txt = r.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  }
+  const r = await axios.post('https://api.deepseek.com/chat/completions',
+    { model: 'deepseek-chat', messages: [{ role: 'system', content: sys }, { role: 'user', content: `BRIEFING:\n${briefing}` }], max_tokens: 4096, response_format: { type: 'json_object' } },
+    { headers: { Authorization: `Bearer ${process.env.DEEPSEEK_KEY}` }, timeout: 60000 });
+  const txt = r.data?.choices?.[0]?.message?.content || '';
 
   if (!txt) throw new Error('Resposta vazia da IA.');
   const r = extrairJSON(txt);

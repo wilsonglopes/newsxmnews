@@ -54,7 +54,7 @@ function aplicarLimites(resultado) {
 // provider: 'gemini' (padrão) | 'deepseek'
 // Chaves lidas do .env — nunca expostas ao frontend
 router.post('/rewrite', async (req, res) => {
-  const { title = '', content = '', ai_prompt = '', provider = 'gemini' } = req.body;
+  const { title = '', content = '', ai_prompt = '' } = req.body;
   if (!content && !title) return res.status(400).json({ error: 'Forneça title ou content.' });
 
   const textoOriginal = content.replace(/<[^>]*>/g, '').trim();
@@ -65,50 +65,26 @@ router.post('/rewrite', async (req, res) => {
 Retorne SOMENTE um JSON com:
 { "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com <p> — OBRIGATÓRIO: mantenha extensão proporcional ao original; cubra TODOS os pontos e detalhes presentes no texto; use no mínimo ${nParas} parágrafos; NÃO comprima nem resuma em excesso), "tags": string[] }.`;
 
-  // Injeta regra anti-cópia em qualquer prompt — customizado ou padrão
   const promptSistema = promptBase + REGRA_ANTICOPIA;
 
   try {
-    let textoIA = '';
+    const deepseekKey = process.env.DEEPSEEK_KEY || '';
+    if (!deepseekKey) return res.status(503).json({ error: 'Chave DeepSeek não configurada no servidor.' });
 
-    if (provider === 'deepseek') {
-      // ── DeepSeek (API compatível com OpenAI) ──────────────────────────────────
-      const deepseekKey = process.env.DEEPSEEK_KEY || '';
-      if (!deepseekKey) return res.status(503).json({ error: 'Chave DeepSeek não configurada no servidor.' });
-
-      const resp = await axios.post(
-        'https://api.deepseek.com/chat/completions',
-        {
-          model: 'deepseek-chat',
-          messages: [
-            { role: 'system', content: promptSistema },
-            { role: 'user',   content: `TÍTULO: ${title}\n\nCONTEÚDO:\n${content}` }
-          ],
-          max_tokens: 4096,
-          response_format: { type: 'json_object' }
-        },
-        {
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` },
-          timeout: 60000
-        }
-      );
-      textoIA = resp.data?.choices?.[0]?.message?.content || '';
-    } else {
-      // ── Gemini ────────────────────────────────────────────────────────────────
-      const geminiKey = process.env.GEMINI_KEY || '';
-      if (!geminiKey) return res.status(503).json({ error: 'Chave Gemini não configurada no servidor.' });
-
-      const resp = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-        {
-          system_instruction: { parts: [{ text: promptSistema }] },
-          contents: [{ role: 'user', parts: [{ text: `TÍTULO: ${title}\n\nCONTEÚDO:\n${content}` }] }],
-          generationConfig: { maxOutputTokens: 4096 }
-        },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 60000 }
-      );
-      textoIA = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    }
+    const resp = await axios.post(
+      'https://api.deepseek.com/chat/completions',
+      {
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: promptSistema },
+          { role: 'user',   content: `TÍTULO: ${title}\n\nCONTEÚDO:\n${content}` }
+        ],
+        max_tokens: 4096,
+        response_format: { type: 'json_object' }
+      },
+      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` }, timeout: 60000 }
+    );
+    const textoIA = resp.data?.choices?.[0]?.message?.content || '';
 
     if (!textoIA) return res.status(502).json({ error: 'Resposta vazia da IA.' });
 
@@ -127,7 +103,7 @@ Retorne SOMENTE um JSON com:
 // Body: { title, chapeu, tags, corpo, categories: [{id, name, parent}], provider? }
 // Retorna { category_ids: [id1, id2, ...] } — falha silenciosa (retorna [] em caso de erro)
 router.post('/categorize', async (req, res) => {
-  const { title = '', chapeu = '', tags = '', corpo = '', categories = [], provider = 'gemini' } = req.body;
+  const { title = '', chapeu = '', tags = '', corpo = '', categories = [] } = req.body;
   if (!categories.length) return res.json({ category_ids: [] });
   if (!title && !chapeu && !corpo) return res.json({ category_ids: [] });
 
@@ -160,45 +136,23 @@ Regras:
   const conteudoArtigo = `CATEGORIAS DISPONÍVEIS:\n${listaCats}\n\nARTIGO:\nChapéu: ${chapeu}\nTítulo: ${title}\nTags: ${tags}\nConteúdo: ${corpoTruncado}`;
 
   try {
-    let textoIA = '';
+    const deepseekKey = process.env.DEEPSEEK_KEY || '';
+    if (!deepseekKey) return res.json({ category_ids: [] });
 
-    if (provider === 'deepseek') {
-      const deepseekKey = process.env.DEEPSEEK_KEY || '';
-      if (!deepseekKey) return res.json({ category_ids: [] });
-
-      const resp = await axios.post(
-        'https://api.deepseek.com/chat/completions',
-        {
-          model: 'deepseek-chat',
-          messages: [
-            { role: 'system', content: promptSistema },
-            { role: 'user',   content: conteudoArtigo }
-          ],
-          max_tokens: 256,
-          response_format: { type: 'json_object' }
-        },
-        {
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.DEEPSEEK_KEY}` },
-          timeout: 30000
-        }
-      );
-      textoIA = resp.data?.choices?.[0]?.message?.content || '';
-    } else {
-      const geminiKey = process.env.GEMINI_KEY || '';
-      if (!geminiKey) return res.json({ category_ids: [] });
-
-      const resp = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-        {
-          system_instruction: { parts: [{ text: promptSistema }] },
-          contents: [{ role: 'user', parts: [{ text: conteudoArtigo }] }],
-          generationConfig: { maxOutputTokens: 256 }
-        },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
-      );
-      textoIA = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    }
-
+    const resp = await axios.post(
+      'https://api.deepseek.com/chat/completions',
+      {
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: promptSistema },
+          { role: 'user',   content: conteudoArtigo }
+        ],
+        max_tokens: 256,
+        response_format: { type: 'json_object' }
+      },
+      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` }, timeout: 30000 }
+    );
+    const textoIA = resp.data?.choices?.[0]?.message?.content || '';
     if (!textoIA) return res.json({ category_ids: [] });
     const resultado = extrairJSON(textoIA);
     const ids = Array.isArray(resultado?.category_ids)
@@ -215,7 +169,7 @@ Regras:
 // Body: { tema, ai_prompt?, provider? }
 // Gera artigo do zero a partir de um briefing — sem artigo de entrada
 router.post('/gerar', async (req, res) => {
-  const { tema = '', ai_prompt = '', provider = 'gemini' } = req.body;
+  const { tema = '', ai_prompt = '' } = req.body;
   if (!tema || !tema.trim()) return res.status(400).json({ error: 'Forneça o tema do artigo.' });
 
   const promptSistema = ai_prompt ||
@@ -224,39 +178,23 @@ Retorne SOMENTE um JSON com:
 { "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com pelo menos 4 parágrafos em <p>), "tags": string[] }.`;
 
   try {
-    let textoIA = '';
+    const deepseekKey = process.env.DEEPSEEK_KEY || '';
+    if (!deepseekKey) return res.status(503).json({ error: 'Chave DeepSeek não configurada no servidor.' });
 
-    if (provider === 'deepseek') {
-      const deepseekKey = process.env.DEEPSEEK_KEY || '';
-      if (!deepseekKey) return res.status(503).json({ error: 'Chave DeepSeek não configurada no servidor.' });
-      const resp = await axios.post(
-        'https://api.deepseek.com/chat/completions',
-        {
-          model: 'deepseek-chat',
-          messages: [
-            { role: 'system', content: promptSistema },
-            { role: 'user',   content: `BRIEFING DO ARTIGO:\n${tema.trim()}` }
-          ],
-          max_tokens: 4096,
-          response_format: { type: 'json_object' }
-        },
-        { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` }, timeout: 60000 }
-      );
-      textoIA = resp.data?.choices?.[0]?.message?.content || '';
-    } else {
-      const geminiKey = process.env.GEMINI_KEY || '';
-      if (!geminiKey) return res.status(503).json({ error: 'Chave Gemini não configurada no servidor.' });
-      const resp = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-        {
-          system_instruction: { parts: [{ text: promptSistema }] },
-          contents: [{ role: 'user', parts: [{ text: `BRIEFING DO ARTIGO:\n${tema.trim()}` }] }],
-          generationConfig: { maxOutputTokens: 4096 }
-        },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 60000 }
-      );
-      textoIA = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    }
+    const resp = await axios.post(
+      'https://api.deepseek.com/chat/completions',
+      {
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: promptSistema },
+          { role: 'user',   content: `BRIEFING DO ARTIGO:\n${tema.trim()}` }
+        ],
+        max_tokens: 4096,
+        response_format: { type: 'json_object' }
+      },
+      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` }, timeout: 60000 }
+    );
+    const textoIA = resp.data?.choices?.[0]?.message?.content || '';
 
     if (!textoIA) return res.status(502).json({ error: 'Resposta vazia da IA.' });
     const resultado = extrairJSON(textoIA);

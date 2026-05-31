@@ -41,38 +41,22 @@ function extrairJSON(texto) {
   return r;
 }
 
-// ── Chamada genérica à IA (Gemini ou DeepSeek) ────────────────────────────────
+// ── Chamada à IA (DeepSeek) ───────────────────────────────────────────────────
 
 async function chamarIA(provider, systemPrompt, userContent, maxTokens = 4096) {
-  if (provider === 'deepseek') {
-    const key = process.env.DEEPSEEK_KEY || '';
-    if (!key) throw new Error('Chave DeepSeek não configurada.');
-    const resp = await axios.post(
-      'https://api.deepseek.com/chat/completions',
-      {
-        model: 'deepseek-chat',
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }],
-        max_tokens: maxTokens,
-        response_format: { type: 'json_object' }
-      },
-      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, timeout: 60000 }
-    );
-    return resp.data?.choices?.[0]?.message?.content || '';
-  }
-
-  // Gemini (padrão)
-  const key = process.env.GEMINI_KEY || '';
-  if (!key) throw new Error('Chave Gemini não configurada.');
+  const key = process.env.DEEPSEEK_KEY || '';
+  if (!key) throw new Error('Chave DeepSeek não configurada.');
   const resp = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+    'https://api.deepseek.com/chat/completions',
     {
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: 'user', parts: [{ text: userContent }] }],
-      generationConfig: { maxOutputTokens: maxTokens }
+      model: 'deepseek-chat',
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }],
+      max_tokens: maxTokens,
+      response_format: { type: 'json_object' }
     },
-    { headers: { 'Content-Type': 'application/json' }, timeout: 60000 }
+    { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, timeout: 60000 }
   );
-  return resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return resp.data?.choices?.[0]?.message?.content || '';
 }
 
 // ── Reescreve artigo com IA ───────────────────────────────────────────────────
@@ -357,7 +341,7 @@ async function processarProximoItem() {
 
 async function processarItem(item) {
   const settings = lerSettings();
-  const provider  = settings.ia_provider || 'gemini';
+  const provider  = 'deepseek';
 
   // Monta objeto site compatível com os helpers existentes
   const site = {

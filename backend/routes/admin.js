@@ -1022,18 +1022,22 @@ genders: 1=homem 2=mulher [1,2]=ambos. Mantenha targeting amplo (nacional). SOME
     const userContent = `Chapéu: ${chapeu}\nTítulo: ${title}\nResumo: ${summary}`;
     try {
       const axios = require('axios');
-      const key = process.env.GEMINI_KEY || '';
+      const key = process.env.DEEPSEEK_KEY || '';
       if (!key) throw new Error('no key');
       const resp = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        'https://api.deepseek.com/chat/completions',
         {
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: userContent }] }],
-          generationConfig: { maxOutputTokens: 200 },
+          model: 'deepseek-chat',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user',   content: userContent }
+          ],
+          max_tokens: 200,
+          response_format: { type: 'json_object' }
         },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
+        { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, timeout: 20000 }
       );
-      const texto = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const texto = resp.data?.choices?.[0]?.message?.content || '';
       const json = extrairJsonIA(texto);
       if (json?.age_min && json?.age_max) return json;
     } catch {}

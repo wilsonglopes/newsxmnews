@@ -1028,7 +1028,7 @@ app.use('/api/publications',       require('./routes/publications'));
 app.use('/api/subscriber/sources',  require('./routes/subscriber-sources'));
 app.use('/api/subscriber',          require('./routes/subscriber-telegram'));
 
-// IA — reescrita de artigos (usa GEMINI_KEY do servidor)
+// IA — reescrita de artigos (usa DEEPSEEK_KEY do servidor)
 app.use('/api/ia', require('./routes/ia'));
 
 // Configurações públicas (provedor de IA global, sem autenticação)
@@ -1036,7 +1036,7 @@ app.get('/api/settings', (req, res) => {
   try {
     const s = JSON.parse(fs.readFileSync(path.join(__dirname, 'settings.json'), 'utf8'));
     res.json(s);
-  } catch { res.json({ ia_provider: 'gemini' }); }
+  } catch { res.json({ ia_provider: 'deepseek' }); }
 });
 
 // Proxy de imagens (evita bloqueio de hotlink nos portais)
@@ -1371,11 +1371,10 @@ app.get('/api/config', (req, res) => {
     wpUrl:        process.env.WP_URL        || '',
     wpUsuario:    process.env.WP_USER       || '',
     wpSenha:      process.env.WP_PASSWORD   || '',
-    geminiKey:    process.env.GEMINI_KEY    || '',
+    deepseekKey:  process.env.DEEPSEEK_KEY  || '',
     backendUrl:   process.env.BACKEND_URL   || `http://localhost:${PORT}`,
   };
-  // Só retorna se ao menos wpUrl e wpUsuario estiverem preenchidos
-  const configurado = !!(cfg.wpUrl && cfg.wpUsuario && cfg.wpSenha && cfg.geminiKey);
+  const configurado = !!(cfg.wpUrl && cfg.wpUsuario && cfg.wpSenha && cfg.deepseekKey);
   res.json({ configurado, cfg });
 });
 
