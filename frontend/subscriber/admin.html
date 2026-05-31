@@ -1268,10 +1268,6 @@ Portal<span class="logo-news">News</span>
       <div class="tab-pane" id="mc-tab-plano">
         <div class="form-row">
           <div class="form-group">
-            <label>Plano</label>
-            <select id="mc-plan"><option value="">Sem plano</option></select>
-          </div>
-          <div class="form-group">
             <label>Valor personalizado (R$/mês)</label>
             <input type="number" id="mc-plan-value" min="0" step="0.01" placeholder="0,00" />
           </div>
@@ -3931,10 +3927,6 @@ async function carregarClientes() {
     ]);
     planos = pl;
 
-    const sel = document.getElementById('mc-plan');
-    sel.innerHTML = '<option value="">Sem plano</option>' +
-      planos.map(p => `<option value="${p.id}">${p.name} — R$${(p.price_cents/100).toFixed(0)}</option>`).join('');
-
     const tbody = document.querySelector('#tbl-clientes tbody');
     if (!cli.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhum cliente ainda.</td></tr>'; return; }
 
@@ -4005,17 +3997,6 @@ async function abrirModalCliente(c) {
   document.getElementById('mc-hint').style.display = c ? 'inline' : 'none';
 
   // Planos
-  if (planos.length === 0) {
-    const pl = await fetch(`${BACKEND}/api/admin/plans`, { headers: authHeader() }).then(r => r.json());
-    planos = pl;
-    const sel = document.getElementById('mc-plan');
-    sel.innerHTML = '<option value="">Sem plano</option>' +
-      planos.map(p => `<option value="${p.id}">${p.name} — R$${(p.price_cents/100).toFixed(0)}</option>`).join('');
-  }
-  if (c?.plan_id) {
-    document.getElementById('mc-plan').value = c.plan_id;
-  } else { document.getElementById('mc-plan').value = ''; }
-
   document.getElementById('mc-sites-list').innerHTML = c ? '<div class="loading"><span class="spin"></span>Carregando…</div>' : '<div class="empty" style="padding:20px">Salve o cliente primeiro para gerenciar sites.</div>';
   document.getElementById('mc-fontes-grid').innerHTML = '';
   document.getElementById('mc-fontes-cats').innerHTML = '';
@@ -4028,7 +4009,7 @@ async function salvarCliente() {
   const body = {
     name:       document.getElementById('mc-name').value.trim(),
     email:      document.getElementById('mc-email').value.trim(),
-    plan_id:    document.getElementById('mc-plan').value || null,
+    plan_id:    null,
     active:     document.getElementById('mc-active').checked,
     is_admin:   document.getElementById('mc-admin').checked,
   };
