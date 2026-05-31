@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scatto | Automatize seu portal de notícias</title>
+  <meta name="description" content="O Scatto automatiza a operação editorial do seu portal de notícias — coleta, reescrita com IA, publicação no WordPress e distribuição nas redes sociais." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    * { margin: 0; }
+
+    :root {
+      --ink: #07111f;
+      --ink-2: #0e1d30;
+      --paper: #f6f9fb;
+      --paper-warm: #f2ede4;
+      --mist: #dce6ee;
+      --line: rgba(7, 17, 31, 0.12);
+      --line-dark: rgba(246, 249, 251, 0.16);
+      --blue: #0a64ff;
+      --blue-2: #00b8e8;
+      --green: #24b47e;
+      --gold: #e5a93a;
+      --text: #203148;
+      --muted: #66758a;
+      --white: #fbfdff;
+      --shadow: 0 30px 90px rgba(7, 17, 31, 0.18);
+      --radius: 18px;
+      --radius-lg: 28px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-width: 320px;
+      background: var(--paper);
+      color: var(--text);
+      font-family: "Manrope", system-ui, sans-serif;
+      line-height: 1.55;
+      overflow-x: hidden;
+    }
+
+    img { display: block; max-width: 100%; }
+    a { color: inherit; }
+
+    .shell {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .nav {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 20;
+      border-bottom: 1px solid rgba(251, 253, 255, 0.14);
+      background: rgba(7, 17, 31, 0.74);
+      backdrop-filter: blur(18px);
+    }
+
+    .nav-inner {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--white);
+      font-weight: 800;
+    }
+
+    .brand img { width: 118px; height: auto; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      color: rgba(251, 253, 255, 0.76);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .nav-links a { text-decoration: none; }
+    .nav-links a:hover { color: var(--white); }
+
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 18px;
+      border-radius: 999px;
+      background: var(--white);
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .hero {
+      min-height: 100svh;
+      position: relative;
+      display: grid;
+      align-items: center;
+      color: var(--white);
+      isolation: isolate;
+      overflow: hidden;
+      padding: 116px 0 70px;
+    }
+
+    .hero-media {
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+    }
+
+    .hero-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(90deg, rgba(7,17,31,0.98) 0%, rgba(7,17,31,0.86) 32%, rgba(7,17,31,0.28) 68%, rgba(7,17,31,0.18) 100%),
+        linear-gradient(180deg, rgba(7,17,31,0.20), rgba(7,17,31,0.72));
+    }
+
+    .hero-copy {
+      width: min(650px, 100%);
+      padding-top: 34px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      color: #bfefff;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 99px;
+      background: var(--blue-2);
+      box-shadow: 0 0 0 8px rgba(0, 184, 232, 0.14);
+    }
+
+    h1, h2, h3 {
+      color: inherit;
+      line-height: 0.98;
+      letter-spacing: -0.04em;
+    }
+
+    h1 {
+      max-width: 680px;
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: clamp(48px, 7.2vw, 94px);
+      font-weight: 700;
+    }
+
+    .hero-copy p {
+      max-width: 610px;
+      margin-top: 26px;
+      color: rgba(251, 253, 255, 0.82);
+      font-size: clamp(18px, 2vw, 22px);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 36px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+      padding: 0 24px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 800;
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .button:hover { transform: translateY(-2px); }
+
+    .button.primary {
+      background: linear-gradient(135deg, var(--blue), var(--blue-2));
+      color: var(--white);
+      box-shadow: 0 18px 42px rgba(10, 100, 255, 0.32);
+    }
+
+    .button.secondary {
+      border-color: rgba(251, 253, 255, 0.28);
+      background: rgba(251, 253, 255, 0.08);
+      color: var(--white);
+    }
+
+    .proof-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin-top: 58px;
+      overflow: hidden;
+      border: 1px solid rgba(251, 253, 255, 0.16);
+      border-radius: var(--radius);
+      background: rgba(251, 253, 255, 0.12);
+      backdrop-filter: blur(16px);
+    }
+
+    .proof {
+      min-height: 94px;
+      padding: 18px;
+      background: rgba(7, 17, 31, 0.36);
+    }
+
+    .proof strong {
+      display: block;
+      color: var(--white);
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .proof span {
+      display: block;
+      margin-top: 8px;
+      color: rgba(251, 253, 255, 0.68);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    section { padding: clamp(74px, 9vw, 126px) 0; }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(280px, 0.6fr);
+      gap: 48px;
+      align-items: end;
+      margin-bottom: 46px;
+    }
+
+    .kicker {
+      margin-bottom: 18px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      color: var(--ink);
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: clamp(38px, 5.4vw, 72px);
+      font-weight: 700;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .pain-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .pain-card {
+      min-height: 250px;
+      padding: 30px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--white);
+      box-shadow: 0 18px 45px rgba(7, 17, 31, 0.06);
+    }
+
+    .pain-card .num {
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .pain-card h3 {
+      margin-top: 28px;
+      color: var(--ink);
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .pain-card p {
+      margin-top: 18px;
+      color: var(--muted);
+    }
+
+    .story {
+      background: var(--ink);
+      color: var(--white);
+      overflow: hidden;
+    }
+
+    .story-grid {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 54px;
+      align-items: center;
+    }
+
+    .photo-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      background: var(--ink-2);
+    }
+
+    .photo-card img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+    }
+
+    .caption {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      padding: 16px;
+      border: 1px solid rgba(251, 253, 255, 0.18);
+      border-radius: 14px;
+      background: rgba(7, 17, 31, 0.64);
+      color: rgba(251, 253, 255, 0.86);
+      backdrop-filter: blur(16px);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .story h2 { color: var(--white); }
+    .story .lead { color: rgba(251, 253, 255, 0.72); }
+
+    .check-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 30px;
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 12px;
+      align-items: start;
+      color: rgba(251, 253, 255, 0.86);
+      font-weight: 700;
+    }
+
+    .check::before {
+      content: "✓";
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(36, 180, 126, 0.18);
+      color: #7df0bd;
+      font-weight: 900;
+    }
+
+    .flow {
+      background: linear-gradient(180deg, var(--paper), #eaf2f7);
+    }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .flow-step {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(251, 253, 255, 0.78);
+    }
+
+    .flow-step strong {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      margin-bottom: 22px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: var(--white);
+    }
+
+    .flow-step h3 {
+      color: var(--ink);
+      font-size: 22px;
+      line-height: 1.1;
+    }
+
+    .flow-step p {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .reporter {
+      display: grid;
+      grid-template-columns: 1fr 0.86fr;
+      gap: 54px;
+      align-items: center;
+    }
+
+    .reporter-copy h2 { max-width: 720px; }
+
+    .quote {
+      margin-top: 30px;
+      padding: 24px;
+      border-left: 4px solid var(--blue);
+      background: var(--white);
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 700;
+      box-shadow: 0 18px 45px rgba(7, 17, 31, 0.06);
+    }
+
+    .offer {
+      background: var(--paper-warm);
+    }
+
+    .offer-box {
+      display: grid;
+      grid-template-columns: 1fr 0.72fr;
+      gap: 34px;
+      align-items: stretch;
+      border-radius: var(--radius-lg);
+      background: var(--ink);
+      color: var(--white);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .offer-copy {
+      padding: clamp(34px, 5vw, 64px);
+    }
+
+    .offer-copy h2 { color: var(--white); }
+    .offer-copy p {
+      margin-top: 22px;
+      color: rgba(251, 253, 255, 0.72);
+      font-size: 18px;
+    }
+
+    .offer-panel {
+      display: grid;
+      align-content: center;
+      gap: 14px;
+      padding: clamp(28px, 4vw, 48px);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(0,184,232,0.26), transparent 36%),
+        linear-gradient(135deg, rgba(10,100,255,0.32), rgba(251,253,255,0.08));
+    }
+
+    .offer-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 50px;
+      padding: 14px 16px;
+      border: 1px solid rgba(251, 253, 255, 0.16);
+      border-radius: 14px;
+      background: rgba(251, 253, 255, 0.08);
+      color: rgba(251, 253, 255, 0.88);
+      font-weight: 800;
+    }
+
+    .offer-line::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 99px;
+      background: var(--green);
+      box-shadow: 0 0 0 6px rgba(36, 180, 126, 0.16);
+      flex: 0 0 auto;
+    }
+
+    footer {
+      padding: 38px 0;
+      background: var(--ink);
+      color: rgba(251, 253, 255, 0.68);
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      font-size: 14px;
+    }
+
+    .footer-inner img { width: 100px; opacity: 0.92; }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity 620ms ease, transform 620ms ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 1ms !important;
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    @media (max-width: 980px) {
+      .nav-links { display: none; }
+      .section-head,
+      .story-grid,
+      .reporter,
+      .offer-box {
+        grid-template-columns: 1fr;
+      }
+      .pain-grid { grid-template-columns: 1fr; }
+      .flow-grid { grid-template-columns: repeat(2, 1fr); }
+      .proof-strip { grid-template-columns: repeat(2, 1fr); }
+      .hero::after {
+        background:
+          linear-gradient(90deg, rgba(7,17,31,0.96), rgba(7,17,31,0.66)),
+          linear-gradient(180deg, rgba(7,17,31,0.28), rgba(7,17,31,0.82));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 28px, 1180px); }
+      .nav-inner { height: 66px; }
+      .brand img { width: 98px; }
+      .nav-cta { min-height: 38px; padding-inline: 14px; font-size: 12px; }
+      .hero { min-height: 820px; padding-top: 96px; }
+      .hero-media img { object-position: 62% center; }
+      h1 { font-size: clamp(42px, 14vw, 60px); }
+      .hero-copy p, .lead { font-size: 16px; }
+      .button { width: 100%; }
+      .proof-strip,
+      .flow-grid {
+        grid-template-columns: 1fr;
+      }
+      .photo-card img { aspect-ratio: 1 / 1; }
+      .footer-inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav" aria-label="Navegacao principal">
+    <div class="shell nav-inner">
+      <a class="brand" href="#top" aria-label="Scatto">
+        <img src="logo_scatto_w.png" alt="Scatto" />
+      </a>
+      <div class="nav-links" aria-label="Secoes">
+        <a href="#problema">O problema</a>
+        <a href="#transformacao">Transformação</a>
+        <a href="#fluxo">Como funciona</a>
+        <a href="#contato">Contato</a>
+      </div>
+      <a class="nav-cta" href="mailto:contato@scatto.site?subject=Quero%20conhecer%20o%20Scatto">Falar com a equipe</a>
+    </div>
+  </nav>
+
+  <main id="top">
+    <header class="hero">
+      <picture class="hero-media">
+        <img src="assets-humanizada/hero-equipe-editorial.png" alt="Equipe editorial brasileira acompanhando publicações automatizadas em um notebook" />
+      </picture>
+      <div class="shell">
+        <div class="hero-copy">
+          <div class="eyebrow">Para portais que não podem parar</div>
+          <h1>Publique mais notícias sem aumentar sua equipe.</h1>
+          <p>O Scatto transforma fontes, reportagens e redes sociais em um fluxo editorial automático, com IA, WordPress e acompanhamento humano no ponto certo.</p>
+          <div class="actions">
+            <a class="button primary" href="mailto:contato@scatto.site?subject=Quero%20ver%20o%20Scatto%20funcionando">Quero ver funcionando</a>
+            <a class="button secondary" href="#transformacao">Entender a transformação</a>
+          </div>
+          <div class="proof-strip" aria-label="Indicadores de conversao">
+            <div class="proof"><strong>24/7</strong><span>captura e publicação monitoradas</span></div>
+            <div class="proof"><strong>200+</strong><span>notícias processadas por hora</span></div>
+            <div class="proof"><strong>20+</strong><span>portais em operação simultânea</span></div>
+            <div class="proof"><strong>98%</strong><span>uptime com alerta ativo</span></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section id="problema">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <p class="kicker">O gargalo real</p>
+            <h2>Seu portal não perde audiência por falta de pauta.</h2>
+          </div>
+          <p class="lead">Ele perde velocidade quando coleta, reescrita, imagem, categoria, WordPress e redes sociais dependem de uma mesma pessoa fazendo tudo manualmente.</p>
+        </div>
+        <div class="pain-grid">
+          <article class="pain-card reveal">
+            <span class="num">01</span>
+            <h3>A equipe vive apagando incêndio</h3>
+            <p>Notícias chegam de vários lugares, mas o fluxo editorial vira fila, retrabalho e publicação atrasada.</p>
+          </article>
+          <article class="pain-card reveal">
+            <span class="num">02</span>
+            <h3>O WordPress vira o centro da ansiedade</h3>
+            <p>Imagem, categoria, autor, meta tags e redes sociais competem pela atenção do editor a cada nova pauta.</p>
+          </article>
+          <article class="pain-card reveal">
+            <span class="num">03</span>
+            <h3>Crescer parece contratar sem parar</h3>
+            <p>Mais portais e mais fontes deveriam significar escala, não mais turnos manuais para manter tudo vivo.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="transformacao" class="story">
+      <div class="shell story-grid">
+        <div class="photo-card reveal">
+          <img src="assets-humanizada/editor-aliviado-dashboard.png" alt="Editor acompanha um painel automatizado em uma redação local" />
+          <div class="caption">A operação deixa de depender de memória, planilha e pressa. O editor acompanha o que importa.</div>
+        </div>
+        <div class="reveal">
+          <p class="kicker">A virada</p>
+          <h2>O Scatto assume a rotina repetitiva. Sua equipe assume as decisões.</h2>
+          <p class="lead">A plataforma coleta fontes, identifica duplicatas, reescreve com IA, prepara metadados, publica no WordPress e distribui nas redes sociais com cadência controlada.</p>
+          <div class="check-list">
+            <div class="check">Cada portal pode ter fontes, prompts, categorias e redes independentes.</div>
+            <div class="check">A fila protege seu WordPress contra picos e publicações em excesso.</div>
+            <div class="check">Alertas mostram o que precisa de atenção antes que vire problema.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="fluxo" class="flow">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <p class="kicker">Como funciona</p>
+            <h2>De uma fonte nova a uma notícia publicada em poucos passos.</h2>
+          </div>
+          <p class="lead">O Scatto conecta fontes, reescreve com IA e entrega o conteúdo pronto no WordPress — com imagem, categoria e distribuição nas redes sociais.</p>
+        </div>
+        <div class="flow-grid">
+          <article class="flow-step reveal">
+            <strong>1</strong>
+            <h3>Conecta fontes</h3>
+            <p>RSS, sitemaps, APIs, scraping e fontes regionais entram em um fluxo unico.</p>
+          </article>
+          <article class="flow-step reveal">
+            <strong>2</strong>
+            <h3>Reescreve com IA</h3>
+            <p>Prompts por portal preservam tom, contexto local, tamanho e estilo editorial.</p>
+          </article>
+          <article class="flow-step reveal">
+            <strong>3</strong>
+            <h3>Publica com controle</h3>
+            <p>WordPress recebe artigo, imagem, categoria, autor e metadados sem montagem manual.</p>
+          </article>
+          <article class="flow-step reveal">
+            <strong>4</strong>
+            <h3>Distribui e monitora</h3>
+            <p>Cards sociais, Telegram, alertas e historico fecham o ciclo de acompanhamento.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell reporter">
+        <div class="reporter-copy reveal">
+          <p class="kicker">Repórter em campo</p>
+          <h2>A noticia tambem pode nascer no celular.</h2>
+          <p class="lead">Foto, áudio ou texto enviados por um repórter podem virar pauta estruturada, artigo, card e publicação. Isso aproxima a automação da rotina real de uma redação regional.</p>
+          <div class="quote">"Menos tempo no painel, mais tempo na pauta. É isso que muda quando a rotina operacional passa a ser automática."</div>
+        </div>
+        <div class="photo-card reveal">
+          <img src="assets-humanizada/reporter-campo-celular.png" alt="Repórter em campo enviando conteúdo pelo celular para publicação automatizada" />
+          <div class="caption">Menos painel, mais rotina real: o conteúdo sai do campo e entra no fluxo editorial.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contato" class="offer">
+      <div class="shell">
+        <div class="offer-box reveal">
+          <div class="offer-copy">
+            <p class="kicker">Oferta direta</p>
+            <h2>Veja o Scatto com o seu fluxo editorial.</h2>
+            <p>Em uma demonstração guiada, mapeamos suas fontes, seus portais WordPress e o caminho até a primeira publicação automatizada.</p>
+            <div class="actions">
+              <a class="button primary" href="mailto:contato@scatto.site?subject=Quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o%20do%20Scatto">Agendar demonstração</a>
+              <a class="button secondary" href="https://scatto.site" target="_blank" rel="noopener">Acessar scatto.site</a>
+            </div>
+          </div>
+          <div class="offer-panel" aria-label="Itens incluidos">
+            <div class="offer-line">Diagnóstico de fontes e portais</div>
+            <div class="offer-line">Demo com publicação realista</div>
+            <div class="offer-line">Plano de implantação guiada</div>
+            <div class="offer-line">Suporte para equipe editorial</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell footer-inner">
+      <img src="logo_scatto_w.png" alt="Scatto" />
+      <p>Scatto, automação editorial inteligente para portais de notícias.</p>
+      <p><a href="mailto:contato@scatto.site">contato@scatto.site</a></p>
+    </div>
+  </footer>
+
+  <script>
+    const reveals = document.querySelectorAll(".reveal");
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: "0px 0px -60px 0px" });
+
+      reveals.forEach((el) => observer.observe(el));
+    } else {
+      reveals.forEach((el) => el.classList.add("visible"));
+    }
+  </script>
+</body>
+</html>

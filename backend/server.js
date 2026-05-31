@@ -55,6 +55,11 @@ const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 
+// ─── Landing page pública (raiz do domínio) ───────────────────────────────────
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/subscriber/landing.html'));
+});
+
 // ─── Frontend estático ────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../frontend/subscriber')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
