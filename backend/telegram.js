@@ -2,6 +2,7 @@
 
 const TelegramBot            = require('node-telegram-bot-api');
 const axios                  = require('axios');
+const FormData               = require('form-data');
 const https                  = require('https');
 const pool                   = require('./db/connection');
 const { publishToWordPress } = require('./connectors/wordpress');
@@ -142,7 +143,19 @@ async function buscarCategorias(site) {
 // ─── IA ───────────────────────────────────────────────────────────────────────
 
 async function transcreverAudio(buffer, mimeType) {
-  throw new Error('Transcrição de áudio não disponível. Por favor, envie o texto digitado.');
+  const key = process.env.OPENAI_KEY || '';
+  if (!key) throw new Error('Chave OpenAI não configurada. Por favor, envie o texto digitado.');
+
+  const form = new FormData();
+  form.append('file', buffer, { filename: 'audio.ogg', contentType: mimeType || 'audio/ogg' });
+  form.append('model', 'whisper-1');
+  form.append('language', 'pt');
+
+  const resp = await axios.post('https://api.openai.com/v1/audio/transcriptions', form, {
+    headers: { Authorization: `Bearer ${key}`, ...form.getHeaders() },
+    timeout: 60000,
+  });
+  return resp.data?.text?.trim() || '';
 }
 
 async function gerarArtigo(briefing, aiPrompt) {
