@@ -76,7 +76,7 @@ router.put('/:id', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
           blogger_blog_id, webhook_url, webhook_secret, post_format, active, ai_prompt,
           facebook_enabled, facebook_page_id, facebook_page_token,
-          instagram_enabled, autopub_enabled } = req.body || {};
+          instagram_enabled, autopub_enabled, social_config } = req.body || {};
   try {
     const sets = []; const vals = []; let p = 1;
     if (name        !== undefined) { sets.push(`name = $${p++}`);        vals.push(name); }
@@ -102,6 +102,7 @@ router.put('/:id', async (req, res) => {
     }
     if (instagram_enabled !== undefined) { sets.push(`instagram_enabled = $${p++}`); vals.push(instagram_enabled === true || instagram_enabled === 'true'); }
     if (autopub_enabled   !== undefined) { sets.push(`autopub_enabled = $${p++}`);   vals.push(autopub_enabled === true || autopub_enabled === 'true'); }
+    if (social_config     !== undefined) { sets.push(`social_config = $${p++}`);     vals.push(social_config); }
     if (!sets.length) return res.status(400).json({ error: 'Nada para atualizar.' });
     vals.push(req.params.id);
     const { rows } = await pool.query(

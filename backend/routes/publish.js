@@ -144,21 +144,24 @@ router.post('/', async (req, res) => {
         const pageToken = decryptToken(site.facebook_page_token);
 
         // Se vai postar no IG também, salva o card em disco (precisa de URL pública)
+        const socialConfig = site.social_config || {};
         let cardBuffer, cardPublicUrl, cardFpath;
         if (wantsInstagram) {
           const r = await gerarCardComUrl({
-            chapeu:   rewritten.chapeu || article.chapeu || '',
-            titulo:   rewritten.title  || article.title  || '',
-            imageUrl: article.image_url || '',
+            chapeu:     rewritten.chapeu || article.chapeu || '',
+            titulo:     rewritten.title  || article.title  || '',
+            imageUrl:   article.image_url || '',
+            cardConfig: socialConfig,
           });
           cardBuffer    = r.buffer;
           cardPublicUrl = r.publicUrl;
           cardFpath     = r.fpath;
         } else {
           cardBuffer = await gerarCard({
-            chapeu:   rewritten.chapeu || article.chapeu || '',
-            titulo:   rewritten.title  || article.title  || '',
-            imageUrl: article.image_url || '',
+            chapeu:     rewritten.chapeu || article.chapeu || '',
+            titulo:     rewritten.title  || article.title  || '',
+            imageUrl:   article.image_url || '',
+            cardConfig: socialConfig,
           });
         }
 
@@ -167,7 +170,7 @@ router.post('/', async (req, res) => {
           const fb = await publicarFoto(
             { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
             cardBuffer,
-            { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+            { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url, captionConfig: socialConfig }
           );
           facebookResult = { ok: true, post_url: fb.post_url, photo_id: fb.photo_id };
           try {
@@ -338,21 +341,24 @@ router.post('/manual', async (req, res) => {
         const wantsInstagram = site.instagram_enabled && site.instagram_business_account_id;
         const pageToken = decryptToken(site.facebook_page_token);
 
+        const socialConfigManual = site.social_config || {};
         let cardBuffer, cardPublicUrl, cardFpath;
         if (wantsInstagram) {
           const r = await gerarCardComUrl({
-            chapeu:   rewritten.chapeu || '',
-            titulo:   rewritten.title  || '',
-            imageUrl: article.image_url || '',
+            chapeu:     rewritten.chapeu || '',
+            titulo:     rewritten.title  || '',
+            imageUrl:   article.image_url || '',
+            cardConfig: socialConfigManual,
           });
           cardBuffer    = r.buffer;
           cardPublicUrl = r.publicUrl;
           cardFpath     = r.fpath;
         } else {
           cardBuffer = await gerarCard({
-            chapeu:   rewritten.chapeu || '',
-            titulo:   rewritten.title  || '',
-            imageUrl: article.image_url || '',
+            chapeu:     rewritten.chapeu || '',
+            titulo:     rewritten.title  || '',
+            imageUrl:   article.image_url || '',
+            cardConfig: socialConfigManual,
           });
         }
 
@@ -360,7 +366,7 @@ router.post('/manual', async (req, res) => {
           const fb = await publicarFoto(
             { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
             cardBuffer,
-            { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+            { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url, captionConfig: socialConfigManual }
           );
           facebookResultManual = { ok: true, post_url: fb.post_url, photo_id: fb.photo_id };
           try {

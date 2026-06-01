@@ -480,6 +480,7 @@ async function criarIndicesBanco() {
   await tryMigrate('publications.instagram_post_url',     `ALTER TABLE publications ADD COLUMN IF NOT EXISTS instagram_post_url TEXT`);
   // Flag de pausa do autopub por site (sem perder configuração de fontes)
   await tryMigrate('sites_catalog.autopub_enabled',       `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS autopub_enabled BOOLEAN DEFAULT true`);
+  await tryMigrate('sites_catalog.social_config',         `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS social_config JSONB DEFAULT '{}'`);
   await tryMigrate('publications.meta_ad_id',             `ALTER TABLE publications ADD COLUMN IF NOT EXISTS meta_ad_id VARCHAR(100)`);
   await tryMigrate('publications.meta_ad_url',            `ALTER TABLE publications ADD COLUMN IF NOT EXISTS meta_ad_url TEXT`);
 

@@ -1819,6 +1819,41 @@
         </div>
       </div>
 
+      <!-- Personalização do Card e Legenda por portal -->
+      <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-top:4px">
+        <div style="padding:12px 14px;background:#f8fafc;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <span style="font-weight:600;color:#334155">🎨 Personalização do card e legenda</span>
+          <span style="font-size:.75rem;color:var(--muted)">clique para expandir</span>
+        </div>
+        <div style="display:none;padding:14px;background:#fff;border-top:1px solid #e2e8f0">
+
+          <div class="form-row" style="gap:12px;margin-bottom:12px">
+            <div class="form-group" style="flex:1">
+              <label>Palavras no chapéu (imagem)</label>
+              <select id="mcat-sc-chapeu-words" style="width:100%">
+                <option value="1">1 palavra</option>
+                <option value="2" selected>2 palavras (padrão)</option>
+              </select>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Quantas palavras do chapéu aparecem no card 1080×1080</div>
+            </div>
+            <div class="form-group" style="flex:1">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:20px">
+                <input type="checkbox" id="mcat-sc-show-chapeu" style="width:16px;height:16px" />
+                <span>Mostrar chapéu na legenda</span>
+              </label>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Exibe "📰 CHAPÉU" no texto da postagem (padrão: desligado)</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Hashtags fixas <small style="color:var(--muted);font-weight:400">(adicionadas ao final de toda legenda)</small></label>
+            <input type="text" id="mcat-sc-hashtags" placeholder="#noticias #brasil #portalnome" style="font-family:monospace;font-size:.85rem" />
+            <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Deixe vazio para não adicionar hashtags</div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- Publicação Automática — fontes e categorias por fonte -->
       <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden;margin-top:4px">
         <div style="padding:12px 14px;background:#f0fdf4">
@@ -4343,6 +4378,9 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-fb-page-token').value = '';
   document.getElementById('mcat-fb-status').textContent = '';
   document.getElementById('mcat-autopub-enabled').checked = true;
+  document.getElementById('mcat-sc-chapeu-words').value   = '2';
+  document.getElementById('mcat-sc-show-chapeu').checked  = false;
+  document.getElementById('mcat-sc-hashtags').value       = '';
   esconderBlocoInstagram();
   toggleFbFields();
   toggleAutopubFields();
@@ -4375,6 +4413,12 @@ async function abrirModalCatalog(siteId) {
       } else {
         esconderBlocoInstagram();
       }
+      // Personalização social
+      const sc = s.social_config || {};
+      document.getElementById('mcat-sc-chapeu-words').value = sc.card_chapeu_words ? String(sc.card_chapeu_words) : '2';
+      document.getElementById('mcat-sc-show-chapeu').checked = sc.caption_show_chapeu === true;
+      document.getElementById('mcat-sc-hashtags').value = sc.caption_hashtags || '';
+
       toggleFbFields();
       toggleCatalogPlatformFields();
       toggleAutopubFields();
@@ -4424,6 +4468,11 @@ async function salvarCatalog() {
     facebook_page_token: document.getElementById('mcat-fb-page-token').value.trim() || null,
     instagram_enabled:   document.getElementById('mcat-ig-enabled')?.checked || false,
     autopub_enabled:     document.getElementById('mcat-autopub-enabled').checked,
+    social_config: {
+      card_chapeu_words:    parseInt(document.getElementById('mcat-sc-chapeu-words').value) || 2,
+      caption_show_chapeu:  document.getElementById('mcat-sc-show-chapeu').checked,
+      caption_hashtags:     document.getElementById('mcat-sc-hashtags').value.trim() || '',
+    },
   };
   // Não enviar token se for o placeholder "••••••••" (significa "não mudar")
   if (body.facebook_page_token === '••••••••') delete body.facebook_page_token;

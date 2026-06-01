@@ -11,11 +11,13 @@ function stripHtml(html) {
   return (html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function montarCaption({ title, summary, post_url }) {
+function montarCaption({ chapeu, title, summary, post_url, captionConfig = {} }) {
   const linhas = [];
+  if (captionConfig.caption_show_chapeu && chapeu) linhas.push(`📰 ${chapeu.toUpperCase()}`);
   if (title)    linhas.push(`*${title.trim()}*`);
   if (summary)  linhas.push('', stripHtml(summary));
   if (post_url) linhas.push('', `🔗 Leia: ${post_url}`);
+  if (captionConfig.caption_hashtags) linhas.push('', captionConfig.caption_hashtags.trim());
   return linhas.join('\n');
 }
 
@@ -53,10 +55,11 @@ async function publicarFoto(site, imageBuffer, article) {
   }
 
   const caption = montarCaption({
-    chapeu:   article.chapeu,
-    title:    article.title,
-    summary:  article.summary,
-    post_url: article.post_url,
+    chapeu:        article.chapeu,
+    title:         article.title,
+    summary:       article.summary,
+    post_url:      article.post_url,
+    captionConfig: article.captionConfig || {},
   });
 
   const form = new FormData();

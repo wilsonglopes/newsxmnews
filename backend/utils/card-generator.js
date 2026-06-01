@@ -76,15 +76,16 @@ function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
 }
 
 // SVG dos textos (chapéu + título)
-function montarSvgTextos(chapeu, titulo) {
-  // Chapéu: até 2 palavras significativas em maiúsculas
+function montarSvgTextos(chapeu, titulo, cardConfig = {}) {
+  // Chapéu: até N palavras significativas (configurável por portal, padrão 2)
+  const maxWords = Number(cardConfig.card_chapeu_words) || 2;
   const chapeuRaw = (chapeu || '').trim();
   const palavras = chapeuRaw.split(/\s+/).filter(Boolean);
 
-  // Remove preposições/artigos do início e pega até 2 palavras substantivas
+  // Remove preposições/artigos do início e pega até maxWords palavras substantivas
   const STOPWORDS = /^(DA|DO|DE|DAS|DOS|EM|NO|NA|NOS|NAS|COM|PARA|POR|A|O|AS|OS|E|AO|À)$/i;
   const substantivas = palavras.filter(p => !STOPWORDS.test(p));
-  const chapeuFinal = (substantivas.slice(0, 2).join(' ') || palavras.slice(0, 2).join(' ') || '').toUpperCase();
+  const chapeuFinal = (substantivas.slice(0, maxWords).join(' ') || palavras.slice(0, maxWords).join(' ') || '').toUpperCase();
   const chapeuTexto = escapeXml(chapeuFinal);
 
   // Font-size automático: reduz para caber na caixa 657×127px
@@ -165,7 +166,7 @@ async function baixarImagem(url) {
 
 // ─── Gerador principal ──────────────────────────────────────────────────────
 
-async function gerarCard({ chapeu, titulo, imageUrl }) {
+async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {} }) {
   // 1) Baixa foto e ajusta pra área da foto
   let fotoBuffer;
   try {
@@ -207,7 +208,7 @@ async function gerarCard({ chapeu, titulo, imageUrl }) {
     .toBuffer();
 
   // 3) Sobrepõe template e textos
-  const svgTextos = montarSvgTextos(chapeu, titulo);
+  const svgTextos = montarSvgTextos(chapeu, titulo, cardConfig);
 
   const cardFinal = await sharp(canvas)
     .composite([

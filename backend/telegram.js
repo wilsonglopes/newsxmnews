@@ -442,21 +442,24 @@ async function publicar(bot, chatId, s, reporter) {
     const pageToken    = decryptToken(site.facebook_page_token);
 
     // Gera card; se for postar no IG, salva em disco também (precisa URL pública)
+    const socialConfig = site.social_config || {};
     let cardBuffer, cardPublicUrl;
     try {
       if (querPostarIG) {
         const r = await gerarCardComUrl({
-          chapeu:   article.chapeu || '',
-          titulo:   article.title  || '',
-          imageUrl: imageUrl || '',
+          chapeu:     article.chapeu || '',
+          titulo:     article.title  || '',
+          imageUrl:   imageUrl || '',
+          cardConfig: socialConfig,
         });
         cardBuffer    = r.buffer;
         cardPublicUrl = r.publicUrl;
       } else {
         cardBuffer = await gerarCard({
-          chapeu:   article.chapeu || '',
-          titulo:   article.title  || '',
-          imageUrl: imageUrl || '',
+          chapeu:     article.chapeu || '',
+          titulo:     article.title  || '',
+          imageUrl:   imageUrl || '',
+          cardConfig: socialConfig,
         });
       }
     } catch (cardErr) {
@@ -470,7 +473,7 @@ async function publicar(bot, chatId, s, reporter) {
         const fb = await publicarFoto(
           { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
           cardBuffer,
-          { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url }
+          { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url, captionConfig: socialConfig }
         );
         fbInfo = `\n📘 Facebook: ${fb.post_url || 'OK'}`;
         console.log(`[TELEGRAM/FB] ✓ ${site.site_name}: ${fb.post_url}`);

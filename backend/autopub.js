@@ -501,21 +501,24 @@ async function processarItem(item) {
       const querPostarIG = site.instagram_enabled && site.instagram_business_account_id && item.publish_instagram;
       const pageToken    = decryptToken(site.facebook_page_token);
 
+      const socialConfig = site.social_config || {};
       let cardBuffer, cardPublicUrl, cardFpath;
       if (querPostarIG) {
         const r = await gerarCardComUrl({
-          chapeu:   reescrito.chapeu || artigo.chapeu || '',
-          titulo:   reescrito.title  || artigo.title  || '',
-          imageUrl: artigo.image_url || '',
+          chapeu:     reescrito.chapeu || artigo.chapeu || '',
+          titulo:     reescrito.title  || artigo.title  || '',
+          imageUrl:   artigo.image_url || '',
+          cardConfig: socialConfig,
         });
         cardBuffer    = r.buffer;
         cardPublicUrl = r.publicUrl;
         cardFpath     = r.fpath;
       } else {
         cardBuffer = await gerarCard({
-          chapeu:   reescrito.chapeu || artigo.chapeu || '',
-          titulo:   reescrito.title  || artigo.title  || '',
-          imageUrl: artigo.image_url || '',
+          chapeu:     reescrito.chapeu || artigo.chapeu || '',
+          titulo:     reescrito.title  || artigo.title  || '',
+          imageUrl:   artigo.image_url || '',
+          cardConfig: socialConfig,
         });
       }
 
@@ -523,7 +526,7 @@ async function processarItem(item) {
         const fb = await publicarFoto(
           { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
           cardBuffer,
-          { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url }
+          { chapeu: reescrito.chapeu, title: reescrito.title, summary: reescrito.summary, post_url: resultado.post_url, captionConfig: socialConfig }
         );
         await pool.query(
           `UPDATE publications SET facebook_post_id = $1, facebook_post_url = $2
