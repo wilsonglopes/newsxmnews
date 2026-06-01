@@ -204,7 +204,8 @@ async function buscarSites(subscriberId) {
             COALESCE(sc.facebook_enabled, false)              AS facebook_enabled,
             sc.facebook_page_id, sc.facebook_page_token,
             COALESCE(sc.instagram_enabled, false)             AS instagram_enabled,
-            sc.instagram_business_account_id, sc.instagram_username
+            sc.instagram_business_account_id, sc.instagram_username,
+            sc.social_config
      FROM subscriber_sites ss
      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
      WHERE ss.subscriber_id = $1 AND ss.active = true`,

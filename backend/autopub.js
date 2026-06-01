@@ -287,6 +287,7 @@ async function processarProximoItem() {
              sc.facebook_page_id, sc.facebook_page_token,
              sc.instagram_enabled AS site_instagram_enabled,
              sc.instagram_business_account_id, sc.instagram_username,
+             sc.social_config,
              ss.ai_prompt AS sub_ai_prompt,
              ss.wp_username AS ss_wp_username, ss.wp_app_password AS ss_wp_app_password,
              ss.default_category_id AS ss_default_category_id
@@ -367,6 +368,7 @@ async function processarItem(item) {
     instagram_enabled: item.site_instagram_enabled,
     instagram_business_account_id: item.instagram_business_account_id,
     instagram_username: item.instagram_username,
+    social_config:     item.social_config,
   };
 
   // Busca artigo com dados da fonte

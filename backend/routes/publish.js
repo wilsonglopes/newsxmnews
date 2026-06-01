@@ -47,7 +47,8 @@ router.post('/', async (req, res) => {
              COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
              COALESCE(sc.post_format, ss.post_format)         AS post_format,
              sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
-             sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username
+             sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username,
+             sc.social_config
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
@@ -263,7 +264,8 @@ router.post('/manual', async (req, res) => {
              COALESCE(sc.webhook_secret, ss.webhook_secret)   AS webhook_secret,
              COALESCE(sc.post_format, ss.post_format)         AS post_format,
              sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
-             sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username
+             sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username,
+             sc.social_config
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
