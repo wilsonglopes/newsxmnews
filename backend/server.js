@@ -1075,6 +1075,12 @@ app.use('/api/proxy-image', require('./routes/image-proxy'));
 // Catálogo central de sites (admin)
 app.use('/api/admin/sites-catalog', require('./routes/sites-catalog'));
 
+// Lista templates de card disponíveis (arquivos *-facebook.png em backend/templates/)
+app.get('/api/admin/card-templates', authMiddleware, (req, res) => {
+  const { listarTemplates } = require('./utils/card-generator');
+  res.json(listarTemplates());
+});
+
 // Admin (Fase 4) — injeta contexto mutável do servidor
 app.use('/api/admin', require('./routes/admin')({ sources, cache, atualizarFonte }));
 

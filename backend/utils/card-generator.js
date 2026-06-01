@@ -6,11 +6,32 @@ const fs     = require('fs');
 const crypto = require('crypto');
 const axios  = require('axios');
 
-const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'xmnews-facebook.png');
-const UPLOADS_DIR   = path.join(__dirname, '..', 'public', 'uploads', 'cards');
+const TEMPLATES_DIR  = path.join(__dirname, '..', 'templates');
+const TEMPLATE_PATH  = path.join(TEMPLATES_DIR, 'xmnews-facebook.png');
+const UPLOADS_DIR    = path.join(__dirname, '..', 'public', 'uploads', 'cards');
 
 // Garante que o diretório existe
 try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch {}
+
+// Resolve o template correto para o portal; cai no padrão se não encontrar
+function resolveTemplate(cardConfig = {}) {
+  const slug = (cardConfig.card_template || '').trim();
+  if (slug && slug !== 'default') {
+    const custom = path.join(TEMPLATES_DIR, `${slug}-facebook.png`);
+    if (fs.existsSync(custom)) return custom;
+    console.warn(`[card-generator] template "${slug}-facebook.png" não encontrado — usando padrão`);
+  }
+  return TEMPLATE_PATH;
+}
+
+// Lista templates disponíveis (para a UI admin)
+function listarTemplates() {
+  try {
+    return fs.readdirSync(TEMPLATES_DIR)
+      .filter(f => f.endsWith('-facebook.png'))
+      .map(f => ({ slug: f.replace('-facebook.png', ''), file: f }));
+  } catch { return []; }
+}
 
 // Coordenadas do template (1600×2000 — proporção 4:5, otimizado para Instagram)
 const CARD = {
@@ -208,11 +229,12 @@ async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {} }) {
     .toBuffer();
 
   // 3) Sobrepõe template e textos
-  const svgTextos = montarSvgTextos(chapeu, titulo, cardConfig);
+  const svgTextos   = montarSvgTextos(chapeu, titulo, cardConfig);
+  const templatePath = resolveTemplate(cardConfig);
 
   const cardFinal = await sharp(canvas)
     .composite([
-      { input: TEMPLATE_PATH, top: 0, left: 0 },
+      { input: templatePath, top: 0, left: 0 },
       { input: svgTextos,     top: 0, left: 0 },
     ])
     .jpeg({ quality: 92 })
@@ -252,4 +274,4 @@ function limparCardsAntigos(diasMax = 7) {
   } catch (e) { console.warn('[card-generator] cleanup:', e.message); }
 }
 
-module.exports = { gerarCard, gerarCardComUrl, limparCardsAntigos, CARD, UPLOADS_DIR };
+module.exports = { gerarCard, gerarCardComUrl, limparCardsAntigos, listarTemplates, CARD, UPLOADS_DIR };

@@ -1829,15 +1829,25 @@
 
           <div class="form-row" style="gap:12px;margin-bottom:12px">
             <div class="form-group" style="flex:1">
+              <label>Template do card</label>
+              <select id="mcat-sc-template" style="width:100%">
+                <option value="default">Padrão (xmnews)</option>
+              </select>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Layout visual do card 1600×2000. Novos templates: envie <code>slug-facebook.png</code> para <code>backend/templates/</code></div>
+            </div>
+            <div class="form-group" style="flex:1">
               <label>Palavras no chapéu (imagem)</label>
               <select id="mcat-sc-chapeu-words" style="width:100%">
                 <option value="1">1 palavra</option>
                 <option value="2" selected>2 palavras (padrão)</option>
               </select>
-              <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Quantas palavras do chapéu aparecem no card 1080×1080</div>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Quantas palavras do chapéu aparecem no card</div>
             </div>
+          </div>
+
+          <div class="form-row" style="gap:12px;margin-bottom:12px">
             <div class="form-group" style="flex:1">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:20px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
                 <input type="checkbox" id="mcat-sc-show-chapeu" style="width:16px;height:16px" />
                 <span>Mostrar chapéu na legenda</span>
               </label>
@@ -4287,6 +4297,24 @@ async function carregarCatalog() {
   }
 }
 
+async function carregarTemplatesDropdown(selectedSlug) {
+  const sel = document.getElementById('mcat-sc-template');
+  try {
+    const data = await fetch(`${BACKEND}/api/admin/card-templates`, { headers: authHeader() }).then(r => r.json());
+    sel.innerHTML = '<option value="default">Padrão (xmnews)</option>';
+    (Array.isArray(data) ? data : []).forEach(t => {
+      if (t.slug === 'xmnews') return; // já está como padrão
+      const opt = document.createElement('option');
+      opt.value = t.slug;
+      opt.textContent = t.slug;
+      sel.appendChild(opt);
+    });
+  } catch {
+    sel.innerHTML = '<option value="default">Padrão (xmnews)</option>';
+  }
+  sel.value = selectedSlug || 'default';
+}
+
 function toggleCatalogPlatformFields() {
   const p = document.getElementById('mcat-platform').value;
   document.getElementById('mcat-wp-fields').style.display      = p === 'wordpress' ? '' : 'none';
@@ -4378,6 +4406,7 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-fb-page-token').value = '';
   document.getElementById('mcat-fb-status').textContent = '';
   document.getElementById('mcat-autopub-enabled').checked = true;
+  document.getElementById('mcat-sc-template').value       = 'default';
   document.getElementById('mcat-sc-chapeu-words').value   = '2';
   document.getElementById('mcat-sc-show-chapeu').checked  = false;
   document.getElementById('mcat-sc-hashtags').value       = '';
@@ -4418,6 +4447,7 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-sc-chapeu-words').value = sc.card_chapeu_words ? String(sc.card_chapeu_words) : '2';
       document.getElementById('mcat-sc-show-chapeu').checked = sc.caption_show_chapeu === true;
       document.getElementById('mcat-sc-hashtags').value = sc.caption_hashtags || '';
+      await carregarTemplatesDropdown(sc.card_template || 'default');
 
       toggleFbFields();
       toggleCatalogPlatformFields();
@@ -4469,6 +4499,7 @@ async function salvarCatalog() {
     instagram_enabled:   document.getElementById('mcat-ig-enabled')?.checked || false,
     autopub_enabled:     document.getElementById('mcat-autopub-enabled').checked,
     social_config: {
+      card_template:        document.getElementById('mcat-sc-template').value || 'default',
       card_chapeu_words:    parseInt(document.getElementById('mcat-sc-chapeu-words').value) || 2,
       caption_show_chapeu:  document.getElementById('mcat-sc-show-chapeu').checked,
       caption_hashtags:     document.getElementById('mcat-sc-hashtags').value.trim() || '',
