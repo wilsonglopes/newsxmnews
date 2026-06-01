@@ -1879,6 +1879,31 @@
             </div>
           </div>
 
+          <!-- Cores e chapéu na IMAGEM -->
+          <div class="form-row" style="gap:12px;margin-bottom:12px;align-items:flex-start">
+            <div class="form-group" style="flex:1">
+              <label>Cor do texto do chapéu (imagem)</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="color" id="mcat-sc-cor-chapeu" value="#ffffff" oninput="document.getElementById('mcat-sc-cor-chapeu-hex').textContent=this.value" style="width:48px;height:38px;padding:2px;border:1px solid var(--border);border-radius:6px;cursor:pointer" />
+                <span id="mcat-sc-cor-chapeu-hex" style="font-family:monospace;font-size:.8rem;color:var(--muted)">#ffffff</span>
+              </div>
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Cor do texto do título (imagem)</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="color" id="mcat-sc-cor-titulo" value="#ffffff" oninput="document.getElementById('mcat-sc-cor-titulo-hex').textContent=this.value" style="width:48px;height:38px;padding:2px;border:1px solid var(--border);border-radius:6px;cursor:pointer" />
+                <span id="mcat-sc-cor-titulo-hex" style="font-family:monospace;font-size:.8rem;color:var(--muted)">#ffffff</span>
+              </div>
+            </div>
+            <div class="form-group" style="flex:1">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
+                <input type="checkbox" id="mcat-sc-show-chapeu-img" checked style="width:16px;height:16px" />
+                <span>Mostrar chapéu na imagem</span>
+              </label>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Desligue ao usar template sem caixinha de chapéu</div>
+            </div>
+          </div>
+
           <div class="form-row" style="gap:12px;margin-bottom:12px">
             <div class="form-group" style="flex:1">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
@@ -4529,6 +4554,11 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-autopub-enabled').checked = true;
   document.getElementById('mcat-sc-template').value       = 'default';
   document.getElementById('mcat-sc-chapeu-words').value   = '2';
+  document.getElementById('mcat-sc-cor-chapeu').value     = '#ffffff';
+  document.getElementById('mcat-sc-cor-chapeu-hex').textContent = '#ffffff';
+  document.getElementById('mcat-sc-cor-titulo').value     = '#ffffff';
+  document.getElementById('mcat-sc-cor-titulo-hex').textContent = '#ffffff';
+  document.getElementById('mcat-sc-show-chapeu-img').checked = true;
   document.getElementById('mcat-sc-show-chapeu').checked  = false;
   document.getElementById('mcat-sc-hashtags').value       = '';
   esconderBlocoInstagram();
@@ -4568,6 +4598,13 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-sc-chapeu-words').value = sc.card_chapeu_words ? String(sc.card_chapeu_words) : '2';
       document.getElementById('mcat-sc-show-chapeu').checked = sc.caption_show_chapeu === true;
       document.getElementById('mcat-sc-hashtags').value = sc.caption_hashtags || '';
+      const corCh = sc.card_chapeu_color || '#ffffff';
+      const corTi = sc.card_titulo_color || '#ffffff';
+      document.getElementById('mcat-sc-cor-chapeu').value = corCh;
+      document.getElementById('mcat-sc-cor-chapeu-hex').textContent = corCh;
+      document.getElementById('mcat-sc-cor-titulo').value = corTi;
+      document.getElementById('mcat-sc-cor-titulo-hex').textContent = corTi;
+      document.getElementById('mcat-sc-show-chapeu-img').checked = sc.card_show_chapeu !== false;
       await carregarTemplatesDropdown(sc.card_template || 'default');
 
       toggleFbFields();
@@ -4622,6 +4659,9 @@ async function salvarCatalog() {
     social_config: {
       card_template:        document.getElementById('mcat-sc-template').value || 'default',
       card_chapeu_words:    parseInt(document.getElementById('mcat-sc-chapeu-words').value) || 2,
+      card_chapeu_color:    document.getElementById('mcat-sc-cor-chapeu').value || '#ffffff',
+      card_titulo_color:    document.getElementById('mcat-sc-cor-titulo').value || '#ffffff',
+      card_show_chapeu:     document.getElementById('mcat-sc-show-chapeu-img').checked,
       caption_show_chapeu:  document.getElementById('mcat-sc-show-chapeu').checked,
       caption_hashtags:     document.getElementById('mcat-sc-hashtags').value.trim() || '',
     },

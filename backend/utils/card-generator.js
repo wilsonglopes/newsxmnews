@@ -67,6 +67,12 @@ const CARD = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Valida cor hex (#rgb ou #rrggbb). Retorna fallback se inválida (evita quebrar/injetar SVG).
+function sanitizeColor(value, fallback = '#ffffff') {
+  const v = String(value || '').trim();
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v) ? v : fallback;
+}
+
 function escapeXml(s) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -121,6 +127,11 @@ function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
 
 // SVG dos textos (chapéu + título)
 function montarSvgTextos(chapeu, titulo, cardConfig = {}) {
+  // Cores configuráveis por portal (fallback branco). Toggle do chapéu na imagem.
+  const corChapeu = sanitizeColor(cardConfig.card_chapeu_color, '#ffffff');
+  const corTitulo = sanitizeColor(cardConfig.card_titulo_color, '#ffffff');
+  const mostrarChapeu = cardConfig.card_show_chapeu !== false; // padrão: mostra
+
   // Chapéu: até N palavras significativas (configurável por portal, padrão 2)
   const maxWords = Number(cardConfig.card_chapeu_words) || 2;
   const chapeuRaw = (chapeu || '').trim();
@@ -159,13 +170,18 @@ function montarSvgTextos(chapeu, titulo, cardConfig = {}) {
     })
     .join('');
 
+  // Chapéu só é desenhado se o toggle estiver ligado (independente do template ter caixinha)
+  const chapeuSvg = mostrarChapeu
+    ? `<text x="${CARD.chapeuBox.centerX}" y="${CARD.chapeuBox.centerY + 20}" class="chapeu" text-anchor="middle">${chapeuTexto}</text>`
+    : '';
+
   return Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${CARD.width}" height="${CARD.height}" xmlns="http://www.w3.org/2000/svg">
   <style>
-    .chapeu { font-family: 'Montserrat', 'DejaVu Sans', sans-serif; font-weight: 700; font-size: ${chapeuFontSize}px; fill: #ffffff; letter-spacing: 2px; }
-    .resumo { font-family: 'Open Sans', 'DejaVu Sans', sans-serif; font-weight: 400; font-size: 60px; fill: #ffffff; }
+    .chapeu { font-family: 'Montserrat', 'DejaVu Sans', sans-serif; font-weight: 700; font-size: ${chapeuFontSize}px; fill: ${corChapeu}; letter-spacing: 2px; }
+    .resumo { font-family: 'Open Sans', 'DejaVu Sans', sans-serif; font-weight: 400; font-size: 60px; fill: ${corTitulo}; }
   </style>
-  <text x="${CARD.chapeuBox.centerX}" y="${CARD.chapeuBox.centerY + 20}" class="chapeu" text-anchor="middle">${chapeuTexto}</text>
+  ${chapeuSvg}
   <text class="resumo" y="${resumoY0}">${tspans}</text>
 </svg>`);
 }
