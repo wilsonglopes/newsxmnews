@@ -77,16 +77,21 @@ function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
 
 // SVG dos textos (chapéu + título)
 function montarSvgTextos(chapeu, titulo) {
-  // Chapéu: pega só a primeira palavra (1 palavra MAIÚSCULA, evita "INDÚSTRIA DE" etc)
+  // Chapéu: até 2 palavras significativas em maiúsculas
   const chapeuRaw = (chapeu || '').trim();
-  // Pega primeira palavra substantiva ignorando preposições/artigos curtos
-  const palavras = chapeuRaw.split(/\s+/);
-  let chapeuFinal = palavras[0] || '';
-  // Se a primeira palavra é uma preposição/artigo, tenta a segunda
-  if (/^(DA|DO|DE|DAS|DOS|EM|NO|NA|COM|PARA|POR|A|O)$/i.test(chapeuFinal) && palavras[1]) {
-    chapeuFinal = palavras[1];
-  }
-  const chapeuTexto = escapeXml(chapeuFinal.toUpperCase());
+  const palavras = chapeuRaw.split(/\s+/).filter(Boolean);
+
+  // Remove preposições/artigos do início e pega até 2 palavras substantivas
+  const STOPWORDS = /^(DA|DO|DE|DAS|DOS|EM|NO|NA|NOS|NAS|COM|PARA|POR|A|O|AS|OS|E|AO|À)$/i;
+  const substantivas = palavras.filter(p => !STOPWORDS.test(p));
+  const chapeuFinal = (substantivas.slice(0, 2).join(' ') || palavras.slice(0, 2).join(' ') || '').toUpperCase();
+  const chapeuTexto = escapeXml(chapeuFinal);
+
+  // Font-size automático: reduz para caber na caixa 657×127px
+  // 58px → até ~10 chars | 46px → até ~14 chars | 36px → até ~18 chars
+  let chapeuFontSize = 58;
+  if (chapeuFinal.length > 14) chapeuFontSize = 36;
+  else if (chapeuFinal.length > 10) chapeuFontSize = 46;
 
   // 42 chars/linha (margem de segurança para fontes mais largas em pt-BR); 6 linhas de capacidade
   const linhasTitulo = quebrarLinhas(titulo || '', 42, 6);
@@ -112,7 +117,7 @@ function montarSvgTextos(chapeu, titulo) {
   return Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${CARD.width}" height="${CARD.height}" xmlns="http://www.w3.org/2000/svg">
   <style>
-    .chapeu { font-family: 'Montserrat', 'DejaVu Sans', sans-serif; font-weight: 700; font-size: 58px; fill: #ffffff; letter-spacing: 2px; }
+    .chapeu { font-family: 'Montserrat', 'DejaVu Sans', sans-serif; font-weight: 700; font-size: ${chapeuFontSize}px; fill: #ffffff; letter-spacing: 2px; }
     .resumo { font-family: 'Open Sans', 'DejaVu Sans', sans-serif; font-weight: 400; font-size: 60px; fill: #ffffff; }
   </style>
   <text x="${CARD.chapeuBox.centerX}" y="${CARD.chapeuBox.centerY + 20}" class="chapeu" text-anchor="middle">${chapeuTexto}</text>

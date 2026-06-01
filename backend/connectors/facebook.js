@@ -11,11 +11,10 @@ function stripHtml(html) {
   return (html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function montarCaption({ chapeu, title, summary, post_url }) {
+function montarCaption({ title, summary, post_url }) {
   const linhas = [];
-  if (chapeu)  linhas.push(`📰 ${chapeu.toUpperCase()}`);
-  if (title)   linhas.push(`*${title.trim()}*`);
-  if (summary) linhas.push('', stripHtml(summary));
+  if (title)    linhas.push(`*${title.trim()}*`);
+  if (summary)  linhas.push('', stripHtml(summary));
   if (post_url) linhas.push('', `🔗 Leia: ${post_url}`);
   return linhas.join('\n');
 }
