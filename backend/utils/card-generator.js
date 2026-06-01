@@ -33,6 +33,29 @@ function listarTemplates() {
   } catch { return []; }
 }
 
+// Lista templates com thumbnail base64 (240px) para preview na UI admin
+async function listarTemplatesComPreview() {
+  const lista = listarTemplates();
+  const out = [];
+  for (const t of lista) {
+    let preview = null;
+    try {
+      const thumb = await sharp(path.join(TEMPLATES_DIR, t.file))
+        .resize(240, 300, { fit: 'inside' })
+        .png({ quality: 70 })
+        .toBuffer();
+      preview = `data:image/png;base64,${thumb.toString('base64')}`;
+    } catch {}
+    out.push({ ...t, preview });
+  }
+  return out;
+}
+
+// Caminho absoluto do diretório de templates (para upload/delete)
+function templatePathFor(slug) {
+  return path.join(TEMPLATES_DIR, `${slug}-facebook.png`);
+}
+
 // Coordenadas do template (1600×2000 — proporção 4:5, otimizado para Instagram)
 const CARD = {
   width:  1600,
@@ -274,4 +297,8 @@ function limparCardsAntigos(diasMax = 7) {
   } catch (e) { console.warn('[card-generator] cleanup:', e.message); }
 }
 
-module.exports = { gerarCard, gerarCardComUrl, limparCardsAntigos, listarTemplates, CARD, UPLOADS_DIR };
+module.exports = {
+  gerarCard, gerarCardComUrl, limparCardsAntigos,
+  listarTemplates, listarTemplatesComPreview, templatePathFor,
+  CARD, UPLOADS_DIR, TEMPLATES_DIR,
+};

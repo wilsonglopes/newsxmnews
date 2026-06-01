@@ -906,6 +906,40 @@
         </div>
       </div>
 
+      <!-- Templates de Card -->
+      <div class="panel" style="margin-bottom:20px">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+          <span style="font-size:1.2rem">🎨</span>
+          <div>
+            <div style="font-weight:700;font-size:.95rem;color:var(--text)">Templates de Card</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Layouts visuais dos cards de redes sociais (PNG 1600×2000). Escolha o template por portal na configuração do site.</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="carregarTemplatesCard()" style="margin-left:auto">↻ Atualizar</button>
+        </div>
+
+        <div style="padding:24px">
+          <!-- Upload -->
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:24px;padding:16px;background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius)">
+            <div class="form-group" style="margin:0;flex:1;min-width:180px">
+              <label>Nome do template</label>
+              <input type="text" id="tpl-novo-nome" placeholder="ex: rb24horas" style="width:100%;font-family:monospace" />
+              <small style="color:var(--muted)">Só letras, números e hífen. Vira o identificador do template.</small>
+            </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:180px">
+              <label>Arquivo PNG (1600×2000)</label>
+              <input type="file" id="tpl-novo-arquivo" accept="image/png" style="width:100%;font-size:.82rem" />
+            </div>
+            <button class="btn btn-primary btn-sm" id="tpl-btn-enviar" onclick="enviarTemplateCard()" style="height:38px">⬆ Enviar template</button>
+            <span id="tpl-upload-status" style="font-size:.82rem;width:100%"></span>
+          </div>
+
+          <!-- Lista -->
+          <div id="tpl-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px">
+            <div style="font-size:.84rem;color:var(--muted)"><span class="spin"></span> Carregando templates…</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Log de autopublicação -->
       <div class="panel">
         <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
@@ -2583,6 +2617,93 @@ async function carregarConfiguracoes() {
     document.getElementById('cfg-status').textContent = '';
   } catch (e) { console.warn('[carregarConfiguracoes]', e.message); }
   carregarAutopubLog();
+  carregarTemplatesCard();
+}
+
+// ─── Templates de Card ────────────────────────────────────────────────────────
+async function carregarTemplatesCard() {
+  const cont = document.getElementById('tpl-lista');
+  if (!cont) return;
+  try {
+    const lista = await fetch(`${BACKEND}/api/admin/card-templates`, { headers: authHeader() }).then(r => r.json());
+    if (!Array.isArray(lista) || !lista.length) {
+      cont.innerHTML = '<div style="font-size:.84rem;color:var(--muted)">Nenhum template encontrado.</div>';
+      return;
+    }
+    cont.innerHTML = lista.map(t => {
+      const reservado = t.slug === 'xmnews';
+      const img = t.preview
+        ? `<img src="${t.preview}" alt="${t.slug}" style="width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:8px 8px 0 0;background:#0f172a" />`
+        : `<div style="width:100%;aspect-ratio:4/5;border-radius:8px 8px 0 0;background:#0f172a;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:.75rem">sem preview</div>`;
+      const btnExcluir = reservado
+        ? `<span style="font-size:.7rem;color:var(--muted)">padrão</span>`
+        : `<button onclick="excluirTemplateCard('${t.slug}')" style="font-size:.72rem;padding:3px 8px;border:1px solid #fca5a5;border-radius:5px;background:#fef2f2;color:#dc2626;cursor:pointer">🗑 Excluir</button>`;
+      return `
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--white)">
+          ${img}
+          <div style="padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <span style="font-family:monospace;font-size:.8rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.slug}</span>
+            ${btnExcluir}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    cont.innerHTML = `<div style="font-size:.84rem;color:var(--red)">Erro ao carregar: ${e.message}</div>`;
+  }
+}
+
+async function enviarTemplateCard() {
+  const nome    = document.getElementById('tpl-novo-nome').value.trim();
+  const arquivo = document.getElementById('tpl-novo-arquivo').files[0];
+  const status  = document.getElementById('tpl-upload-status');
+  const btn     = document.getElementById('tpl-btn-enviar');
+
+  if (!nome)    { status.style.color = 'var(--red)'; status.textContent = 'Informe o nome do template.'; return; }
+  if (!arquivo) { status.style.color = 'var(--red)'; status.textContent = 'Selecione um arquivo PNG.'; return; }
+  if (arquivo.type !== 'image/png') { status.style.color = 'var(--red)'; status.textContent = 'O arquivo precisa ser PNG.'; return; }
+
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  status.style.color = 'var(--muted)'; status.textContent = 'Enviando…';
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(String(reader.result).replace(/^data:image\/\w+;base64,/, ''));
+      reader.onerror = reject;
+      reader.readAsDataURL(arquivo);
+    });
+    const r = await fetch(`${BACKEND}/api/admin/card-templates`, {
+      method: 'POST', headers: authHeader(),
+      body: JSON.stringify({ slug: nome, image_base64: base64 }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro no upload');
+    status.style.color = 'var(--green, #16a34a)';
+    status.textContent = `✓ Template "${d.slug}" enviado!`;
+    document.getElementById('tpl-novo-nome').value = '';
+    document.getElementById('tpl-novo-arquivo').value = '';
+    carregarTemplatesCard();
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch (e) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'Erro: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.innerHTML = '⬆ Enviar template';
+  }
+}
+
+async function excluirTemplateCard(slug) {
+  if (!confirm(`Excluir o template "${slug}"?\n\nPortais que usam este template voltarão a usar o template padrão automaticamente.`)) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/card-templates/${encodeURIComponent(slug)}`, {
+      method: 'DELETE', headers: authHeader(),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erro ao excluir');
+    toast(`Template "${slug}" excluído.` + (d.portais_afetados ? ` ${d.portais_afetados} portal(is) voltaram ao padrão.` : ''), 'sucesso');
+    carregarTemplatesCard();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'erro');
+  }
 }
 
 async function salvarConfiguracoes() {

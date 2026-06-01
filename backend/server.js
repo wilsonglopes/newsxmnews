@@ -1075,10 +1075,100 @@ app.use('/api/proxy-image', require('./routes/image-proxy'));
 // Catálogo central de sites (admin)
 app.use('/api/admin/sites-catalog', require('./routes/sites-catalog'));
 
-// Lista templates de card disponíveis (arquivos *-facebook.png em backend/templates/)
-app.get('/api/admin/card-templates', authMiddleware, (req, res) => {
-  const { listarTemplates } = require('./utils/card-generator');
-  res.json(listarTemplates());
+// ─── Templates de card (admin) ────────────────────────────────────────────────
+// Dimensões obrigatórias do template — as coordenadas de chapéu/texto são fixas.
+const CARD_TEMPLATE_W = 1600;
+const CARD_TEMPLATE_H = 2000;
+// Slugs reservados que não podem ser sobrescritos nem excluídos.
+const CARD_TEMPLATE_RESERVED = ['xmnews', 'default'];
+
+// Só admin pode gerenciar templates
+function requireAdmin(req, res, next) {
+  if (!req.subscriber || !req.subscriber.is_admin) {
+    return res.status(403).json({ error: 'Acesso restrito a administradores.' });
+  }
+  next();
+}
+
+// Lista templates com preview (thumbnail base64) — para a UI admin
+app.get('/api/admin/card-templates', authMiddleware, async (req, res) => {
+  try {
+    const { listarTemplatesComPreview } = require('./utils/card-generator');
+    res.json(await listarTemplatesComPreview());
+  } catch (err) {
+    console.error('[card-templates/list]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload de novo template (base64). Valida PNG e dimensões 1600×2000.
+app.post('/api/admin/card-templates', authMiddleware, requireAdmin, async (req, res) => {
+  const { slug: rawSlug, image_base64 } = req.body || {};
+  if (!rawSlug || !image_base64) {
+    return res.status(400).json({ error: 'slug e image_base64 são obrigatórios.' });
+  }
+  // Sanitiza o slug: minúsculas, só letras/números/hífen
+  const slug = String(rawSlug).toLowerCase().trim().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  if (!slug) return res.status(400).json({ error: 'Nome do template inválido.' });
+  if (CARD_TEMPLATE_RESERVED.includes(slug)) {
+    return res.status(400).json({ error: `"${slug}" é um nome reservado. Escolha outro.` });
+  }
+
+  try {
+    const sharp = require('sharp');
+    const fs    = require('fs');
+    const { templatePathFor } = require('./utils/card-generator');
+
+    const buffer = Buffer.from(image_base64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+    const meta   = await sharp(buffer).metadata();
+
+    if (meta.format !== 'png') {
+      return res.status(400).json({ error: 'O template precisa ser um arquivo PNG.' });
+    }
+    if (meta.width !== CARD_TEMPLATE_W || meta.height !== CARD_TEMPLATE_H) {
+      return res.status(400).json({
+        error: `Dimensões inválidas: ${meta.width}×${meta.height}. O template precisa ter exatamente ${CARD_TEMPLATE_W}×${CARD_TEMPLATE_H} px.`
+      });
+    }
+
+    fs.writeFileSync(templatePathFor(slug), buffer);
+    console.log(`[card-templates] template "${slug}" salvo (${buffer.length} bytes)`);
+    res.status(201).json({ ok: true, slug });
+  } catch (err) {
+    console.error('[card-templates/upload]', err.message);
+    res.status(500).json({ error: 'Falha ao processar a imagem: ' + err.message });
+  }
+});
+
+// Exclui um template. Bloqueia os reservados.
+app.delete('/api/admin/card-templates/:slug', authMiddleware, requireAdmin, async (req, res) => {
+  const slug = String(req.params.slug || '').toLowerCase();
+  if (CARD_TEMPLATE_RESERVED.includes(slug)) {
+    return res.status(400).json({ error: 'O template padrão não pode ser excluído.' });
+  }
+  try {
+    const fs = require('fs');
+    const { templatePathFor } = require('./utils/card-generator');
+    const fpath = templatePathFor(slug);
+    if (!fs.existsSync(fpath)) return res.status(404).json({ error: 'Template não encontrado.' });
+
+    // Conta quantos portais usam este template (caem no fallback após excluir)
+    let emUso = 0;
+    try {
+      const { rows } = await pool.query(
+        `SELECT COUNT(*)::int AS total FROM sites_catalog WHERE social_config->>'card_template' = $1`,
+        [slug]
+      );
+      emUso = rows[0]?.total || 0;
+    } catch {}
+
+    fs.unlinkSync(fpath);
+    console.log(`[card-templates] template "${slug}" excluído (${emUso} portal(is) caíram no padrão)`);
+    res.json({ ok: true, slug, portais_afetados: emUso });
+  } catch (err) {
+    console.error('[card-templates/delete]', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Admin (Fase 4) — injeta contexto mutável do servidor
