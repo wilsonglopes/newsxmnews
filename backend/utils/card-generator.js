@@ -137,8 +137,8 @@ function montarSvgTextos(chapeu, titulo, cardConfig = {}) {
   const chapeuRaw = (chapeu || '').trim();
   const palavras = chapeuRaw.split(/\s+/).filter(Boolean);
 
-  // Remove preposições/artigos do início e pega até maxWords palavras substantivas
-  const STOPWORDS = /^(DA|DO|DE|DAS|DOS|EM|NO|NA|NOS|NAS|COM|PARA|POR|A|O|AS|OS|E|AO|À)$/i;
+  // Remove preposições/artigos/transições e pega até maxWords palavras significativas
+  const STOPWORDS = /^(DA|DO|DE|DAS|DOS|EM|NO|NA|NOS|NAS|COM|PARA|POR|A|O|AS|OS|E|AO|À|UM|UMA|UNS|UMAS|OU|QUE|SE|SEM|SOB|SOBRE|ENTRE|APÓS|APOS|ATÉ|ATE|DESDE|CONTRA|NUM|NUMA|NUNS|NUMAS|PELO|PELA|PELOS|PELAS|DUM|DUMA|À|ÀS|AOS)$/i;
   const substantivas = palavras.filter(p => !STOPWORDS.test(p));
   const chapeuFinal = (substantivas.slice(0, maxWords).join(' ') || palavras.slice(0, maxWords).join(' ') || '').toUpperCase();
   const chapeuTexto = escapeXml(chapeuFinal);
