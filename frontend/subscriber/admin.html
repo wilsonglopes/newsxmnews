@@ -715,6 +715,13 @@
       <div class="section-hdr"><h2>Histórico de Publicações</h2></div>
       <div class="panel">
         <div class="panel-body">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+            <label style="font-size:.82rem;color:var(--muted);font-weight:600">Portal:</label>
+            <select id="pub-filtro-site" onchange="filtrarPublicacoes()" style="padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.85rem;font-family:inherit;color:var(--text);background:var(--white);min-width:200px">
+              <option value="">Todos os portais</option>
+            </select>
+            <span id="pub-contador" style="font-size:.8rem;color:var(--muted)"></span>
+          </div>
           <table class="data-table" id="tbl-pubs">
             <thead>
               <tr><th>Título</th><th>Fonte</th><th>Cliente</th><th>Site</th><th>Status</th><th>Data</th><th></th></tr>
@@ -5100,13 +5107,42 @@ async function salvarFonte() {
 
 // ══ PUBLICAÇÕES ══════════════════════════════════════════════════════════════
 
+let _todasPubs = []; // cache das publicações carregadas (para filtro client-side)
+
 async function carregarPublicacoes() {
   try {
-    const pubs  = await fetch(`${BACKEND}/api/admin/recent-publications`, { headers: authHeader() }).then(r => r.json());
-    const tbody = document.querySelector('#tbl-pubs tbody');
-    if (!pubs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma publicação ainda.</td></tr>'; return; }
+    _todasPubs = await fetch(`${BACKEND}/api/admin/recent-publications`, { headers: authHeader() }).then(r => r.json());
+    if (!Array.isArray(_todasPubs)) _todasPubs = [];
 
-    tbody.innerHTML = pubs.map(p => {
+    // Popula o select de portais com os sites distintos presentes no histórico
+    const sel = document.getElementById('pub-filtro-site');
+    if (sel) {
+      const atual = sel.value;
+      const sites = [...new Set(_todasPubs.map(p => p.site_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      sel.innerHTML = '<option value="">Todos os portais</option>' +
+        sites.map(s => `<option value="${s.replace(/"/g, '&quot;')}">${s}</option>`).join('');
+      if (atual && sites.includes(atual)) sel.value = atual; // mantém seleção ao recarregar
+    }
+
+    filtrarPublicacoes();
+  } catch(e) { console.error(e); }
+}
+
+function filtrarPublicacoes() {
+  const sel  = document.getElementById('pub-filtro-site');
+  const filtroSite = sel ? sel.value : '';
+  const pubs = filtroSite ? _todasPubs.filter(p => p.site_name === filtroSite) : _todasPubs;
+
+  const cont = document.getElementById('pub-contador');
+  if (cont) cont.textContent = `${pubs.length} publicaç${pubs.length === 1 ? 'ão' : 'ões'}${filtroSite ? ` · ${filtroSite}` : ''}`;
+
+  const tbody = document.querySelector('#tbl-pubs tbody');
+  if (!pubs.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">${filtroSite ? 'Nenhuma publicação neste portal.' : 'Nenhuma publicação ainda.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = pubs.map(p => {
       const btnVer = p.external_post_url
         ? `<a href="${p.external_post_url}" target="_blank" class="btn btn-ghost btn-sm">↗ Ver</a>`
         : '';
@@ -5141,7 +5177,6 @@ async function carregarPublicacoes() {
         <td style="white-space:nowrap">${btnVer}${btnRepublicar}${btnBoost}</td>
       </tr>`;
     }).join('');
-  } catch(e) { console.error(e); }
 }
 
 async function republicarDoHistorico(pubJsonStr) {
