@@ -265,23 +265,34 @@ async function fetchFullContent(url, source) {
       const isSlowDomain = SLOW_DOMAINS.some(d => url.includes(d));
       const timeout = isSlowDomain ? 30000 : 15000;
 
-      const resp = await axios.get(url, {
-        timeout,
-        responseType: 'arraybuffer', // necessário para decodificar charset corretamente
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Accept': 'text/html,application/xhtml+xml,*/*',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
-          'Referer': (() => { try { return new URL(url).origin + '/'; } catch { return url; } })(),
-        },
-        httpsAgent: HTTPS_AGENT,
-      });
+      try {
+        const resp = await axios.get(url, {
+          timeout,
+          responseType: 'arraybuffer', // necessário para decodificar charset corretamente
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Accept': 'text/html,application/xhtml+xml,*/*',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+            'Referer': (() => { try { return new URL(url).origin + '/'; } catch { return url; } })(),
+          },
+          httpsAgent: HTTPS_AGENT,
+        });
 
-      // Detecta charset a partir do Content-Type e decodifica corretamente
-      const contentType = resp.headers['content-type'] || '';
-      const charsetMatch = contentType.match(/charset=([^\s;]+)/i);
-      const charset = charsetMatch ? charsetMatch[1].toLowerCase().replace('iso8859', 'iso-8859') : 'utf-8';
-      htmlDecoded = iconv.decode(Buffer.from(resp.data), charset);
+        // Detecta charset a partir do Content-Type e decodifica corretamente
+        const contentType = resp.headers['content-type'] || '';
+        const charsetMatch = contentType.match(/charset=([^\s;]+)/i);
+        const charset = charsetMatch ? charsetMatch[1].toLowerCase().replace('iso8859', 'iso-8859') : 'utf-8';
+        htmlDecoded = iconv.decode(Buffer.from(resp.data), charset);
+      } catch (e) {
+        // Bloqueio HTTP (403 Cloudflare challenge, 503, 429): o navegador real (Puppeteer)
+        // passa onde o axios é barrado. Só nesses status — timeout/rede mantêm o fluxo original.
+        const status = e.response?.status;
+        if (status === 403 || status === 503 || status === 429) {
+          console.log(`[full-content] HTTP ${status} (provável bloqueio), tentando headless: ${url}`);
+          return await fetchWithHeadless(url);
+        }
+        throw e; // demais erros: comportamento original (cai no catch externo → null)
+      }
     }
 
     // Usa HTML decodificado com charset correto
