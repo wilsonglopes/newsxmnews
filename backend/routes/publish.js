@@ -351,6 +351,22 @@ router.post('/manual', async (req, res) => {
     const wantsFacebookManual = publish_to_facebook === true || publish_to_facebook === 'true'; // Feed
     const wantsStoryManual    = publish_to_story === true || publish_to_story === 'true';        // Status
 
+    // Se a imagem não subiu pro WP (image_url vazio, ex: site sem senha de aplicação válida)
+    // mas temos o base64 em memória, hospeda temporariamente p/ o card das redes poder usá-la.
+    if ((wantsFacebookManual || wantsStoryManual) && !article.image_url && image_base64) {
+      try {
+        const { resolveImageBuffer, criarTempImagemPublica } = require('../connectors/wordpress');
+        const img = await resolveImageBuffer({ image_base64, image_mime, image_name });
+        const tempUrl = img && criarTempImagemPublica(img);
+        if (tempUrl) {
+          article.image_url = tempUrl;
+          console.log(`[manual/social] imagem via base64 hospedada p/ card: ${tempUrl}`);
+        }
+      } catch (e) {
+        console.warn(`[manual/social] não foi possível hospedar imagem do base64: ${e.message}`);
+      }
+    }
+
     // Artigos sem imagem geram card com fundo vazio — não publicar no FB/IG (feed nem story).
     if ((wantsFacebookManual || wantsStoryManual) && !article.image_url) {
       console.log(`[manual/social] artigo sem imagem — pulando FB/IG para "${rewritten.title?.slice(0, 50)}"`);

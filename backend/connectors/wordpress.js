@@ -422,4 +422,4 @@ async function publishToWordPress(site, rewritten, article) {
   return { post_id: String(post.id), post_url: post.link };
 }
 
-module.exports = { publishToWordPress, resizeImageIfNeeded, precisaConverterParaWP };
+module.exports = { publishToWordPress, resizeImageIfNeeded, precisaConverterParaWP, resolveImageBuffer, criarTempImagemPublica };
