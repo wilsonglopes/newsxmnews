@@ -144,14 +144,16 @@ router.get('/:id/wp-categories', async (req, res) => {
   const axios  = require('axios');
   const https  = require('https');
   const AGENT  = new https.Agent({ rejectUnauthorized: false });
+  let siteLabel = req.params.id; // usado no log de erro mesmo se a query falhar
   try {
     const { rows } = await pool.query(
-      `SELECT site_url, wp_username, wp_app_password, platform, xixo_api_key
+      `SELECT name, site_url, wp_username, wp_app_password, platform, xixo_api_key
        FROM sites_catalog WHERE id = $1`,
       [req.params.id]
     );
     const site = rows[0];
     if (!site) return res.status(404).json({ error: 'Site não encontrado.' });
+    siteLabel = `${site.name} (${site.site_url})`;
     if (site.platform !== 'wordpress') return res.json([]);
     const baseUrl = (site.site_url || '').replace(/\/$/, '');
     if (!baseUrl) return res.status(400).json({ error: 'URL do site não configurada.' });
@@ -165,7 +167,8 @@ router.get('/:id/wp-categories', async (req, res) => {
     });
     res.json((r.data || []).map(c => ({ id: c.id, name: c.name, slug: c.slug, count: c.count, parent: c.parent || 0 })));
   } catch (err) {
-    console.error('[sites-catalog/wp-categories]', err.message);
+    const status = err.response?.status ? ` (HTTP ${err.response.status})` : '';
+    console.error(`[sites-catalog/wp-categories] ${siteLabel}: ${err.message}${status}`);
     res.status(500).json({ error: 'Não foi possível buscar categorias: ' + err.message });
   }
 });

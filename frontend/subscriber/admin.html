@@ -2448,6 +2448,7 @@ let _fontesDoCliente = []; // fontes habilitadas para o cliente atual
 let _catsSiteAtual   = []; // categorias WP do site sendo editado no modal (subscriber)
 let _todasFontes     = []; // todas as fontes ativas (para modal do catálogo)
 let _catsCatalogSite = []; // categorias WP do site do catálogo sendo editado
+let _catsCatalogErro = false; // true se a busca de categorias WP falhou (mostra aviso)
 
 async function carregarFontesDoCliente() {
   const subId = document.getElementById('mc-id').value;
@@ -2592,7 +2593,14 @@ function renderFontesCatalog(selecionados) {
     grupos[cat].push(f);
   }
 
-  lista.innerHTML = Object.entries(grupos).map(([cat, itens]) => `
+  // Aviso quando não foi possível carregar as categorias do WP (mostra ID manual no lugar dos nomes)
+  const avisoCats = (_catsCatalogErro && !temCats)
+    ? `<div style="margin-bottom:10px;padding:8px 12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;font-size:.78rem;color:#92400e">
+         ⚠️ Não foi possível carregar as categorias do WordPress deste site. Verifique a URL e a senha de aplicação no topo do formulário. Você ainda pode informar o ID da categoria manualmente.
+       </div>`
+    : '';
+
+  lista.innerHTML = avisoCats + Object.entries(grupos).map(([cat, itens]) => `
     <div style="margin-bottom:8px">
       <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px">${cat}</div>
       ${itens.map(f => `
@@ -4613,11 +4621,14 @@ async function abrirModalCatalog(siteId) {
     }
 
     // Carrega em paralelo: todas as fontes, regras autopub e categorias WP
+    _catsCatalogErro = false;
     try {
       const [fontes, regras, cats] = await Promise.all([
         fetch(`${BACKEND}/api/admin/sources-list`, { headers: authHeader() }).then(r => r.json()).catch(() => []),
         fetch(`${BACKEND}/api/admin/sites-catalog/${siteId}/autopub`, { headers: authHeader() }).then(r => r.json()).catch(() => []),
-        fetch(`${BACKEND}/api/admin/sites-catalog/${siteId}/wp-categories`, { headers: authHeader() }).then(r => r.json()).catch(() => []),
+        fetch(`${BACKEND}/api/admin/sites-catalog/${siteId}/wp-categories`, { headers: authHeader() })
+          .then(r => { if (!r.ok) { _catsCatalogErro = true; return []; } return r.json(); })
+          .catch(() => { _catsCatalogErro = true; return []; }),
       ]);
       _todasFontes     = Array.isArray(fontes) ? fontes : [];
       _catsCatalogSite = Array.isArray(cats)   ? cats   : [];
@@ -4627,6 +4638,7 @@ async function abrirModalCatalog(siteId) {
     }
   } else {
     // Novo site — apenas lista as fontes sem seleção prévia
+    _catsCatalogErro = false;
     try {
       const fontes = await fetch(`${BACKEND}/api/admin/sources-list`, { headers: authHeader() }).then(r => r.json());
       _todasFontes = Array.isArray(fontes) ? fontes : [];
