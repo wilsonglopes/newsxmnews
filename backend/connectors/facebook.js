@@ -93,4 +93,49 @@ async function publicarFoto(site, imageBuffer, article) {
   }
 }
 
-module.exports = { testarConexao, publicarFoto };
+// ─── Publicar imagem no STORY (Stories) da Página ───────────────────────────
+// Fluxo Page Photo Stories: 1) sobe a foto como NÃO publicada → photo_id
+//                           2) POST /{page-id}/photo_stories com o photo_id
+// site: { facebook_page_id, facebook_page_token (decrypted) }
+// imagePublicUrl: URL HTTPS pública do card (mesmo do feed)
+// Story não tem legenda nem link clicável via API — só a imagem.
+async function publicarStory(site, imagePublicUrl) {
+  if (!site.facebook_page_id || !site.facebook_page_token) {
+    throw new Error('Página do Facebook não configurada para este site.');
+  }
+  if (!imagePublicUrl || !/^https:\/\//.test(imagePublicUrl)) {
+    throw new Error('Facebook Story exige imagem em URL HTTPS pública.');
+  }
+
+  const pageId = site.facebook_page_id;
+  const token  = site.facebook_page_token;
+
+  // Etapa 1: sobe a foto como não publicada (published=false) → photo_id
+  let photoId;
+  try {
+    const r = await axios.post(`${GRAPH}/${pageId}/photos`, null, {
+      params: { url: imagePublicUrl, published: false, access_token: token },
+      timeout: 30000,
+    });
+    photoId = r.data?.id;
+    if (!photoId) throw new Error('Facebook não retornou photo_id.');
+  } catch (err) {
+    const fbErr = err.response?.data?.error;
+    throw new Error(fbErr ? `FB/story-upload: ${fbErr.message} (code ${fbErr.code})` : `FB/story-upload: ${err.message}`);
+  }
+
+  // Etapa 2: cria o story a partir da foto
+  try {
+    const r = await axios.post(`${GRAPH}/${pageId}/photo_stories`, null, {
+      params: { photo_id: photoId, access_token: token },
+      timeout: 30000,
+    });
+    const data = r.data || {};
+    return { ok: true, post_id: data.post_id || data.id || photoId };
+  } catch (err) {
+    const fbErr = err.response?.data?.error;
+    throw new Error(fbErr ? `FB/story-publish: ${fbErr.message} (code ${fbErr.code})` : `FB/story-publish: ${err.message}`);
+  }
+}
+
+module.exports = { testarConexao, publicarFoto, publicarStory };

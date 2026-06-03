@@ -123,4 +123,65 @@ async function publicar(site, imagePublicUrl, article) {
   return { ok: true, post_id: mediaId, post_url };
 }
 
-module.exports = { descobrirIgBusinessAccount, publicar };
+// ─── Publicar imagem no STORY do Instagram ──────────────────────────────────
+// site: { instagram_business_account_id, facebook_page_token (decrypted) }
+// imagePublicUrl: URL HTTPS pública do card (mesmo do feed)
+// Story não tem caption nem link clicável via API — só a imagem.
+async function publicarStory(site, imagePublicUrl) {
+  if (!site.instagram_business_account_id) {
+    throw new Error('Instagram Business Account não configurado para este site.');
+  }
+  if (!site.facebook_page_token) {
+    throw new Error('Page Access Token ausente.');
+  }
+  if (!imagePublicUrl || !/^https:\/\//.test(imagePublicUrl)) {
+    throw new Error('Instagram exige imagem em URL HTTPS pública.');
+  }
+
+  const igId  = site.instagram_business_account_id;
+  const token = site.facebook_page_token;
+
+  // Etapa 1: container de mídia do tipo STORIES
+  let creationId;
+  try {
+    const r = await axios.post(`${GRAPH}/${igId}/media`, null, {
+      params: { image_url: imagePublicUrl, media_type: 'STORIES', access_token: token },
+      timeout: 30000,
+    });
+    creationId = r.data.id;
+    if (!creationId) throw new Error('IG não retornou creation_id (story).');
+  } catch (err) {
+    const fbErr = err.response?.data?.error;
+    throw new Error(fbErr ? `IG/story-media: ${fbErr.message} (code ${fbErr.code})` : `IG/story-media: ${err.message}`);
+  }
+
+  // Etapa 1.5: aguarda o container ficar FINISHED (mesmo polling do feed)
+  for (let i = 0; i < 10; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      const s = await axios.get(`${GRAPH}/${creationId}`, {
+        params: { fields: 'status_code', access_token: token },
+        timeout: 10000,
+      });
+      const sc = s.data?.status_code;
+      if (sc === 'FINISHED') break;
+      if (sc === 'ERROR' || sc === 'EXPIRED') throw new Error(`IG story container inválido: ${sc}`);
+    } catch (err) {
+      if (err.message.startsWith('IG story container')) throw err;
+    }
+  }
+
+  // Etapa 2: publica
+  try {
+    const r = await axios.post(`${GRAPH}/${igId}/media_publish`, null, {
+      params: { creation_id: creationId, access_token: token },
+      timeout: 30000,
+    });
+    return { ok: true, post_id: r.data.id };
+  } catch (err) {
+    const fbErr = err.response?.data?.error;
+    throw new Error(fbErr ? `IG/story-publish: ${fbErr.message} (code ${fbErr.code})` : `IG/story-publish: ${err.message}`);
+  }
+}
+
+module.exports = { descobrirIgBusinessAccount, publicar, publicarStory };
