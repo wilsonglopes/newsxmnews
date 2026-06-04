@@ -389,6 +389,9 @@
   <a class="nav-item" data-page="fontes" onclick="irPara('fontes')">
     <span class="icon">📡</span> Fontes
   </a>
+  <a class="nav-item" data-page="fontes-saude" onclick="irPara('fontes-saude')">
+    <span class="icon">🩺</span> Saúde das Fontes
+  </a>
   <a class="nav-item" data-page="publicacoes" onclick="irPara('publicacoes')">
     <span class="icon">📋</span> Publicações
   </a>
@@ -709,6 +712,37 @@
         </div>
       </div>
     </div><!-- /fontes -->
+
+    <!-- ══ SAÚDE DAS FONTES ════════════════════════════════════════════════════ -->
+    <div class="page" id="page-fontes-saude">
+      <div class="section-hdr">
+        <h2>🩺 Saúde das Fontes</h2>
+        <button class="btn btn-ghost btn-sm" onclick="carregarFontesSaude()">↻ Atualizar</button>
+      </div>
+      <div id="fs-resumo" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+      <div class="panel">
+        <div class="panel-body">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            <input type="text" id="fs-busca" placeholder="Buscar fonte…" oninput="renderFontesSaude()" style="flex:1;min-width:180px;padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.85rem" />
+            <select id="fs-filtro-status" onchange="renderFontesSaude()" style="padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.85rem;background:var(--white)">
+              <option value="">Todos os status</option>
+              <option value="problema">⚠️ Só com problema</option>
+              <option value="ok">✅ OK</option>
+              <option value="sem_artigos">Sem artigos</option>
+              <option value="sem_coleta">Sem coleta</option>
+              <option value="erro">Com erro</option>
+              <option value="bloqueado">Bloqueado (Cloudflare)</option>
+            </select>
+          </div>
+          <table class="data-table" id="tbl-fontes-saude">
+            <thead>
+              <tr><th>Fonte</th><th>Status</th><th>Última coleta</th><th>Artigos (1h / 24h)</th><th>Sem imagem</th><th>Erro</th></tr>
+            </thead>
+            <tbody><tr><td colspan="6" class="loading"><span class="spin"></span>Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /fontes-saude -->
 
     <!-- ══ PUBLICAÇÕES ═════════════════════════════════════════════════════════ -->
     <div class="page" id="page-publicacoes">
@@ -2151,6 +2185,7 @@ const PAGE_TITLES = {
   clientes:        ['Clientes', 'Gerencie os assinantes da plataforma'],
   financeiro:      ['Financeiro', 'Controle financeiro dos clientes'],
   fontes:          ['Fontes', 'Portais e feeds de notícias'],
+  'fontes-saude':  ['Saúde das Fontes', 'Quais fontes estão coletando, paradas ou bloqueadas'],
   publicacoes:     ['Publicações', 'Histórico de artigos publicados'],
   autopub:         ['Autopublicação', 'Monitor do sistema de postagem automática'],
   fila:            ['Fila', 'Fila de processamento da autopublicação'],
@@ -2170,6 +2205,7 @@ function irPara(page) {
 
   if (page === 'clientes')        carregarClientes();
   if (page === 'fontes')          carregarFontes();
+  if (page === 'fontes-saude')    carregarFontesSaude();
   if (page === 'publicacoes')     carregarPublicacoes();
   if (page === 'publicar')        iniciarPublicar();
   if (page === 'financeiro')      carregarFinanceiro();
@@ -5103,6 +5139,80 @@ async function salvarFonte() {
     toast(isEdit ? 'Fonte atualizada!' : 'Fonte criada!', 'sucesso');
   } catch(e) { toast(e.message, 'erro'); }
   finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+// ══ SAÚDE DAS FONTES ══════════════════════════════════════════════════════════
+
+let _fontesSaude = []; // cache da saúde das fontes
+
+const FS_STATUS = {
+  ok:          { label: 'OK',          cor: '#16a34a', bg: '#f0fdf4', emoji: '✅' },
+  sem_artigos: { label: 'Sem artigos', cor: '#92400e', bg: '#fffbeb', emoji: '🟡' },
+  sem_coleta:  { label: 'Sem coleta',  cor: '#c2410c', bg: '#fff7ed', emoji: '🟠' },
+  erro:        { label: 'Erro',        cor: '#dc2626', bg: '#fef2f2', emoji: '🔴' },
+  bloqueado:   { label: 'Bloqueado',   cor: '#7e22ce', bg: '#faf5ff', emoji: '🛡️' },
+};
+
+async function carregarFontesSaude() {
+  const tbody = document.querySelector('#tbl-fontes-saude tbody');
+  try {
+    _fontesSaude = await fetch(`${BACKEND}/api/admin/fontes-saude`, { headers: authHeader() }).then(r => r.json());
+    if (!Array.isArray(_fontesSaude)) _fontesSaude = [];
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">Erro ao carregar: ${e.message}</td></tr>`;
+    return;
+  }
+  // Resumo (cards por status)
+  const cont = {};
+  _fontesSaude.forEach(f => { cont[f.status] = (cont[f.status] || 0) + 1; });
+  const resumo = document.getElementById('fs-resumo');
+  resumo.innerHTML = Object.entries(FS_STATUS).map(([k, v]) => {
+    const n = cont[k] || 0;
+    return `<div style="flex:1;min-width:120px;padding:12px 14px;background:${v.bg};border:1px solid ${v.cor}33;border-radius:var(--radius)">
+      <div style="font-size:1.5rem;font-weight:700;color:${v.cor}">${n}</div>
+      <div style="font-size:.78rem;color:${v.cor}">${v.emoji} ${v.label}</div>
+    </div>`;
+  }).join('');
+  renderFontesSaude();
+}
+
+function renderFontesSaude() {
+  const busca  = (document.getElementById('fs-busca')?.value || '').toLowerCase();
+  const filtro = document.getElementById('fs-filtro-status')?.value || '';
+  const tbody  = document.querySelector('#tbl-fontes-saude tbody');
+
+  let lista = _fontesSaude.filter(f => !busca || f.name.toLowerCase().includes(busca) || (f.slug || '').toLowerCase().includes(busca));
+  if (filtro === 'problema') lista = lista.filter(f => f.status !== 'ok');
+  else if (filtro)           lista = lista.filter(f => f.status === filtro);
+
+  // Ordena: problemas primeiro
+  const ordem = { erro: 0, bloqueado: 1, sem_coleta: 2, sem_artigos: 3, ok: 4 };
+  lista.sort((a, b) => (ordem[a.status] ?? 9) - (ordem[b.status] ?? 9) || a.name.localeCompare(b.name, 'pt-BR'));
+
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma fonte neste filtro.</td></tr>'; return; }
+
+  const fmtData = (d) => d ? new Date(d).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+
+  tbody.innerHTML = lista.map(f => {
+    const st = FS_STATUS[f.status] || FS_STATUS.ok;
+    const coleta = f.horas_sem_coleta !== null && f.horas_sem_coleta > 6
+      ? `<span style="color:#c2410c">${fmtData(f.last_fetched_at)}<br><small>há ${f.horas_sem_coleta}h</small></span>`
+      : fmtData(f.last_fetched_at);
+    const semImg = f.art_24h > 0
+      ? `<span style="color:${f.pct_sem_img > 50 ? '#dc2626' : 'var(--muted)'}">${f.pct_sem_img}%</span>`
+      : '—';
+    const erro = f.last_error
+      ? `<span style="font-size:.74rem;color:#b91c1c" title="${f.last_error.replace(/"/g, '&quot;')}">${f.last_error.slice(0, 60)}${f.last_error.length > 60 ? '…' : ''}</span>`
+      : '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td><strong style="font-size:.85rem">${f.name}</strong><br><small style="color:var(--muted);font-family:monospace">${f.slug}</small></td>
+      <td><span style="display:inline-block;padding:3px 9px;border-radius:100px;font-size:.74rem;font-weight:600;background:${st.bg};color:${st.cor};white-space:nowrap">${st.emoji} ${st.label}</span></td>
+      <td style="font-size:.8rem;white-space:nowrap">${coleta}</td>
+      <td style="font-size:.82rem">${f.art_1h} / ${f.art_24h}</td>
+      <td style="font-size:.82rem">${semImg}</td>
+      <td style="max-width:260px">${erro}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ══ PUBLICAÇÕES ══════════════════════════════════════════════════════════════

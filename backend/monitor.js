@@ -61,10 +61,11 @@ function horaBRT() {
 /** Retorna fontes ativas sem artigos nas últimas HORAS_SEM_ARTIGO horas */
 async function fontesSemArtigos() {
   const { rows } = await pool.query(`
-    SELECT source_slug
-    FROM   articles
-    WHERE  fetched_at > NOW() - INTERVAL '${HORAS_SEM_ARTIGO} hours'
-    GROUP  BY source_slug
+    SELECT s.slug AS source_slug
+    FROM   articles a
+    JOIN   sources s ON s.id = a.source_id
+    WHERE  a.fetched_at > NOW() - INTERVAL '${HORAS_SEM_ARTIGO} hours'
+    GROUP  BY s.slug
   `);
   const comArtigos = new Set(rows.map(r => r.source_slug));
 
@@ -102,14 +103,15 @@ async function fontesComErro() {
 async function fontesSemImagem() {
   const { rows } = await pool.query(`
     SELECT
-      source_slug,
-      COUNT(*)                                       AS total,
-      COUNT(*) FILTER (WHERE image_url IS NULL)      AS sem_img
-    FROM   articles
-    WHERE  fetched_at > NOW() - INTERVAL '24 hours'
-    GROUP  BY source_slug
+      s.slug AS source_slug,
+      COUNT(*)                                         AS total,
+      COUNT(*) FILTER (WHERE a.image_url IS NULL)       AS sem_img
+    FROM   articles a
+    JOIN   sources s ON s.id = a.source_id
+    WHERE  a.fetched_at > NOW() - INTERVAL '24 hours'
+    GROUP  BY s.slug
     HAVING COUNT(*) >= ${MIN_ARTIGOS_IMG}
-       AND (COUNT(*) FILTER (WHERE image_url IS NULL))::float / COUNT(*) > ${PERC_SEM_IMAGEM}
+       AND (COUNT(*) FILTER (WHERE a.image_url IS NULL))::float / COUNT(*) > ${PERC_SEM_IMAGEM}
     ORDER  BY sem_img DESC
     LIMIT  5
   `);
@@ -314,4 +316,54 @@ async function verificarDisco() {
   }
 }
 
-module.exports = { verificarSaude, relatorioDiario, verificarDisco };
+/**
+ * Saúde de TODAS as fontes ativas — para o painel admin.
+ * Retorna por fonte: status (ok/sem_coleta/sem_artigos/erro/bloqueado), última coleta,
+ * artigos 1h/24h, % sem imagem e o erro recente (se houver).
+ */
+async function saudeDasFontes() {
+  const { rows } = await pool.query(`
+    SELECT
+      s.slug, s.name, s.last_fetched_at, s.last_error,
+      COUNT(a.id) FILTER (WHERE a.fetched_at > NOW() - INTERVAL '24 hours') AS art_24h,
+      COUNT(a.id) FILTER (WHERE a.fetched_at > NOW() - INTERVAL '1 hour')   AS art_1h,
+      COUNT(a.id) FILTER (WHERE a.fetched_at > NOW() - INTERVAL '24 hours' AND a.image_url IS NULL) AS sem_img_24h
+    FROM   sources s
+    LEFT JOIN articles a ON a.source_id = s.id
+    WHERE  s.active = true
+    GROUP  BY s.id, s.slug, s.name, s.last_fetched_at, s.last_error
+    ORDER  BY s.name
+  `);
+
+  const agora = Date.now();
+  return rows.map(r => {
+    const art24  = parseInt(r.art_24h)     || 0;
+    const art1   = parseInt(r.art_1h)      || 0;
+    const semImg = parseInt(r.sem_img_24h) || 0;
+    const ultColeta = r.last_fetched_at ? new Date(r.last_fetched_at).getTime() : null;
+    const horasSemColeta = ultColeta ? (agora - ultColeta) / 3600000 : null;
+    const erro = (r.last_error || '').trim();
+    const erroRecente = !!erro && ultColeta && horasSemColeta < 24;
+    const ehCloudflare = /cloudflare|cf-mitigated|just a moment|challenge|\b403\b/i.test(erro);
+
+    let status = 'ok';
+    if (erroRecente && ehCloudflare)        status = 'bloqueado';
+    else if (erroRecente)                   status = 'erro';
+    else if (horasSemColeta === null || horasSemColeta > HORAS_SEM_ARTIGO) status = 'sem_coleta';
+    else if (art24 === 0)                    status = 'sem_artigos';
+
+    return {
+      slug: r.slug,
+      name: r.name,
+      status,
+      last_fetched_at: r.last_fetched_at,
+      horas_sem_coleta: horasSemColeta !== null ? Math.round(horasSemColeta * 10) / 10 : null,
+      art_1h: art1,
+      art_24h: art24,
+      pct_sem_img: art24 > 0 ? Math.round((semImg / art24) * 100) : 0,
+      last_error: erroRecente ? erro.replace(/\s+/g, ' ').slice(0, 200) : null,
+    };
+  });
+}
+
+module.exports = { verificarSaude, relatorioDiario, verificarDisco, saudeDasFontes };

@@ -1104,6 +1104,17 @@ app.get('/api/admin/card-templates', authMiddleware, async (req, res) => {
   }
 });
 
+// Saúde de todas as fontes ativas (painel admin)
+app.get('/api/admin/fontes-saude', authMiddleware, async (req, res) => {
+  try {
+    const { saudeDasFontes } = require('./monitor');
+    res.json(await saudeDasFontes());
+  } catch (err) {
+    console.error('[fontes-saude]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Upload de novo template (base64). Valida PNG e dimensões 1600×2000.
 app.post('/api/admin/card-templates', authMiddleware, requireAdmin, async (req, res) => {
   const { slug: rawSlug, image_base64 } = req.body || {};
