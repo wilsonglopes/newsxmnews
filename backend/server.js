@@ -1012,10 +1012,13 @@ limparCardsAntigos(7); // roda na inicialização também
 // ─── Monitor de saúde ─────────────────────────────────────────────────────────
 // Só ativa se banco configurado e MONITOR_CHAT_ID definido no .env
 if (pool && process.env.MONITOR_CHAT_ID) {
-  const { verificarSaude, relatorioDiario } = require('./monitor');
+  const { verificarSaude, relatorioDiario, verificarDisco } = require('./monitor');
   cron.schedule('0 */2 * * *',  () => verificarSaude().catch(e => console.error('[MONITOR]', e.message)));
   cron.schedule('0 7 * * *',    () => relatorioDiario().catch(e => console.error('[MONITOR]', e.message)));
-  console.log('[MONITOR] Monitor de saúde ativo — alertas a cada 2h + resumo diário às 7h.');
+  // Monitor de disco proativo — a cada 1h: alerta a 80%, auto-limpeza emergencial a 90%
+  cron.schedule('0 * * * *',    () => verificarDisco().catch(e => console.error('[MONITOR/disco]', e.message)));
+  verificarDisco().catch(() => {}); // checagem inicial no boot
+  console.log('[MONITOR] Monitor de saúde ativo — saúde 2h + resumo 7h + disco 1h.');
 } else {
   console.log('[MONITOR] Monitor desativado — defina MONITOR_CHAT_ID no .env para ativar.');
 }

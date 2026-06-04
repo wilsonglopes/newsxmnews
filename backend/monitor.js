@@ -28,11 +28,20 @@
 const pool    = require('./db/connection');
 const sources = require('./sources.json');
 const { notifyAdmin } = require('./utils/telegram-notify');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
 // ─── Configuração ──────────────────────────────────────────────────────────────
 const HORAS_SEM_ARTIGO = 6;   // após N horas sem artigos → alerta vermelho
 const MIN_ARTIGOS_IMG  = 5;   // fonte precisa de pelo menos N artigos pra entrar no check de imagem
 const PERC_SEM_IMAGEM  = 0.7; // acima de 70% sem imagem → alerta
+
+// ─── Monitor de disco (proativo) ──────────────────────────────────────────────
+const DISCO_ALERTA      = 80; // % de uso → alerta no Telegram
+const DISCO_CRITICO     = 90; // % de uso → auto-limpeza emergencial + alerta
+const DISCO_THROTTLE_MS = 6 * 60 * 60 * 1000; // não repetir alerta de "alto" em menos de 6h
+let _ultimoAlertaDiscoTs = 0; // estado em memória p/ evitar spam
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -244,4 +253,65 @@ async function relatorioDiario() {
   await verificarSaude(true);
 }
 
-module.exports = { verificarSaude, relatorioDiario };
+// Lê o % de uso da partição raiz
+async function usoDiscoRaiz() {
+  const { stdout } = await execAsync("df -P / | awk 'NR==2{print $5}' | tr -d '%'");
+  return parseInt(String(stdout).trim(), 10);
+}
+
+/**
+ * Monitor de disco proativo. Roda com frequência (cron a cada 1h no server.js).
+ *   • >= 90% (crítico): auto-limpeza emergencial de perfis Puppeteer + alerta
+ *   • 80–89%: alerta no Telegram (com throttle de 6h p/ não spammar)
+ *   • < 80%: silencioso (só loga)
+ */
+async function verificarDisco() {
+  if (!process.env.MONITOR_CHAT_ID) return;
+  try {
+    let uso = await usoDiscoRaiz();
+    if (isNaN(uso)) { console.warn('[MONITOR/disco] não foi possível ler o uso do disco'); return; }
+    console.log(`[MONITOR/disco] uso da raiz: ${uso}%`);
+
+    if (uso < DISCO_ALERTA) { _ultimoAlertaDiscoTs = 0; return; } // normalizou — reseta throttle
+
+    let acao = '';
+    const critico = uso >= DISCO_CRITICO;
+
+    if (critico) {
+      // Auto-limpeza emergencial: remove perfis Puppeteer/Chromium antigos (>60min)
+      try {
+        await execAsync("find /tmp/snap-private-tmp/snap.chromium/tmp/ -maxdepth 1 -type d -mmin +60 2>/dev/null | xargs -r rm -rf 2>/dev/null");
+        const novo = await usoDiscoRaiz();
+        acao = `\n🧹 Limpeza emergencial executada → disco agora em *${novo}%*`;
+        if (novo < DISCO_ALERTA) {
+          // resolveu sozinho — avisa uma vez e não spamma
+          await notifyAdmin([`✅ *Disco normalizado após limpeza automática*`, `Estava em ${uso}%, agora ${novo}%.`, `_${horaBRT()}_`].join('\n'));
+          console.log(`[MONITOR/disco] limpeza resolveu: ${uso}% → ${novo}%`);
+          _ultimoAlertaDiscoTs = Date.now();
+          return;
+        }
+        uso = novo;
+      } catch (e) {
+        acao = `\n⚠️ Falha na limpeza emergencial: ${e.message}`;
+      }
+    } else {
+      // 80-89% — throttle para não repetir em menos de 6h
+      if (Date.now() - _ultimoAlertaDiscoTs < DISCO_THROTTLE_MS) return;
+    }
+
+    const emoji = critico ? '🆘' : '⚠️';
+    const nivel = critico ? 'CRÍTICO' : 'ALTO';
+    const msg = [
+      `${emoji} *Disco ${nivel}: ${uso}% usado* (servidor XIXO)`,
+      acao,
+      `_${horaBRT()}_`,
+    ].filter(Boolean).join('\n');
+    await notifyAdmin(msg);
+    _ultimoAlertaDiscoTs = Date.now();
+    console.log(`[MONITOR/disco] alerta enviado (${uso}%, ${nivel})`);
+  } catch (e) {
+    console.error('[MONITOR/disco] erro:', e.message);
+  }
+}
+
+module.exports = { verificarSaude, relatorioDiario, verificarDisco };
