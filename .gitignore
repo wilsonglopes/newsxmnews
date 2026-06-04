@@ -32,6 +32,22 @@ senha*.txt
 *.credentials.txt
 *.key
 *.pem
+acessosclientes.txt
+dados acesso*.txt
+dados-acesso*.txt
+token*.txt
+*token*.txt
+sistema de envios*.txt
+CONFIGURA*.txt
+PONTO DE RESTAURA*.txt
+credenciais site*.txt
+
+# Dumps e backups de banco (dados sensíveis — nunca versionar)
+dump-producao.sql
+dump*.sql
+*.dump
+backups-banco/
+backups-manuais/
 
 # Arquivos temporários / gerados localmente
 artigo-*.html
