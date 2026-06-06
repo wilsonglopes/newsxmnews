@@ -10,8 +10,37 @@ const { gerarCard, gerarCardComUrl } = require('./utils/card-generator');
 const { publicarFoto }       = require('./connectors/facebook');
 const { publicar: publicarInstagram } = require('./connectors/instagram');
 const { decryptToken }       = require('./connectors/encrypt');
+const previewStore           = require('./utils/preview-store');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
+
+// Escapa para parse_mode HTML do Telegram (Markdown quebra com _ * desbalanceados)
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── Corpo: manipulação por parágrafo (<p>…</p>) ──────────────────────────────
+function dividirParagrafos(html) {
+  const blocos = (html || '').match(/<p\b[^>]*>[\s\S]*?<\/p>/gi);
+  if (blocos && blocos.length) return blocos;
+  // Fallback: sem <p>, divide por linhas em branco
+  return (html || '').split(/\n{2,}/).filter(t => t.trim()).map(t => `<p>${t.trim()}</p>`);
+}
+function textoDoParagrafo(bloco) {
+  return (bloco || '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+}
+function substituirParagrafo(html, idx, novoTexto) {
+  const blocos = dividirParagrafos(html);
+  if (idx < 0 || idx >= blocos.length) return html;
+  blocos[idx] = `<p>${esc(novoTexto.trim())}</p>`;
+  return blocos.join('');
+}
+function apagarParagrafo(html, idx) {
+  const blocos = dividirParagrafos(html);
+  if (idx < 0 || idx >= blocos.length) return html;
+  blocos.splice(idx, 1);
+  return blocos.join('');
+}
 
 // ─── Sentence case inteligente ────────────────────────────────────────────────
 // Converte para sentence case preservando:
@@ -93,6 +122,9 @@ function getSessao(chatId) {
       sites: [], selectedSite: null, pendingArticle: null,
       categorias: [], catOffset: 0,
       publishToFacebook: false,
+      editando: null,        // 'titulo' | 'chapeu' | 'resumo' | 'corpo_par_<n>'
+      previewToken: null,    // token da prévia web
+      previewUrl: null,      // URL pública da prévia
     });
   }
   return sessoes.get(chatId);
@@ -263,6 +295,98 @@ function textoPrevia(artigo) {
   return `*${artigo.title}*\n\n_${artigo.summary}_\n\n${corpo}${corpo.length >= 300 ? '...' : ''}`;
 }
 
+// ─── Prévia editável + correção (Fase 1) ──────────────────────────────────────
+
+const PUBLIC_BASE = (process.env.PUBLIC_BASE_URL || process.env.BACKEND_URL || '').replace(/\/$/, '');
+
+function criarPreviewWeb(s) {
+  const a = s.pendingArticle;
+  const artigo = { title: a.title, chapeu: a.chapeu, summary: a.summary, body: a.body, image_url: s.imageUrls[0] || null };
+  s.previewToken = previewStore.criar(artigo, s.previewToken);
+  s.previewUrl   = PUBLIC_BASE ? `${PUBLIC_BASE}/api/preview/${s.previewToken}` : null;
+  return s.previewUrl;
+}
+
+function teclado_previa(s) {
+  const linhas = [];
+  if (s.previewUrl) linhas.push([{ text: '👁️ Ver prévia completa', url: s.previewUrl }]);
+  linhas.push([{ text: '✏️ Corrigir matéria', callback_data: 'corrigir' }]);
+  linhas.push([{ text: '➡️ Continuar para publicar', callback_data: 'prev_continuar' }]);
+  linhas.push([{ text: '❌ Cancelar', callback_data: 'cancel' }]);
+  return { inline_keyboard: linhas };
+}
+
+function teclado_correcao() {
+  return { inline_keyboard: [
+    [{ text: '📰 Título', callback_data: 'edit_titulo' }, { text: '🏷️ Chapéu', callback_data: 'edit_chapeu' }],
+    [{ text: '📝 Resumo', callback_data: 'edit_resumo' }, { text: '📄 Corpo (parágrafos)', callback_data: 'edit_corpo' }],
+    [{ text: '⬅️ Voltar para a prévia', callback_data: 'corrigir_voltar' }],
+  ] };
+}
+
+function teclado_corpo(blocos) {
+  const linhas = blocos.map((b, i) => {
+    const t = textoDoParagrafo(b);
+    return [{ text: `${i + 1}. ${t.slice(0, 38)}${t.length > 38 ? '…' : ''}`, callback_data: `par_${i}` }];
+  });
+  linhas.push([{ text: '⬅️ Voltar', callback_data: 'corrigir' }]);
+  return { inline_keyboard: linhas };
+}
+
+function previaTextoHTML(a) {
+  return `📰 <b>PRÉVIA DA MATÉRIA</b>\n\n`
+    + (a.chapeu ? `🏷️ <i>${esc(a.chapeu)}</i>\n` : '')
+    + `<b>${esc(a.title)}</b>\n`
+    + (a.summary ? `📝 ${esc(a.summary)}\n` : '')
+    + `\nRevise, corrija se quiser e toque em ➡️ Continuar.`;
+}
+
+async function mostrarPreviaEditavel(bot, chatId, s) {
+  s.step = 'revisando';
+  s.editando = null;
+  criarPreviewWeb(s);
+  return bot.sendMessage(chatId, previaTextoHTML(s.pendingArticle), {
+    parse_mode: 'HTML', reply_markup: teclado_previa(s),
+  });
+}
+
+async function mostrarMenuCorrecao(bot, chatId, mensagemId) {
+  return bot.editMessageText('✏️ <b>O que deseja corrigir?</b>', {
+    chat_id: chatId, message_id: mensagemId, parse_mode: 'HTML', reply_markup: teclado_correcao(),
+  });
+}
+
+async function mostrarCorpoParagrafos(bot, chatId, s, mensagemId) {
+  const blocos = dividirParagrafos(s.pendingArticle.body);
+  const texto  = '📄 <b>Corpo — toque no parágrafo para reescrever:</b>';
+  if (mensagemId) {
+    return bot.editMessageText(texto, { chat_id: chatId, message_id: mensagemId, parse_mode: 'HTML', reply_markup: teclado_corpo(blocos) });
+  }
+  return bot.sendMessage(chatId, texto, { parse_mode: 'HTML', reply_markup: teclado_corpo(blocos) });
+}
+
+// Aplica o texto digitado ao campo em edição (s.editando) e volta para a tela certa.
+async function aplicarEdicao(bot, chatId, s, novoTexto) {
+  if (!s.pendingArticle) { s.editando = null; return; }
+  const campo = s.editando;
+  s.editando = null;
+
+  if (campo === 'titulo')      s.pendingArticle.title   = novoTexto;
+  else if (campo === 'chapeu') s.pendingArticle.chapeu  = novoTexto.toUpperCase();
+  else if (campo === 'resumo') s.pendingArticle.summary = novoTexto;
+  else if (campo.startsWith('corpo_par_')) {
+    const idx = parseInt(campo.slice('corpo_par_'.length));
+    s.pendingArticle.body = substituirParagrafo(s.pendingArticle.body, idx, novoTexto);
+    criarPreviewWeb(s);
+    await bot.sendMessage(chatId, '✅ Parágrafo atualizado.');
+    return await mostrarCorpoParagrafos(bot, chatId, s, null);
+  }
+
+  criarPreviewWeb(s);
+  await bot.sendMessage(chatId, '✅ Campo atualizado.');
+  return await mostrarPreviaEditavel(bot, chatId, s);
+}
+
 // ─── Fluxo principal ──────────────────────────────────────────────────────────
 
 async function processarMensagem(bot, msg) {
@@ -276,6 +400,11 @@ async function processarMensagem(bot, msg) {
     }
 
     const s = getSessao(chatId);
+
+    // ── Edição em andamento: o texto digitado substitui o campo em edição ──────
+    if (s.editando && msg.text && !msg.text.startsWith('/')) {
+      return await aplicarEdicao(bot, chatId, s, msg.text.trim());
+    }
 
     // ── Gatilho de geração ────────────────────────────────────────────────────
     if (msg.text && GATILHOS.test(msg.text)) {
@@ -352,16 +481,18 @@ async function gerarEPedirCategoria(bot, chatId, s, reporter) {
     return bot.sendMessage(chatId, `❌ Falha ao gerar: ${err.message}`);
   }
 
-  // Mostra prévia
-  await bot.sendMessage(chatId, textoPrevia(s.pendingArticle), { parse_mode: 'Markdown' });
+  // Fase 1: prévia EDITÁVEL (revisar/corrigir antes de seguir para categoria/publicação)
+  return await mostrarPreviaEditavel(bot, chatId, s);
+}
 
-  // Carrega e pergunta categoria
+// Continua para o fluxo de publicação (categoria → FB → confirmar). Disparado por "➡️ Continuar".
+async function pedirCategoria(bot, chatId, s) {
+  const site = s.selectedSite;
   s.categorias = await buscarCategorias(site);
   s.catOffset  = 0;
   s.step       = 'escolhendo_categoria';
 
   if (!s.categorias.length) {
-    // Sem categorias — segue direto pro Facebook ou confirmação
     return await proximaEtapaAposCategoria(bot, chatId, s);
   }
 
@@ -529,6 +660,64 @@ async function processarCallback(bot, query) {
   if (data === 'cancel') {
     limparSessao(chatId);
     return bot.sendMessage(chatId, '❌ Cancelado. Sessão descartada.');
+  }
+
+  const msgId = query.message.message_id;
+
+  // ── Continuar (da prévia para o fluxo de publicação) ──────────────────────
+  if (data === 'prev_continuar') {
+    if (!s.pendingArticle) return bot.sendMessage(chatId, 'Sessão sem matéria. Envie "gere" novamente.');
+    return await pedirCategoria(bot, chatId, s);
+  }
+
+  // ── Correção: abrir menu / voltar ─────────────────────────────────────────
+  if (data === 'corrigir')        return await mostrarMenuCorrecao(bot, chatId, msgId);
+  if (data === 'corrigir_voltar') {
+    return bot.editMessageText(previaTextoHTML(s.pendingArticle), {
+      chat_id: chatId, message_id: msgId, parse_mode: 'HTML', reply_markup: teclado_previa(s),
+    });
+  }
+
+  // ── Correção de campos curtos (pede o novo texto) ─────────────────────────
+  if (data === 'edit_titulo' || data === 'edit_chapeu' || data === 'edit_resumo') {
+    const campo = data.slice('edit_'.length);
+    s.editando = campo;
+    const atual = campo === 'titulo' ? s.pendingArticle.title
+                : campo === 'chapeu' ? s.pendingArticle.chapeu
+                : s.pendingArticle.summary;
+    const rotulo = campo === 'titulo' ? 'título' : campo === 'chapeu' ? 'chapéu' : 'resumo';
+    return bot.sendMessage(chatId,
+      `✏️ Envie o novo <b>${rotulo}</b>.\n\nAtual:\n<i>${esc(atual)}</i>`,
+      { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '⬅️ Cancelar edição', callback_data: 'corrigir' }]] } }
+    );
+  }
+
+  // ── Correção do corpo: lista de parágrafos ────────────────────────────────
+  if (data === 'edit_corpo') return await mostrarCorpoParagrafos(bot, chatId, s, msgId);
+
+  // ── Seleção de um parágrafo (espera novo texto; permite apagar) ───────────
+  if (data.startsWith('par_')) {
+    const idx = parseInt(data.slice(4));
+    const blocos = dividirParagrafos(s.pendingArticle.body);
+    if (idx < 0 || idx >= blocos.length) return await mostrarCorpoParagrafos(bot, chatId, s, msgId);
+    s.editando = `corpo_par_${idx}`;
+    return bot.sendMessage(chatId,
+      `✏️ Parágrafo ${idx + 1}:\n\n<i>${esc(textoDoParagrafo(blocos[idx]))}</i>\n\nEnvie o novo texto, ou:`,
+      { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[
+        { text: '🗑️ Apagar parágrafo', callback_data: `pardel_${idx}` },
+        { text: '⬅️ Voltar', callback_data: 'edit_corpo' },
+      ]] } }
+    );
+  }
+
+  // ── Apagar parágrafo ──────────────────────────────────────────────────────
+  if (data.startsWith('pardel_')) {
+    const idx = parseInt(data.slice('pardel_'.length));
+    s.editando = null;
+    s.pendingArticle.body = apagarParagrafo(s.pendingArticle.body, idx);
+    criarPreviewWeb(s);
+    await bot.sendMessage(chatId, '🗑️ Parágrafo removido.');
+    return await mostrarCorpoParagrafos(bot, chatId, s, null);
   }
 
   // ── Escolha de site ──────────────────────────────────────────────────────

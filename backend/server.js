@@ -60,6 +60,36 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/subscriber/landing.html'));
 });
 
+// ─── Prévia da matéria (Telegram) — pública, efêmera, só leitura ──────────────
+app.get('/api/preview/:token', (req, res) => {
+  const previewStore = require('./utils/preview-store');
+  const a = previewStore.obter(req.params.token);
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  if (!a) {
+    return res.status(404).type('html').send(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prévia expirada</title><style>body{font-family:system-ui,sans-serif;background:#0d1424;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:24px}</style></head><body><div><h1>⏳ Prévia expirada</h1><p>Este link de pré-visualização não está mais disponível. Gere a prévia novamente no Telegram.</p></div></body></html>`);
+  }
+  const img = a.image_url ? `<img src="/api/proxy-image?url=${encodeURIComponent(a.image_url)}" alt="" style="width:100%;border-radius:12px;margin-bottom:20px" onerror="this.style.display='none'"/>` : '';
+  res.type('html').send(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(a.title)} — Prévia</title>
+<style>
+  *{box-sizing:border-box} body{font-family:'Segoe UI',system-ui,sans-serif;background:#f6f9fb;color:#1c2b3a;margin:0;line-height:1.7}
+  .aviso{background:#fef3c7;color:#92400e;text-align:center;padding:10px;font-size:.85rem;font-weight:600}
+  .wrap{max-width:680px;margin:0 auto;padding:28px 20px 60px}
+  .chapeu{display:inline-block;background:#0a64ff;color:#fff;font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:6px;margin-bottom:16px}
+  h1{font-size:1.9rem;line-height:1.2;margin:0 0 12px;color:#07111f}
+  .resumo{font-size:1.1rem;color:#475569;margin:0 0 24px;font-weight:500}
+  .corpo p{margin:0 0 1.1rem;font-size:1.05rem}
+</style></head><body>
+  <div class="aviso">👁️ Pré-visualização — ainda não publicada</div>
+  <div class="wrap">
+    ${a.chapeu ? `<span class="chapeu">${esc(a.chapeu)}</span><br>` : ''}
+    <h1>${esc(a.title)}</h1>
+    ${a.summary ? `<p class="resumo">${esc(a.summary)}</p>` : ''}
+    ${img}
+    <div class="corpo">${a.body || ''}</div>
+  </div>
+</body></html>`);
+});
+
 // ─── Frontend estático ────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../frontend/subscriber')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
