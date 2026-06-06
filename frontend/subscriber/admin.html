@@ -1227,6 +1227,23 @@
     <img id="map-img-el" src="" alt="" class="modal-imagem hidden"
          referrerpolicy="no-referrer"
          onerror="this.classList.add('hidden')" />
+    <!-- Trocar imagem (opcional): upload do PC ou URL. Substitui a imagem da fonte nesta publicação. -->
+    <div style="padding:8px 16px 0;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleTrocarImagem()">🖼️ Trocar imagem</button>
+        <span id="map-img-aviso" style="font-size:.74rem;color:#7e22ce;font-weight:600"></span>
+      </div>
+      <div id="map-img-troca" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px">
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0">
+          📁 Do computador
+          <input type="file" id="map-img-file" accept="image/*" style="display:none" onchange="trocarImagemArquivo(this)" />
+        </label>
+        <span style="font-size:.78rem;color:var(--muted)">ou</span>
+        <input type="text" id="map-img-url" placeholder="cole uma URL de imagem (https://…)" style="flex:1;min-width:180px;padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;font-size:.82rem" />
+        <button type="button" class="btn btn-secondary btn-sm" onclick="trocarImagemUrl()">Aplicar URL</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="restaurarImagemFonte()" title="Voltar a usar a imagem original da fonte">↺ Imagem da fonte</button>
+      </div>
+    </div>
     <div class="modal-corpo" id="map-corpo-leitura"></div>
     <div class="modal-footer" style="flex-direction:column;align-items:stretch;gap:10px;">
       <div class="portais-section" id="map-secao-portais">
@@ -3294,6 +3311,12 @@ async function abrirArtigoModal(artigo) {
   } else {
     imgEl.classList.add('hidden');
   }
+  // Reseta o estado de "trocar imagem" ao abrir um novo artigo
+  if (artigoSelecionado) delete artigoSelecionado._imgOverride;
+  const trocaEl = document.getElementById('map-img-troca'); if (trocaEl) trocaEl.style.display = 'none';
+  const urlEl = document.getElementById('map-img-url');     if (urlEl) urlEl.value = '';
+  const fileEl = document.getElementById('map-img-file');   if (fileEl) fileEl.value = '';
+  const avisoEl = document.getElementById('map-img-aviso'); if (avisoEl) avisoEl.textContent = '';
 
   // Esconde resultado IA e reseta estado multi-portal
   portaisResultadosAdmin = [];
@@ -3663,6 +3686,56 @@ function loadTabAdmin(idx) {
   }
 }
 
+// ── Trocar imagem da publicação (upload do PC ou URL) ─────────────────────────
+function toggleTrocarImagem() {
+  const el = document.getElementById('map-img-troca');
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
+function _aplicarPreviewImagem(src) {
+  const imgEl = document.getElementById('map-img-el');
+  imgEl.src = src;
+  imgEl.classList.remove('hidden');
+  document.getElementById('map-img-aviso').textContent = '✓ Imagem trocada — será usada nesta publicação';
+}
+
+function trocarImagemUrl() {
+  if (!artigoSelecionado) return;
+  const url = (document.getElementById('map-img-url').value || '').trim();
+  if (!/^https?:\/\/.+/i.test(url)) return toast('Cole uma URL de imagem válida (https://…).', 'erro');
+  artigoSelecionado._imgOverride = { url };
+  _aplicarPreviewImagem(`${BACKEND}/api/proxy-image?url=${encodeURIComponent(url)}`);
+}
+
+function trocarImagemArquivo(input) {
+  if (!artigoSelecionado) return;
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return toast('Selecione um arquivo de imagem.', 'erro');
+  if (file.size > 12 * 1024 * 1024) return toast('Imagem muito grande (máx 12 MB).', 'erro');
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = String(reader.result);
+    const base64  = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+    artigoSelecionado._imgOverride = { base64, mime: file.type, name: file.name };
+    _aplicarPreviewImagem(dataUrl); // mostra direto do navegador
+  };
+  reader.onerror = () => toast('Falha ao ler a imagem.', 'erro');
+  reader.readAsDataURL(file);
+}
+
+function restaurarImagemFonte() {
+  if (!artigoSelecionado) return;
+  delete artigoSelecionado._imgOverride;
+  document.getElementById('map-img-url').value = '';
+  document.getElementById('map-img-file').value = '';
+  document.getElementById('map-img-aviso').textContent = '';
+  const orig = artigoSelecionado.image_url;
+  const imgEl = document.getElementById('map-img-el');
+  if (orig) { imgEl.src = `${BACKEND}/api/proxy-image?url=${encodeURIComponent(orig)}`; imgEl.classList.remove('hidden'); }
+  else { imgEl.classList.add('hidden'); }
+}
+
 async function publicarPortalAdmin(idx) {
   const portal = portaisResultadosAdmin[idx];
   if (!portal || !artigoSelecionado) return;
@@ -3680,6 +3753,7 @@ async function publicarPortalAdmin(idx) {
   };
   const publishToFb    = document.getElementById('map-chk-facebook')?.checked === true;
   const publishToStory = document.getElementById('map-chk-story')?.checked === true;
+  const ov = artigoSelecionado._imgOverride || null;
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
     body: JSON.stringify({
@@ -3689,6 +3763,8 @@ async function publicarPortalAdmin(idx) {
       force,
       publish_to_facebook: publishToFb,
       publish_to_story: publishToStory,
+      ...(ov?.url    ? { image_override_url: ov.url } : {}),
+      ...(ov?.base64 ? { image_base64: ov.base64, image_mime: ov.mime, image_name: ov.name } : {}),
     })
   });
   try {

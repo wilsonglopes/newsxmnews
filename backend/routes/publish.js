@@ -13,7 +13,8 @@ router.use(auth);
 
 // ── POST /api/publish ─────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
-  const { article_id, site_id, rewritten, force, publish_to_facebook, publish_to_story } = req.body || {};
+  const { article_id, site_id, rewritten, force, publish_to_facebook, publish_to_story,
+          image_override_url, image_base64, image_mime, image_name } = req.body || {};
 
   if (!article_id || !site_id || !rewritten) {
     return res.status(400).json({ error: 'article_id, site_id e rewritten são obrigatórios.' });
@@ -30,6 +31,27 @@ router.post('/', async (req, res) => {
     );
     const article = artRows[0];
     if (!article) return res.status(404).json({ error: 'Artigo não encontrado.' });
+
+    // ── Imagem alternativa (opcional) — substitui a imagem da fonte nesta publicação ──
+    // Vale para o post (WordPress) E para o card do Facebook/Instagram. Pontual: não altera o artigo no banco.
+    if (image_override_url) {
+      article.image_url = image_override_url;
+      article.image_media_id = null;
+    } else if (image_base64) {
+      // Upload do PC: hospeda temporariamente para virar uma URL que o WP e o card conseguem usar
+      try {
+        const { resolveImageBuffer, criarTempImagemPublica } = require('../connectors/wordpress');
+        const img = await resolveImageBuffer({ image_base64, image_mime, image_name });
+        const tempUrl = img && criarTempImagemPublica(img);
+        if (tempUrl) {
+          article.image_url = tempUrl;
+          article.image_media_id = null;
+          console.log(`[publish] imagem alternativa (upload) hospedada: ${tempUrl}`);
+        }
+      } catch (e) {
+        console.warn(`[publish] falha ao hospedar imagem alternativa: ${e.message} — mantendo imagem da fonte`);
+      }
+    }
 
     // Busca o site — admin pode publicar em qualquer site, assinante só nos seus
     const siteBase = `
