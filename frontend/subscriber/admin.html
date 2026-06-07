@@ -2077,6 +2077,72 @@
   </div>
 </div>
 
+<!-- Modal Editor de Layout de Template -->
+<div class="overlay hidden" id="modal-layout-editor">
+  <div class="modal" style="width:1020px;max-width:97vw">
+    <div class="modal-header">
+      <h3>✏️ Editor de layout — <span id="le-slug" style="font-family:monospace;color:#1d4ed8"></span></h3>
+      <button class="modal-close" onclick="fecharModal('modal-layout-editor')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+      <!-- Palco: PNG + caixas arrastáveis -->
+      <div style="flex-shrink:0">
+        <div id="le-stage" style="position:relative;width:480px;height:600px;background:#0f172a;border:1px solid var(--border);border-radius:8px;overflow:hidden;user-select:none">
+          <img id="le-bg" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none" />
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:6px;max-width:480px">
+          🟦 foto · 🟧 título · 🟪 chapéu — arraste para mover, alça no canto para redimensionar.
+        </div>
+      </div>
+
+      <!-- Controles -->
+      <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-weight:700;color:#334155">Título</div>
+        <div class="form-row" style="gap:10px">
+          <div class="form-group" style="flex:1">
+            <label>Alinhamento</label>
+            <select id="le-align" onchange="leUpdateStyle()"><option value="middle">Centralizado</option><option value="start">Esquerda</option></select>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Fonte</label>
+            <select id="le-font" onchange="leUpdateStyle()"><option value="montserrat">Montserrat (bold)</option><option value="opensans">Open Sans</option></select>
+          </div>
+        </div>
+        <div class="form-row" style="gap:10px;align-items:flex-end">
+          <div class="form-group" style="flex:2">
+            <label>Tamanho da fonte: <span id="le-fontsize-val">76</span>px</label>
+            <input type="range" id="le-fontsize" min="28" max="150" value="76" oninput="leUpdateStyle()" style="width:100%" />
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Máx. linhas</label>
+            <input type="number" id="le-linhas" min="1" max="6" value="3" onchange="leUpdateStyle()" />
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="le-upper" onchange="leUpdateStyle()" /> MAIÚSCULAS</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="le-weight" onchange="leUpdateStyle()" /> Negrito</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="le-justify" onchange="leUpdateStyle()" /> Justificar</label>
+        </div>
+
+        <div style="font-weight:700;color:#334155;margin-top:4px">Chapéu</div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem"><input type="checkbox" id="le-chapeu-show" onchange="leUpdateStyle()" /> Mostrar chapéu (caixinha 🟪)</label>
+
+        <div style="font-weight:700;color:#334155;margin-top:4px">Pré-visualização</div>
+        <input type="text" id="le-preview-titulo" placeholder="Título de exemplo (opcional)" style="font-size:.85rem" />
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="leDetectarFoto()">🎯 Detectar foto</button>
+          <button class="btn btn-primary btn-sm" onclick="lePreview()">👁 Pré-visualizar</button>
+        </div>
+        <div id="le-preview-area" style="min-height:20px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-layout-editor')">Cancelar</button>
+      <button class="btn btn-primary" onclick="leSalvar()">💾 Salvar layout</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Fonte (criar/editar) -->
 <div class="overlay hidden" id="modal-fonte">
   <div class="modal">
@@ -2797,13 +2863,15 @@ async function carregarTemplatesCard() {
         : `<div style="width:100%;aspect-ratio:4/5;border-radius:8px 8px 0 0;background:#0f172a;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:.75rem">sem preview</div>`;
       const btnExcluir = reservado
         ? `<span style="font-size:.7rem;color:var(--muted)">padrão</span>`
-        : `<button onclick="excluirTemplateCard('${t.slug}')" style="font-size:.72rem;padding:3px 8px;border:1px solid #fca5a5;border-radius:5px;background:#fef2f2;color:#dc2626;cursor:pointer">🗑 Excluir</button>`;
+        : `<button onclick="excluirTemplateCard('${t.slug}')" style="font-size:.72rem;padding:3px 8px;border:1px solid #fca5a5;border-radius:5px;background:#fef2f2;color:#dc2626;cursor:pointer">🗑</button>`;
+      const btnLayout = reservado ? '' :
+        `<button onclick="abrirEditorLayout('${t.slug}')" style="font-size:.72rem;padding:3px 8px;border:1px solid #93c5fd;border-radius:5px;background:#eff6ff;color:#1d4ed8;cursor:pointer">✏️ Layout</button>`;
       return `
         <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--white)">
           ${img}
           <div style="padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px">
             <span style="font-family:monospace;font-size:.8rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.slug}</span>
-            ${btnExcluir}
+            <span style="display:flex;gap:4px;flex-shrink:0">${btnLayout}${btnExcluir}</span>
           </div>
         </div>`;
     }).join('');
@@ -2864,6 +2932,185 @@ async function excluirTemplateCard(slug) {
   } catch (e) {
     toast('Erro: ' + e.message, 'erro');
   }
+}
+
+// ─── Editor visual de layout de template ──────────────────────────────────────
+let LE = null;                 // estado do editor
+const LE_SCALE = 480 / 1600;   // palco 480px / canvas 1600px (= 0.3)
+
+async function abrirEditorLayout(slug) {
+  document.getElementById('le-slug').textContent = slug;
+  document.getElementById('le-stage').querySelectorAll('.le-box').forEach(b => b.remove());
+  document.getElementById('le-preview-area').innerHTML = '';
+  document.getElementById('le-preview-titulo').value = '';
+  document.getElementById('modal-layout-editor').classList.remove('hidden');
+  try {
+    const d = await fetch(`${BACKEND}/api/admin/card-templates/${encodeURIComponent(slug)}/layout`, { headers: authHeader() }).then(r => r.json());
+    if (d.error) throw new Error(d.error);
+    document.getElementById('le-bg').src = d.imageBase64;
+    const def = d.default, lay = d.layout || {};
+    const foto = lay.fotoArea || d.photoArea || def.fotoArea;
+    const t  = { ...def.titulo, ...(lay.titulo || {}) };
+    const ch = { ...def.chapeu, ...(lay.chapeu || {}) };
+    LE = {
+      slug,
+      detectedFoto: d.photoArea || null,
+      foto:   { x: foto.x, y: foto.y, w: foto.w, h: foto.h },
+      titulo: { x: t.x, y: t.y, w: t.w, h: 0 },
+      style:  {
+        align: t.align || 'start', uppercase: !!t.uppercase, fontSize: t.fontSize || 60,
+        maxLinhas: t.maxLinhas || 3, fontWeight: t.fontWeight || 700,
+        font: /montser/i.test(t.fontFamily || '') ? 'montserrat' : 'opensans', justify: t.justify !== false,
+      },
+      chapeu: { show: ch.show !== false, centerX: ch.centerX, centerY: ch.centerY },
+    };
+    leSyncControls();
+    leRecalcTituloH();
+    leRenderBoxes();
+  } catch (e) { toast('Erro ao abrir editor: ' + e.message, 'erro'); }
+}
+
+function leSyncControls() {
+  document.getElementById('le-align').value = LE.style.align;
+  document.getElementById('le-font').value  = LE.style.font;
+  document.getElementById('le-fontsize').value = LE.style.fontSize;
+  document.getElementById('le-fontsize-val').textContent = LE.style.fontSize;
+  document.getElementById('le-linhas').value = LE.style.maxLinhas;
+  document.getElementById('le-upper').checked = LE.style.uppercase;
+  document.getElementById('le-weight').checked = LE.style.fontWeight === 700;
+  document.getElementById('le-justify').checked = LE.style.justify;
+  document.getElementById('le-chapeu-show').checked = LE.chapeu.show;
+}
+
+function leUpdateStyle() {
+  LE.style.align     = document.getElementById('le-align').value;
+  LE.style.font      = document.getElementById('le-font').value;
+  LE.style.fontSize  = Number(document.getElementById('le-fontsize').value);
+  LE.style.maxLinhas = Number(document.getElementById('le-linhas').value) || 1;
+  LE.style.uppercase = document.getElementById('le-upper').checked;
+  LE.style.fontWeight = document.getElementById('le-weight').checked ? 700 : 400;
+  LE.style.justify   = document.getElementById('le-justify').checked;
+  LE.chapeu.show     = document.getElementById('le-chapeu-show').checked;
+  document.getElementById('le-fontsize-val').textContent = LE.style.fontSize;
+  leRecalcTituloH();
+  leRenderBoxes();
+}
+
+function leRecalcTituloH() {
+  LE.titulo.h = Math.round(LE.style.fontSize * 1.2 * (LE.style.maxLinhas || 1));
+}
+
+function leMakeBox(key, label, color) {
+  const stage = document.getElementById('le-stage');
+  let el = stage.querySelector(`.le-box[data-k="${key}"]`);
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'le-box'; el.dataset.k = key;
+    el.style.cssText = `position:absolute;border:2px solid ${color};background:${color}26;box-sizing:border-box;cursor:move;font-size:10px;color:#fff`;
+    el.innerHTML = `<span style="background:${color};padding:0 4px;font-weight:700;border-radius:0 0 4px 0">${label}</span>`
+      + `<div class="le-rz" style="position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;background:${color};border:1px solid #fff;cursor:nwse-resize"></div>`;
+    stage.appendChild(el);
+    leAttachDrag(el, key);
+  }
+  return el;
+}
+
+function leRenderBoxes() {
+  const s = LE_SCALE;
+  const foto = leMakeBox('foto', 'FOTO', '#06b6d4');
+  Object.assign(foto.style, { left: LE.foto.x*s+'px', top: LE.foto.y*s+'px', width: LE.foto.w*s+'px', height: LE.foto.h*s+'px' });
+  const tit = leMakeBox('titulo', 'TÍTULO', '#f59e0b');
+  Object.assign(tit.style, { left: LE.titulo.x*s+'px', top: LE.titulo.y*s+'px', width: LE.titulo.w*s+'px', height: LE.titulo.h*s+'px' });
+  const chEl = document.querySelector('#le-stage .le-box[data-k="chapeu"]');
+  if (LE.chapeu.show) {
+    const box = leMakeBox('chapeu', 'CHAPÉU', '#a78bfa');
+    const w = 360, h = 130;
+    Object.assign(box.style, { left: (LE.chapeu.centerX - w/2)*s+'px', top: (LE.chapeu.centerY - h/2)*s+'px', width: w*s+'px', height: h*s+'px' });
+  } else if (chEl) { chEl.remove(); }
+}
+
+function leAttachDrag(el, key) {
+  el.addEventListener('mousedown', (e) => {
+    const isResize = e.target.classList.contains('le-rz');
+    e.preventDefault();
+    const s = LE_SCALE, startX = e.clientX, startY = e.clientY;
+    const o = key === 'chapeu'
+      ? { cx: LE.chapeu.centerX, cy: LE.chapeu.centerY }
+      : { x: LE[key].x, y: LE[key].y, w: LE[key].w, h: LE[key].h };
+    function move(ev) {
+      const dx = (ev.clientX - startX) / s, dy = (ev.clientY - startY) / s;
+      if (key === 'chapeu') {
+        LE.chapeu.centerX = Math.max(0, Math.min(1600, Math.round(o.cx + dx)));
+        LE.chapeu.centerY = Math.max(0, Math.min(2000, Math.round(o.cy + dy)));
+      } else if (isResize) {
+        LE[key].w = Math.max(60, Math.min(1600, Math.round(o.w + dx)));
+        if (key === 'foto') LE[key].h = Math.max(60, Math.min(2000, Math.round(o.h + dy)));
+      } else {
+        LE[key].x = Math.max(0, Math.min(1600 - 20, Math.round(o.x + dx)));
+        LE[key].y = Math.max(0, Math.min(2000 - 20, Math.round(o.y + dy)));
+      }
+      leRenderBoxes();
+    }
+    function up() { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+function leDetectarFoto() {
+  if (!LE.detectedFoto) return toast('Este template não tem área transparente detectável.', 'erro');
+  LE.foto = { ...LE.detectedFoto };
+  leRenderBoxes();
+  toast('Área da foto detectada.', 'sucesso');
+}
+
+function leBuildLayout() {
+  const maxChars = Math.max(6, Math.round(LE.titulo.w / (LE.style.fontSize * 0.55)));
+  return {
+    fotoArea: { x: LE.foto.x, y: LE.foto.y, w: LE.foto.w, h: LE.foto.h },
+    titulo: {
+      x: LE.titulo.x, y: LE.titulo.y, w: LE.titulo.w,
+      yOffset: LE.style.fontSize,
+      fontSize: LE.style.fontSize, lineHeight: Math.round(LE.style.fontSize * 1.2),
+      fontWeight: LE.style.fontWeight, font: LE.style.font,
+      align: LE.style.align, uppercase: LE.style.uppercase, justify: LE.style.justify,
+      maxLinhas: LE.style.maxLinhas, maxChars,
+    },
+    chapeu: { show: LE.chapeu.show, centerX: LE.chapeu.centerX, centerY: LE.chapeu.centerY },
+  };
+}
+
+async function lePreview() {
+  const area = document.getElementById('le-preview-area');
+  area.innerHTML = '<div style="color:#64748b;font-size:.8rem">⏳ Gerando preview real…</div>';
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/card-templates/${encodeURIComponent(LE.slug)}/preview`, {
+      method: 'POST', headers: authHeader(),
+      body: JSON.stringify({
+        layout: leBuildLayout(),
+        titulo: document.getElementById('le-preview-titulo').value || undefined,
+        chapeu: LE.chapeu.show ? 'EXEMPLO' : '',
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Falha no preview');
+    area.innerHTML = `<img src="${d.image_base64}" style="width:260px;border:1px solid var(--border);border-radius:8px" />`;
+  } catch (e) {
+    area.innerHTML = `<div style="color:#b91c1c;font-size:.8rem">Erro: ${e.message}</div>`;
+  }
+}
+
+async function leSalvar() {
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/card-templates/${encodeURIComponent(LE.slug)}/layout`, {
+      method: 'PUT', headers: authHeader(),
+      body: JSON.stringify({ layout: leBuildLayout() }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Falha ao salvar');
+    toast('Layout salvo! As próximas publicações desse template já usam.', 'sucesso');
+    fecharModal('modal-layout-editor');
+  } catch (e) { toast('Erro: ' + e.message, 'erro'); }
 }
 
 async function salvarConfiguracoes() {
@@ -5663,7 +5910,7 @@ async function republicarDoHistorico(pubJsonStr) {
 function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 // modal-artigo-pub: fecha só por X ou ESC — não por clique fora
-const MODAIS_SEM_CLICK_FORA = new Set(['modal-artigo-pub', 'modal-fonte', 'modal-cliente', 'modal-site-cli', 'modal-catalog']);
+const MODAIS_SEM_CLICK_FORA = new Set(['modal-artigo-pub', 'modal-fonte', 'modal-cliente', 'modal-site-cli', 'modal-catalog', 'modal-layout-editor']);
 document.querySelectorAll('.overlay').forEach(o => {
   if (MODAIS_SEM_CLICK_FORA.has(o.id)) return;
   o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });

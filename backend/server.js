@@ -1232,6 +1232,102 @@ app.delete('/api/admin/card-templates/:slug', authMiddleware, requireAdmin, asyn
   }
 });
 
+// ── Editor de layout de template ──────────────────────────────────────────────
+// Sanitiza o layout vindo do editor: só chaves conhecidas, números clampados,
+// fonte por whitelist (evita injeção no SVG e valores absurdos).
+function sanitizeLayoutInput(raw = {}) {
+  const num = (v, d, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : d; };
+  const out = {};
+  if (raw.fotoArea) out.fotoArea = {
+    x: num(raw.fotoArea.x, 0, 0, 1600), y: num(raw.fotoArea.y, 0, 0, 2000),
+    w: num(raw.fotoArea.w, 1600, 1, 1600), h: num(raw.fotoArea.h, 1195, 1, 2000),
+  };
+  if (raw.titulo) {
+    const t = raw.titulo, o = {};
+    o.x = num(t.x, 90, 0, 1600); o.y = num(t.y, 1450, 0, 2000); o.w = num(t.w, 1420, 1, 1600);
+    o.yOffset = num(t.yOffset, 50, 0, 400);
+    o.fontSize = num(t.fontSize, 60, 16, 200);
+    o.lineHeight = num(t.lineHeight, Math.round(o.fontSize * 1.25), 16, 300);
+    o.fontWeight = [400, 700].includes(Number(t.fontWeight)) ? Number(t.fontWeight) : 700;
+    o.maxChars = num(t.maxChars, 42, 6, 80);
+    o.maxLinhas = num(t.maxLinhas, 6, 1, 10);
+    o.align = (t.align === 'middle') ? 'middle' : 'start';
+    o.uppercase = !!t.uppercase;
+    o.justify = !!t.justify;
+    const fam = String(t.font || t.fontFamily || '').toLowerCase();
+    o.fontFamily = fam.includes('montser') ? "'Montserrat', 'DejaVu Sans', sans-serif"
+                                           : "'Open Sans', 'DejaVu Sans', sans-serif";
+    out.titulo = o;
+  }
+  if (raw.chapeu) out.chapeu = {
+    show: !!raw.chapeu.show,
+    centerX: num(raw.chapeu.centerX, 405, 0, 1600),
+    centerY: num(raw.chapeu.centerY, 1337, 0, 2000),
+  };
+  return out;
+}
+
+// Carrega o layout de um template (+ área da foto auto-detectada + a própria imagem)
+app.get('/api/admin/card-templates/:slug/layout', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const fs = require('fs');
+    const cg = require('./utils/card-generator');
+    const slug  = String(req.params.slug || '').toLowerCase();
+    const tpath = cg.templatePathFor(slug);
+    if (!fs.existsSync(tpath)) return res.status(404).json({ error: 'Template não encontrado.' });
+    let layout = null;
+    const lpath = cg.layoutPathFor(slug);
+    if (fs.existsSync(lpath)) { try { layout = JSON.parse(fs.readFileSync(lpath, 'utf8')); } catch {} }
+    let photoArea = null;
+    try { photoArea = await cg.detectarAreaFoto(slug); } catch {}
+    const imageBase64 = 'data:image/png;base64,' + fs.readFileSync(tpath).toString('base64');
+    res.json({ slug, layout, photoArea, default: cg.LAYOUT_DEFAULT, imageBase64 });
+  } catch (err) {
+    console.error('[card-templates/layout/get]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Gera um preview real (mesmo motor de publicação) com o layout em edição
+app.post('/api/admin/card-templates/:slug/preview', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const fs = require('fs');
+    const cg = require('./utils/card-generator');
+    const slug = String(req.params.slug || '').toLowerCase();
+    if (!fs.existsSync(cg.templatePathFor(slug))) return res.status(404).json({ error: 'Template não encontrado.' });
+    const layout = sanitizeLayoutInput((req.body && req.body.layout) || {});
+    const buf = await cg.gerarCard({
+      chapeu:   (req.body && req.body.chapeu)  || 'EXEMPLO',
+      titulo:   (req.body && req.body.titulo)  || 'Título de exemplo para visualizar o card neste layout',
+      imageUrl: (req.body && req.body.imageUrl) || 'https://picsum.photos/1600/1320',
+      cardConfig: { card_template: slug },
+      layoutOverride: layout,
+    });
+    res.json({ image_base64: 'data:image/jpeg;base64,' + buf.toString('base64') });
+  } catch (err) {
+    console.error('[card-templates/preview]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Salva o layout (grava {slug}-layout.json)
+app.put('/api/admin/card-templates/:slug/layout', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const fs = require('fs');
+    const cg = require('./utils/card-generator');
+    const slug = String(req.params.slug || '').toLowerCase();
+    if (!fs.existsSync(cg.templatePathFor(slug))) return res.status(404).json({ error: 'Template não encontrado.' });
+    const layout = sanitizeLayoutInput((req.body && req.body.layout) || {});
+    if (!layout.fotoArea && !layout.titulo) return res.status(400).json({ error: 'Layout vazio.' });
+    fs.writeFileSync(cg.layoutPathFor(slug), JSON.stringify(layout, null, 2));
+    console.log(`[card-templates] layout "${slug}" salvo`);
+    res.json({ ok: true, slug, layout });
+  } catch (err) {
+    console.error('[card-templates/layout/put]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Admin (Fase 4) — injeta contexto mutável do servidor
 app.use('/api/admin', require('./routes/admin')({ sources, cache, atualizarFonte }));
 

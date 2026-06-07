@@ -56,6 +56,35 @@ function templatePathFor(slug) {
   return path.join(TEMPLATES_DIR, `${slug}-facebook.png`);
 }
 
+// Caminho do JSON de layout de um template
+function layoutPathFor(slug) {
+  return path.join(TEMPLATES_DIR, `${slug}-layout.json`);
+}
+
+// Detecta a bounding box da área transparente (onde a foto entra) de um template.
+// Amostra a cada 2px (rápido) e devolve com uma pequena folga p/ fora (a arte cobre o excesso).
+async function detectarAreaFoto(slug, margem = 8) {
+  const fp = templatePathFor(slug);
+  if (!fs.existsSync(fp)) return null;
+  const { data, info } = await sharp(fp).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width: W, height: H, channels: C } = info;
+  let minX = W, minY = H, maxX = -1, maxY = -1;
+  for (let y = 0; y < H; y += 2) {
+    for (let x = 0; x < W; x += 2) {
+      if (data[(y * W + x) * C + 3] < 10) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null; // sem área transparente
+  const x = Math.max(0, minX - margem);
+  const y = Math.max(0, minY - margem);
+  const w = Math.min(W - x, (maxX - minX + 1) + margem * 2);
+  const h = Math.min(H - y, (maxY - minY + 1) + margem * 2);
+  return { x, y, w, h };
+}
+
 // Coordenadas do template (1600×2000 — proporção 4:5, otimizado para Instagram)
 const CARD = {
   width:  1600,
@@ -116,6 +145,13 @@ function resolveLayout(cardConfig = {}) {
 function sanitizeColor(value, fallback = '#ffffff') {
   const v = String(value || '').trim();
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v) ? v : fallback;
+}
+
+// Sanitiza nome de família de fonte (entra cru no <style> do SVG → risco de injeção).
+// Mantém só letras/números/espaço/vírgula/aspas/hífen; cai no fallback se ficar vazio.
+function sanitizeFont(value, fallback = "'DejaVu Sans', sans-serif") {
+  const s = String(value || '').replace(/[^a-zA-Z0-9 ,'"\-]/g, '').trim();
+  return s.length ? s : fallback;
 }
 
 function escapeXml(s) {
@@ -226,11 +262,14 @@ function montarSvgTextos(chapeu, titulo, cardConfig = {}, layout = LAYOUT_DEFAUL
     ? `<text x="${C.centerX}" y="${C.centerY + 20}" class="chapeu" text-anchor="middle">${chapeuTexto}</text>`
     : '';
 
+  const fontChapeu = sanitizeFont(C.fontFamily, "'Montserrat', 'DejaVu Sans', sans-serif");
+  const fontTitulo = sanitizeFont(T.fontFamily, "'Open Sans', 'DejaVu Sans', sans-serif");
+
   return Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${CARD.width}" height="${CARD.height}" xmlns="http://www.w3.org/2000/svg">
   <style>
-    .chapeu { font-family: ${C.fontFamily}; font-weight: ${C.fontWeight}; font-size: ${chapeuFontSize}px; fill: ${corChapeu}; letter-spacing: ${C.letterSpacing}px; }
-    .resumo { font-family: ${T.fontFamily}; font-weight: ${T.fontWeight}; font-size: ${T.fontSize}px; fill: ${corTitulo}; }
+    .chapeu { font-family: ${fontChapeu}; font-weight: ${C.fontWeight}; font-size: ${chapeuFontSize}px; fill: ${corChapeu}; letter-spacing: ${C.letterSpacing}px; }
+    .resumo { font-family: ${fontTitulo}; font-weight: ${T.fontWeight}; font-size: ${T.fontSize}px; fill: ${corTitulo}; }
   </style>
   ${chapeuSvg}
   <text class="resumo" y="${resumoY0}" text-anchor="${isMiddle ? 'middle' : 'start'}">${tspans}</text>
@@ -277,8 +316,9 @@ async function baixarImagem(url) {
 
 // ─── Gerador principal ──────────────────────────────────────────────────────
 
-async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {} }) {
-  const layout = resolveLayout(cardConfig);
+async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {}, layoutOverride = null }) {
+  // layoutOverride: usado pelo editor/preview (layout em edição, ainda não salvo)
+  const layout = layoutOverride ? mergeLayout(LAYOUT_DEFAULT, layoutOverride) : resolveLayout(cardConfig);
   const foto   = layout.fotoArea;
 
   // 1) Baixa foto e ajusta pra área da foto (posição/tamanho vêm do layout)
@@ -370,6 +410,6 @@ function limparCardsAntigos(diasMax = 7) {
 module.exports = {
   gerarCard, gerarCardComUrl, limparCardsAntigos,
   listarTemplates, listarTemplatesComPreview, templatePathFor,
-  resolveLayout, mergeLayout, LAYOUT_DEFAULT,
+  resolveLayout, mergeLayout, LAYOUT_DEFAULT, layoutPathFor, detectarAreaFoto,
   CARD, UPLOADS_DIR, TEMPLATES_DIR,
 };
