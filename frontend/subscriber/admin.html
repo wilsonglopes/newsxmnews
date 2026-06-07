@@ -1803,7 +1803,16 @@
 
 <!-- Modal Catálogo de Sites (CRUD do catálogo central) -->
 <style>
-  #modal-catalog .mcat-tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:2px solid var(--border); margin-bottom:18px; }
+  /* Modal de catálogo: tamanho FIXO (não muda ao trocar de aba); só o corpo rola */
+  #modal-catalog .modal {
+    width: 1100px; max-width: 94vw;
+    height: 90vh; max-height: 90vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #modal-catalog .modal-header,
+  #modal-catalog .modal-footer { flex: 0 0 auto; }
+  #modal-catalog .modal-body   { flex: 1 1 auto; overflow-y: auto; }
+  #modal-catalog .mcat-tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:2px solid var(--border); margin-bottom:18px; position:sticky; top:-20px; background:var(--white); padding-top:4px; z-index:2; }
   #modal-catalog .mcat-tabbtn {
     appearance:none; border:none; background:transparent; cursor:pointer;
     padding:9px 16px; font-size:.88rem; font-weight:600; color:#64748b;
@@ -1815,7 +1824,7 @@
   @keyframes mcatFade { from { opacity:0; } to { opacity:1; } }
 </style>
 <div class="overlay hidden" id="modal-catalog">
-  <div class="modal" style="width:980px;max-width:96vw">
+  <div class="modal">
     <div class="modal-header">
       <h3 id="mcat-title">Novo Site no Catálogo</h3>
       <button class="modal-close" onclick="fecharModal('modal-catalog')">✕</button>
