@@ -1802,73 +1802,102 @@
 </div>
 
 <!-- Modal Catálogo de Sites (CRUD do catálogo central) -->
+<style>
+  #modal-catalog .mcat-tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:2px solid var(--border); margin-bottom:18px; }
+  #modal-catalog .mcat-tabbtn {
+    appearance:none; border:none; background:transparent; cursor:pointer;
+    padding:9px 16px; font-size:.88rem; font-weight:600; color:#64748b;
+    border-bottom:3px solid transparent; margin-bottom:-2px; border-radius:6px 6px 0 0;
+  }
+  #modal-catalog .mcat-tabbtn:hover { background:#f1f5f9; color:#334155; }
+  #modal-catalog .mcat-tabbtn.active { color:#1d4ed8; border-bottom-color:#1d4ed8; background:#eff6ff; }
+  #modal-catalog .mcat-tab { animation:mcatFade .15s ease; }
+  @keyframes mcatFade { from { opacity:0; } to { opacity:1; } }
+</style>
 <div class="overlay hidden" id="modal-catalog">
-  <div class="modal" style="width:640px;max-width:95vw">
+  <div class="modal" style="width:980px;max-width:96vw">
     <div class="modal-header">
       <h3 id="mcat-title">Novo Site no Catálogo</h3>
       <button class="modal-close" onclick="fecharModal('modal-catalog')">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="mcat-id" />
-      <div class="form-row">
-        <div class="form-group"><label>Nome *</label><input type="text" id="mcat-name" placeholder="Nome do portal" /></div>
-        <div class="form-group">
-          <label>Plataforma *</label>
-          <select id="mcat-platform" onchange="toggleCatalogPlatformFields()">
-            <option value="wordpress">WordPress</option>
-            <option value="blogger">Blogger</option>
-            <option value="webhook">Webhook</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>URL do site *</label>
-        <input type="url" id="mcat-url" placeholder="https://meusite.com.br" />
+
+      <!-- Barra de abas -->
+      <div class="mcat-tabs">
+        <button type="button" class="mcat-tabbtn active" data-tab="geral"   onclick="mcatTab('geral')">📋 Geral</button>
+        <button type="button" class="mcat-tabbtn"        data-tab="public"  onclick="mcatTab('public')">📤 Publicação</button>
+        <button type="button" class="mcat-tabbtn"        data-tab="redes"   onclick="mcatTab('redes')">📡 Redes sociais</button>
+        <button type="button" class="mcat-tabbtn"        data-tab="card"    onclick="mcatTab('card')">🎨 Card</button>
+        <button type="button" class="mcat-tabbtn"        data-tab="autopub" onclick="mcatTab('autopub')">⚙️ Autopublicação</button>
       </div>
 
-      <!-- WordPress -->
-      <div id="mcat-wp-fields">
-        <div class="form-group">
-          <label>Chave do Plugin XMNews <small style="color:var(--muted);font-weight:400">(WP Admin → Portal Publisher → Copiar chave)</small></label>
-          <input type="text" id="mcat-xixo-key" placeholder="Cole a chave gerada pelo plugin" style="font-family:monospace;font-size:.85rem" />
-        </div>
-      </div>
-
-      <!-- Blogger -->
-      <div id="mcat-blogger-fields" style="display:none">
-        <div class="form-group"><label>Blog ID</label><input type="text" id="mcat-blog-id" /></div>
-      </div>
-
-      <!-- Webhook -->
-      <div id="mcat-webhook-fields" style="display:none">
+      <!-- ═══════ ABA: GERAL ═══════ -->
+      <div class="mcat-tab" data-tab="geral">
         <div class="form-row">
-          <div class="form-group"><label>Webhook URL</label><input type="url" id="mcat-webhook-url" /></div>
-          <div class="form-group"><label>Webhook Secret</label><input type="text" id="mcat-webhook-secret" /></div>
+          <div class="form-group" style="flex:2"><label>Nome *</label><input type="text" id="mcat-name" placeholder="Nome do portal" /></div>
+          <div class="form-group" style="flex:1">
+            <label>Ativo</label>
+            <select id="mcat-active">
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>URL do site *</label>
+          <input type="url" id="mcat-url" placeholder="https://meusite.com.br" />
+        </div>
+        <div class="form-group" style="margin-top:4px">
+          <label>Prompt de IA padrão <small style="color:var(--muted);font-weight:400">(deixe em branco para usar o padrão do sistema)</small></label>
+          <textarea id="mcat-ai-prompt" rows="7" placeholder="Você é um editor jornalístico especializado em…&#10;&#10;Reescreva o artigo seguindo estas diretrizes e retorne JSON com os campos: chapeu, titulo, resumo, corpo, tags." style="width:100%;font-size:.83rem;font-family:monospace;resize:vertical;padding:8px 10px;border:1px solid var(--border);border-radius:6px;line-height:1.5"></textarea>
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Formato de post</label>
-          <select id="mcat-post-format">
-            <option value="editorial">Editorial</option>
-            <option value="simple">Simples</option>
-          </select>
+      <!-- ═══════ ABA: PUBLICAÇÃO ═══════ -->
+      <div class="mcat-tab" data-tab="public" style="display:none">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Plataforma *</label>
+            <select id="mcat-platform" onchange="toggleCatalogPlatformFields()">
+              <option value="wordpress">WordPress</option>
+              <option value="blogger">Blogger</option>
+              <option value="webhook">Webhook</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Formato de post</label>
+            <select id="mcat-post-format">
+              <option value="editorial">Editorial</option>
+              <option value="simple">Simples</option>
+            </select>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Ativo</label>
-          <select id="mcat-active">
-            <option value="true">Sim</option>
-            <option value="false">Não</option>
-          </select>
+
+        <!-- WordPress -->
+        <div id="mcat-wp-fields">
+          <div class="form-group">
+            <label>Chave do Plugin XMNews <small style="color:var(--muted);font-weight:400">(WP Admin → Portal Publisher → Copiar chave)</small></label>
+            <input type="text" id="mcat-xixo-key" placeholder="Cole a chave gerada pelo plugin" style="font-family:monospace;font-size:.85rem" />
+          </div>
+        </div>
+
+        <!-- Blogger -->
+        <div id="mcat-blogger-fields" style="display:none">
+          <div class="form-group"><label>Blog ID</label><input type="text" id="mcat-blog-id" /></div>
+        </div>
+
+        <!-- Webhook -->
+        <div id="mcat-webhook-fields" style="display:none">
+          <div class="form-row">
+            <div class="form-group"><label>Webhook URL</label><input type="url" id="mcat-webhook-url" /></div>
+            <div class="form-group"><label>Webhook Secret</label><input type="text" id="mcat-webhook-secret" /></div>
+          </div>
         </div>
       </div>
 
-      <!-- Prompt de IA padrão do site -->
-      <div class="form-group" style="margin-top:4px">
-        <label>Prompt de IA padrão <small style="color:var(--muted);font-weight:400">(deixe em branco para usar o padrão do sistema)</small></label>
-        <textarea id="mcat-ai-prompt" rows="5" placeholder="Você é um editor jornalístico especializado em…&#10;&#10;Reescreva o artigo seguindo estas diretrizes e retorne JSON com os campos: chapeu, titulo, resumo, corpo, tags." style="width:100%;font-size:.83rem;font-family:monospace;resize:vertical;padding:8px 10px;border:1px solid var(--border);border-radius:6px;line-height:1.5"></textarea>
-      </div>
+      <!-- ═══════ ABA: REDES SOCIAIS ═══════ -->
+      <div class="mcat-tab" data-tab="redes" style="display:none">
 
       <!-- Publicação no Facebook -->
       <div style="border:1px solid #93c5fd;border-radius:8px;overflow:hidden;margin-top:4px">
@@ -1933,14 +1962,16 @@
           <div id="mcat-wa-area" style="font-size:.84rem;color:var(--muted)">Salve o portal primeiro para habilitar a conexão do WhatsApp.</div>
         </div>
       </div>
+      </div><!-- /aba redes -->
 
+      <!-- ═══════ ABA: CARD ═══════ -->
+      <div class="mcat-tab" data-tab="card" style="display:none">
       <!-- Personalização do Card e Legenda por portal -->
       <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-top:4px">
-        <div style="padding:12px 14px;background:#f8fafc;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+        <div style="padding:12px 14px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
           <span style="font-weight:600;color:#334155">🎨 Personalização do card e legenda</span>
-          <span style="font-size:.75rem;color:var(--muted)">clique para expandir</span>
         </div>
-        <div style="display:none;padding:14px;background:#fff;border-top:1px solid #e2e8f0">
+        <div style="display:block;padding:14px;background:#fff;border-top:1px solid #e2e8f0">
 
           <div class="form-row" style="gap:12px;margin-bottom:12px">
             <div class="form-group" style="flex:1">
@@ -2003,7 +2034,10 @@
 
         </div>
       </div>
+      </div><!-- /aba card -->
 
+      <!-- ═══════ ABA: AUTOPUBLICAÇÃO ═══════ -->
+      <div class="mcat-tab" data-tab="autopub" style="display:none">
       <!-- Publicação Automática — fontes e categorias por fonte -->
       <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden;margin-top:4px">
         <div style="padding:12px 14px;background:#f0fdf4">
@@ -2020,11 +2054,12 @@
             <button type="button" onclick="selecionarTodasFontesCatalog(true)" style="font-size:.75rem;padding:4px 8px;border:1px solid #86efac;border-radius:5px;background:#f0fdf4;color:#166534;cursor:pointer">Todas</button>
             <button type="button" onclick="selecionarTodasFontesCatalog(false)" style="font-size:.75rem;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:#f8fafc;cursor:pointer">Nenhuma</button>
           </div>
-          <div id="mcat-fontes-lista" style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:2px">
+          <div id="mcat-fontes-lista" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:2px">
             <span style="font-size:.82rem;color:var(--muted)">Abrindo o site para carregar as fontes…</span>
           </div>
         </div>
       </div>
+      </div><!-- /aba autopub -->
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModal('modal-catalog')">Cancelar</button>
@@ -4809,7 +4844,20 @@ function esconderBlocoInstagram() {
   if (cb) cb.checked = false;
 }
 
+// Navegação por abas do modal de catálogo
+function mcatTab(nome) {
+  document.querySelectorAll('#modal-catalog .mcat-tab').forEach(el => {
+    el.style.display = el.dataset.tab === nome ? '' : 'none';
+  });
+  document.querySelectorAll('#modal-catalog .mcat-tabbtn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === nome);
+  });
+  const body = document.querySelector('#modal-catalog .modal-body');
+  if (body) body.scrollTop = 0;
+}
+
 async function abrirModalCatalog(siteId) {
+  mcatTab('geral');   // sempre começa na aba Geral
   document.getElementById('mcat-title').textContent  = siteId ? 'Editar Site' : 'Novo Site no Catálogo';
   document.getElementById('mcat-id').value           = siteId || '';
   document.getElementById('mcat-name').value         = '';
