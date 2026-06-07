@@ -67,6 +67,23 @@ async function listarGrupos(instancia) {
   return (r.data || []).map(g => ({ jid: g.id, nome: g.subject }));
 }
 
+// Envia mensagem de texto. `numero` é o JID do grupo (ex.: 1203...@g.us).
+async function enviarTexto(instancia, numero, texto) {
+  const r = await axios.post(`${BASE()}/message/sendText/${instancia}`, {
+    number: numero, text: texto,
+  }, { headers: headers(), timeout: 20000 });
+  return r.data;
+}
+
+// Envia imagem (por URL pública ou base64) com legenda para um grupo.
+async function enviarImagem(instancia, numero, mediaUrlOuBase64, caption) {
+  const r = await axios.post(`${BASE()}/message/sendMedia/${instancia}`, {
+    number: numero, mediatype: 'image', media: mediaUrlOuBase64, caption: caption || '',
+  }, { headers: headers(), timeout: 30000 });
+  return r.data;
+}
+
 module.exports = {
-  disponivel, nomeInstancia, criarInstancia, obterQRCode, statusConexao, deletarInstancia, listarGrupos, BASE, headers,
+  disponivel, nomeInstancia, criarInstancia, obterQRCode, statusConexao, deletarInstancia,
+  listarGrupos, enviarTexto, enviarImagem, BASE, headers,
 };

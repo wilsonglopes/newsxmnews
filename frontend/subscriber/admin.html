@@ -4633,10 +4633,12 @@ function renderWhatsappArea(siteId, status) {
   if (!area) return;
   _waBadge(status);
   if (status === 'open') {
-    area.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="color:#166534;font-weight:600">✓ Número conectado e pronto para publicar.</span>
+    area.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <span style="color:#166534;font-weight:600">✓ Número conectado.</span>
+      <button class="btn btn-primary btn-sm" onclick="gerenciarGrupos('${siteId}')">📋 Gerenciar grupos</button>
       <button class="btn btn-ghost btn-sm" onclick="desconectarWhatsapp('${siteId}')">Desconectar</button>
-    </div>`;
+    </div>
+    <div id="mcat-wa-grupos"></div>`;
   } else {
     area.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" onclick="conectarWhatsapp('${siteId}')">📲 Conectar WhatsApp</button>
@@ -4683,6 +4685,54 @@ async function desconectarWhatsapp(siteId) {
     await fetch(`${BACKEND}/api/admin/whatsapp/${siteId}/disconnect`, { method: 'POST', headers: authHeader() });
     renderWhatsappArea(siteId, 'desconectado');
     toast('WhatsApp desconectado.', 'sucesso');
+  } catch (e) { toast('Erro: ' + e.message, 'erro'); }
+}
+
+// Carrega e exibe os grupos do número conectado (fetchAllGroups pode levar ~30s)
+async function gerenciarGrupos(siteId) {
+  const box = document.getElementById('mcat-wa-grupos');
+  if (!box) return;
+  box.innerHTML = `<div style="padding:12px;color:#64748b">⏳ Carregando grupos do WhatsApp… (pode levar até 30s na primeira vez)</div>`;
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/whatsapp/${siteId}/grupos`, { headers: authHeader() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Falha ao listar grupos.');
+    if (!Array.isArray(d) || d.length === 0) {
+      box.innerHTML = `<div style="padding:12px;color:#64748b">Nenhum grupo encontrado. Adicione o número a grupos e recarregue.</div>
+        <button class="btn btn-ghost btn-sm" onclick="gerenciarGrupos('${siteId}')">🔄 Recarregar</button>`;
+      return;
+    }
+    const itens = d.map(g => `
+      <label style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer">
+        <input type="checkbox" class="mcat-wa-grupo" data-jid="${g.jid}" data-nome="${(g.nome||'').replace(/"/g,'&quot;')}" ${g.ativo ? 'checked' : ''}>
+        <span>${(g.nome || g.jid).replace(/</g,'&lt;')}</span>
+      </label>`).join('');
+    box.innerHTML = `
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff">
+        <div style="font-weight:600;margin-bottom:6px;color:#0f172a">Selecione os grupos que receberão as publicações:</div>
+        <div style="max-height:260px;overflow:auto">${itens}</div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="salvarGruposWhatsapp('${siteId}')">Salvar seleção</button>
+          <button class="btn btn-ghost btn-sm" onclick="gerenciarGrupos('${siteId}')">🔄 Recarregar</button>
+        </div>
+      </div>`;
+  } catch (e) {
+    box.innerHTML = `<div style="padding:12px;color:#b91c1c">Erro: ${e.message}</div>
+      <button class="btn btn-ghost btn-sm" onclick="gerenciarGrupos('${siteId}')">🔄 Tentar de novo</button>`;
+  }
+}
+
+async function salvarGruposWhatsapp(siteId) {
+  const checks = Array.from(document.querySelectorAll('.mcat-wa-grupo'));
+  const grupos = checks.map(c => ({ jid: c.dataset.jid, nome: c.dataset.nome, ativo: c.checked }));
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/whatsapp/${siteId}/grupos`, {
+      method: 'POST', headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grupos }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Falha ao salvar.');
+    toast(`${d.ativos} grupo(s) selecionado(s) para publicação.`, 'sucesso');
   } catch (e) { toast('Erro: ' + e.message, 'erro'); }
 }
 

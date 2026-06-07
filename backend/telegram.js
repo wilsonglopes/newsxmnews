@@ -11,6 +11,7 @@ const { publicarFoto }       = require('./connectors/facebook');
 const { publicar: publicarInstagram } = require('./connectors/instagram');
 const { decryptToken }       = require('./connectors/encrypt');
 const previewStore           = require('./utils/preview-store');
+const evo                    = require('./connectors/evolution');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
@@ -122,6 +123,9 @@ function getSessao(chatId) {
       sites: [], selectedSite: null, pendingArticle: null,
       categorias: [], catOffset: 0,
       publishToFacebook: false,
+      publishToInstagram: false,
+      publishToWhatsapp: false,
+      canaisDisponiveis: { fb: false, ig: false, wa: false },
       editando: null,        // 'titulo' | 'chapeu' | 'resumo' | 'corpo_par_<n>'
       previewToken: null,    // token da prévia web
       previewUrl: null,      // URL pública da prévia
@@ -237,13 +241,36 @@ async function buscarSites(subscriberId) {
             sc.facebook_page_id, sc.facebook_page_token,
             COALESCE(sc.instagram_enabled, false)             AS instagram_enabled,
             sc.instagram_business_account_id, sc.instagram_username,
-            sc.social_config
+            sc.social_config,
+            sc.id AS catalog_id,
+            COALESCE(sc.whatsapp_enabled, false)              AS whatsapp_enabled,
+            sc.whatsapp_status, sc.evolution_instance
      FROM subscriber_sites ss
      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
      WHERE ss.subscriber_id = $1 AND ss.active = true`,
     [subscriberId]
   );
   return rows;
+}
+
+// Grupos de WhatsApp selecionados (ativos) para este portal
+async function buscarGruposAtivos(catalogId) {
+  if (!catalogId) return [];
+  try {
+    const { rows } = await pool.query(
+      `SELECT group_jid, nome FROM grupos_whatsapp WHERE catalog_id = $1 AND ativo = true`,
+      [catalogId]
+    );
+    return rows;
+  } catch { return []; }
+}
+
+// WhatsApp disponível para publicar = habilitado + conectado + tem grupo selecionado
+async function whatsappDisponivel(site) {
+  if (!site || !site.whatsapp_enabled || !site.evolution_instance) return false;
+  if (!evo.disponivel()) return false;
+  const grupos = await buscarGruposAtivos(site.catalog_id);
+  return grupos.length > 0;
 }
 
 // ─── Teclados inline ──────────────────────────────────────────────────────────
@@ -502,18 +529,44 @@ async function pedirCategoria(bot, chatId, s) {
   );
 }
 
+function teclado_canais(s) {
+  const c = s.canaisDisponiveis;
+  const linhas = [];
+  if (c.fb) linhas.push([{ text: `${s.publishToFacebook ? '✅' : '⬜'} Facebook 📘`, callback_data: 'ch:fb' }]);
+  if (c.ig) linhas.push([{ text: `${s.publishToInstagram ? '✅' : '⬜'} Instagram 📷`, callback_data: 'ch:ig' }]);
+  if (c.wa) linhas.push([{ text: `${s.publishToWhatsapp ? '✅' : '⬜'} WhatsApp 💬`, callback_data: 'ch:wa' }]);
+  linhas.push([{ text: '➡️ Continuar', callback_data: 'ch:ok' }]);
+  linhas.push([{ text: '❌ Cancelar', callback_data: 'cancel' }]);
+  return { inline_keyboard: linhas };
+}
+
+function textoCanais(s) {
+  const c = s.canaisDisponiveis;
+  const status = (on) => on ? 'Sim' : 'Não';
+  const linhas = ['📡 <b>Onde publicar?</b>', '', '🌐 Site (WordPress): sempre'];
+  if (c.fb) linhas.push(`📘 Facebook: ${status(s.publishToFacebook)}`);
+  if (c.ig) linhas.push(`📷 Instagram: ${status(s.publishToInstagram)}`);
+  if (c.wa) linhas.push(`💬 WhatsApp: ${status(s.publishToWhatsapp)}`);
+  linhas.push('', 'Toque para ligar/desligar e depois em <b>Continuar</b>.');
+  return linhas.join('\n');
+}
+
 async function proximaEtapaAposCategoria(bot, chatId, s) {
-  // Só pergunta sobre FB/IG se o site tem configuração E há imagem (sem imagem o card fica vazio)
-  if (s.selectedSite.facebook_enabled && s.selectedSite.facebook_page_id && s.selectedSite.facebook_page_token && s.imageUrls.length > 0) {
-    s.step = 'escolhendo_fb';
-    const temIG = s.selectedSite.instagram_enabled && s.selectedSite.instagram_business_account_id;
-    const igTxt = temIG ? ' + Instagram 📷' : '';
-    return bot.sendMessage(chatId,
-      `📘 Publicar também no Facebook${igTxt} da página "${s.selectedSite.site_name}"?`,
-      { reply_markup: teclado_facebook() }
-    );
+  const site = s.selectedSite;
+  const temImagem = s.imageUrls.length > 0;
+  // FB/IG só com imagem (card vazio fica feio); WhatsApp funciona com ou sem imagem.
+  const fbOk = !!(site.facebook_enabled && site.facebook_page_id && site.facebook_page_token && temImagem);
+  const igOk = !!(fbOk && site.instagram_enabled && site.instagram_business_account_id);
+  const waOk = await whatsappDisponivel(site);
+
+  s.canaisDisponiveis = { fb: fbOk, ig: igOk, wa: waOk };
+
+  if (!fbOk && !igOk && !waOk) {
+    return await mostrarConfirmacao(bot, chatId, s);
   }
-  return await mostrarConfirmacao(bot, chatId, s);
+
+  s.step = 'escolhendo_canais';
+  return bot.sendMessage(chatId, textoCanais(s), { parse_mode: 'HTML', reply_markup: teclado_canais(s) });
 }
 
 async function mostrarConfirmacao(bot, chatId, s) {
@@ -521,17 +574,29 @@ async function mostrarConfirmacao(bot, chatId, s) {
   const catNome = s.pendingArticle.category_ids?.length
     ? (s.categorias.find(c => c.id === s.pendingArticle.category_ids[0])?.name || 'Categoria escolhida')
     : 'Sem categoria';
-  const fbInfo = s.selectedSite.facebook_enabled
-    ? (s.publishToFacebook ? '✓ + Facebook 📘' : '(sem Facebook)')
-    : '';
+  const canais = ['🌐 Site'];
+  if (s.publishToFacebook)  canais.push('📘 Facebook');
+  if (s.publishToInstagram) canais.push('📷 Instagram');
+  if (s.publishToWhatsapp)  canais.push('💬 WhatsApp');
+  const canaisInfo = `Canais: ${canais.join(' · ')}`;
 
   return bot.sendMessage(chatId,
-    `📋 Tudo pronto!\n\n*${s.pendingArticle.title}*\n\nSite: ${s.selectedSite.site_name}\nCategoria: ${catNome}\n${fbInfo}\n\nConfirmar publicação?`,
+    `📋 Tudo pronto!\n\n*${s.pendingArticle.title}*\n\nSite: ${s.selectedSite.site_name}\nCategoria: ${catNome}\n${canaisInfo}\n\nConfirmar publicação?`,
     { parse_mode: 'Markdown', reply_markup: teclado_confirmacao() }
   );
 }
 
 // ─── Publicação ──────────────────────────────────────────────────────────────
+
+// Monta a legenda da mensagem de WhatsApp (formatação leve: *negrito*).
+function legendaWhatsapp(article, postUrl) {
+  const partes = [];
+  if (article.chapeu) partes.push(`*${String(article.chapeu).toUpperCase()}*`);
+  if (article.title)  partes.push(`*${article.title}*`);
+  if (article.summary) partes.push(article.summary);
+  if (postUrl)        partes.push(`\n🔗 ${postUrl}`);
+  return partes.join('\n\n');
+}
 
 async function publicar(bot, chatId, s, reporter) {
   await bot.sendMessage(chatId, '⏳ Publicando...');
@@ -563,75 +628,93 @@ async function publicar(bot, chatId, s, reporter) {
     );
   } catch (dbErr) { console.warn('[TELEGRAM] histórico:', dbErr.message); }
 
-  // Facebook + Instagram (se reporter aceitou e há imagem)
-  // Sem imagem o card fica com fundo vazio — não publicar.
+  // ── Redes sociais (Facebook / Instagram / WhatsApp) ──────────────────────
   let fbInfo = '';
-  if (!imageUrl && s.publishToFacebook) {
-    fbInfo = '\n⚠️ Sem imagem — Facebook/Instagram não publicados.';
-  }
-  if (s.publishToFacebook && imageUrl && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
-    const querPostarIG = site.instagram_enabled && site.instagram_business_account_id;
-    const pageToken    = decryptToken(site.facebook_page_token);
+  const querFB = s.publishToFacebook  && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token;
+  const querIG = s.publishToInstagram && site.instagram_enabled && site.instagram_business_account_id && site.facebook_page_token;
+  const querWA = s.publishToWhatsapp  && site.whatsapp_enabled && site.evolution_instance;
 
-    // Gera card; se for postar no IG, salva em disco também (precisa URL pública)
-    const socialConfig = site.social_config || {};
-    let cardBuffer, cardPublicUrl;
+  // FB e IG precisam de imagem (card vazio fica feio). WhatsApp manda texto mesmo sem imagem.
+  if (!imageUrl && (querFB || querIG)) {
+    fbInfo += '\n⚠️ Sem imagem — Facebook/Instagram não publicados.';
+  }
+
+  const socialConfig = site.social_config || {};
+  // Gera o card uma vez se algum canal de imagem for usar. URL pública necessária p/ IG e WhatsApp.
+  const precisaCard    = imageUrl && ((querFB) || (querIG) || (querWA));
+  const precisaUrl     = (querIG || querWA);
+  let cardBuffer = null, cardPublicUrl = null;
+  if (precisaCard) {
     try {
-      if (querPostarIG) {
-        const r = await gerarCardComUrl({
-          chapeu:     article.chapeu || '',
-          titulo:     article.title  || '',
-          imageUrl:   imageUrl || '',
-          cardConfig: socialConfig,
-        });
-        cardBuffer    = r.buffer;
-        cardPublicUrl = r.publicUrl;
+      if (precisaUrl) {
+        const r = await gerarCardComUrl({ chapeu: article.chapeu || '', titulo: article.title || '', imageUrl, cardConfig: socialConfig });
+        cardBuffer = r.buffer; cardPublicUrl = r.publicUrl;
       } else {
-        cardBuffer = await gerarCard({
-          chapeu:     article.chapeu || '',
-          titulo:     article.title  || '',
-          imageUrl:   imageUrl || '',
-          cardConfig: socialConfig,
-        });
+        cardBuffer = await gerarCard({ chapeu: article.chapeu || '', titulo: article.title || '', imageUrl, cardConfig: socialConfig });
       }
     } catch (cardErr) {
-      fbInfo = `\n📘 Falha ao gerar card: ${cardErr.message}`;
-      cardBuffer = null;
+      fbInfo += `\n🖼️ Falha ao gerar card: ${cardErr.message}`;
     }
+  }
 
-    // Facebook
-    if (cardBuffer) {
-      try {
-        const fb = await publicarFoto(
-          { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
-          cardBuffer,
-          { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url, captionConfig: socialConfig }
-        );
-        fbInfo = `\n📘 Facebook: ${fb.post_url || 'OK'}`;
-        console.log(`[TELEGRAM/FB] ✓ ${site.site_name}: ${fb.post_url}`);
-      } catch (fbErr) {
-        fbInfo = `\n📘 Facebook falhou: ${fbErr.message}`;
-        console.error(`[TELEGRAM/FB] ✗ ${site.site_name}: ${fbErr.message}`);
-      }
+  const pageToken = (querFB || querIG) ? decryptToken(site.facebook_page_token) : null;
+
+  // Facebook
+  if (querFB && imageUrl && cardBuffer) {
+    try {
+      const fb = await publicarFoto(
+        { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
+        cardBuffer,
+        { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url, captionConfig: socialConfig }
+      );
+      fbInfo += `\n📘 Facebook: ${fb.post_url || 'OK'}`;
+      console.log(`[TELEGRAM/FB] ✓ ${site.site_name}: ${fb.post_url}`);
+    } catch (fbErr) {
+      fbInfo += `\n📘 Facebook falhou: ${fbErr.message}`;
+      console.error(`[TELEGRAM/FB] ✗ ${site.site_name}: ${fbErr.message}`);
     }
+  }
 
-    // Instagram
-    if (querPostarIG && cardPublicUrl) {
-      try {
-        const ig = await publicarInstagram(
-          {
-            instagram_business_account_id: site.instagram_business_account_id,
-            facebook_page_token: pageToken,
-          },
-          cardPublicUrl,
-          { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url }
-        );
-        fbInfo += `\n📷 Instagram: ${ig.post_url || 'OK'}`;
-        console.log(`[TELEGRAM/IG] ✓ ${site.site_name}: ${ig.post_url}`);
-      } catch (igErr) {
-        fbInfo += `\n📷 Instagram falhou: ${igErr.message}`;
-        console.error(`[TELEGRAM/IG] ✗ ${site.site_name}: ${igErr.message}`);
+  // Instagram
+  if (querIG && imageUrl && cardPublicUrl) {
+    try {
+      const ig = await publicarInstagram(
+        { instagram_business_account_id: site.instagram_business_account_id, facebook_page_token: pageToken },
+        cardPublicUrl,
+        { chapeu: article.chapeu, title: article.title, summary: article.summary, post_url: resultado.post_url }
+      );
+      fbInfo += `\n📷 Instagram: ${ig.post_url || 'OK'}`;
+      console.log(`[TELEGRAM/IG] ✓ ${site.site_name}: ${ig.post_url}`);
+    } catch (igErr) {
+      fbInfo += `\n📷 Instagram falhou: ${igErr.message}`;
+      console.error(`[TELEGRAM/IG] ✗ ${site.site_name}: ${igErr.message}`);
+    }
+  }
+
+  // WhatsApp (grupos selecionados)
+  if (querWA) {
+    const grupos = await buscarGruposAtivos(site.catalog_id);
+    if (grupos.length === 0) {
+      fbInfo += '\n💬 WhatsApp: nenhum grupo selecionado.';
+    } else {
+      const legenda = legendaWhatsapp(article, resultado.post_url);
+      let ok = 0, falhas = 0;
+      for (const g of grupos) {
+        try {
+          if (imageUrl && cardPublicUrl) {
+            await evo.enviarImagem(site.evolution_instance, g.group_jid, cardPublicUrl, legenda);
+          } else {
+            await evo.enviarTexto(site.evolution_instance, g.group_jid, legenda);
+          }
+          ok++;
+          console.log(`[TELEGRAM/WA] ✓ ${site.site_name} → ${g.nome || g.group_jid}`);
+        } catch (waErr) {
+          falhas++;
+          const detalhe = waErr.response?.data?.message || waErr.message;
+          console.error(`[TELEGRAM/WA] ✗ ${site.site_name} → ${g.nome || g.group_jid}: ${detalhe}`);
+        }
       }
+      fbInfo += `\n💬 WhatsApp: ${ok} enviado(s)${falhas ? `, ${falhas} falha(s)` : ''} de ${grupos.length} grupo(s).`;
     }
   }
 
@@ -746,7 +829,19 @@ async function processarCallback(bot, query) {
     return await proximaEtapaAposCategoria(bot, chatId, s);
   }
 
-  // ── Decisão de Facebook ──────────────────────────────────────────────────
+  // ── Toggles de canais (FB / IG / WhatsApp) ───────────────────────────────
+  if (data.startsWith('ch:')) {
+    const acao = data.slice(3);
+    if (acao === 'ok') return await mostrarConfirmacao(bot, chatId, s);
+    if (acao === 'fb') s.publishToFacebook  = !s.publishToFacebook;
+    if (acao === 'ig') s.publishToInstagram = !s.publishToInstagram;
+    if (acao === 'wa') s.publishToWhatsapp  = !s.publishToWhatsapp;
+    return bot.editMessageText(textoCanais(s), {
+      chat_id: chatId, message_id: msgId, parse_mode: 'HTML', reply_markup: teclado_canais(s),
+    }).catch(() => {});
+  }
+
+  // ── (legado) Decisão de Facebook sim/não ─────────────────────────────────
   if (data.startsWith('fb:')) {
     s.publishToFacebook = data === 'fb:1';
     return await mostrarConfirmacao(bot, chatId, s);
