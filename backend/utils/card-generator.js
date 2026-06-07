@@ -206,6 +206,48 @@ function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
   return linhas;
 }
 
+// Largura aproximada de um caractere, relativa ao fontSize (fontes sans).
+// Bem mais fiel que contar caracteres — maiúsculas e M/W são largas; i/l/. são estreitas.
+function _charW(ch) {
+  if ("iIl.,;:'!|·".includes(ch)) return 0.30;
+  if ("ftjr()[]{}/\\- ".includes(ch)) return 0.42;
+  if ("mwMW@%".includes(ch)) return 0.92;
+  if (ch >= 'A' && ch <= 'Z') return 0.70;
+  if (/[ÁÀÂÃÄÉÊËÍÎÏÓÔÕÖÚÛÜÇÑ]/.test(ch)) return 0.70; // maiúsculas acentuadas
+  return 0.55;
+}
+function larguraAprox(texto, fontSize, bold) {
+  let w = 0;
+  for (const ch of String(texto)) w += _charW(ch) * fontSize;
+  return w * (bold ? 1.06 : 1.0);
+}
+
+// Quebra por LARGURA real (px) — usado pelos layouts do editor (wrapByWidth).
+// O texto cabe na caixa de largura `larguraMax`; respeita o que o usuário desenhou.
+function quebrarLinhasLargura(texto, larguraMax, fontSize, bold, maxLinhas) {
+  const palavras = (texto || '').replace(/\s+/g, ' ').trim().split(' ');
+  const linhas = [];
+  let atual = '';
+  let estouro = false;
+  for (const p of palavras) {
+    const tent = atual ? `${atual} ${p}` : p;
+    if (larguraAprox(tent, fontSize, bold) <= larguraMax) {
+      atual = tent;
+    } else {
+      if (atual) linhas.push(atual);
+      atual = p;
+      if (linhas.length >= maxLinhas) { estouro = true; break; }
+    }
+  }
+  if (atual && linhas.length < maxLinhas) linhas.push(atual);
+  if (estouro) {
+    let ult = linhas[linhas.length - 1];
+    if (!/[.!?]$/.test(ult)) ult = ult.replace(/[,;:\-]?$/, '') + '.';
+    linhas[linhas.length - 1] = ult;
+  }
+  return linhas;
+}
+
 // SVG dos textos (chapéu + título) — geometria/estilo vêm do `layout`
 function montarSvgTextos(chapeu, titulo, cardConfig = {}, layout = LAYOUT_DEFAULT) {
   const T = layout.titulo, C = layout.chapeu;
@@ -237,7 +279,11 @@ function montarSvgTextos(chapeu, titulo, cardConfig = {}, layout = LAYOUT_DEFAUL
   let tituloTxt = titulo || '';
   if (T.uppercase) tituloTxt = tituloTxt.toUpperCase();
 
-  const linhasTitulo = quebrarLinhas(tituloTxt, T.maxChars, T.maxLinhas);
+  // Layouts do editor quebram pela LARGURA REAL da caixa (wrapByWidth); o default
+  // mantém a quebra por nº de caracteres (sem mudar os cards existentes).
+  const linhasTitulo = T.wrapByWidth
+    ? quebrarLinhasLargura(tituloTxt, T.w * 0.97, T.fontSize, T.fontWeight === 700, T.maxLinhas)
+    : quebrarLinhas(tituloTxt, T.maxChars, T.maxLinhas);
   const lineHeight = T.lineHeight;
   const resumoY0   = T.y + T.yOffset;
   const isMiddle   = T.align === 'middle';

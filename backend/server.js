@@ -1254,6 +1254,7 @@ function sanitizeLayoutInput(raw = {}) {
     o.align = (t.align === 'middle') ? 'middle' : 'start';
     o.uppercase = !!t.uppercase;
     o.justify = !!t.justify;
+    o.wrapByWidth = t.wrapByWidth !== false; // layouts do editor quebram por largura da caixa
     const fam = String(t.font || t.fontFamily || '').toLowerCase();
     o.fontFamily = fam.includes('montser') ? "'Montserrat', 'DejaVu Sans', sans-serif"
                                            : "'Open Sans', 'DejaVu Sans', sans-serif";
