@@ -1,0 +1,12 @@
+{
+  "_comment": "Layout do Acre Conservador. Buraco da foto medido em y[478-1782], largura cheia. Foto com folga (470-1790) p/ a arte cobrir as bordas. Titulo no topo (barra verde), centralizado e MAIUSCULO; sem chapeu.",
+  "fotoArea": { "x": 0, "y": 470, "w": 1600, "h": 1320 },
+  "titulo": {
+    "x": 0, "y": 60, "w": 1600, "yOffset": 120,
+    "fontFamily": "'Montserrat', 'DejaVu Sans', sans-serif",
+    "fontWeight": 700, "fontSize": 76, "lineHeight": 92,
+    "align": "middle", "uppercase": true, "justify": false,
+    "maxChars": 24, "maxLinhas": 3
+  },
+  "chapeu": { "show": false }
+}
