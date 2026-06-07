@@ -65,6 +65,51 @@ const CARD = {
   resumoArea:  { x: 90, y: 1450, w: 1420, h: 530 },                               // área do texto resumo
 };
 
+// ─── Layouts por template ─────────────────────────────────────────────────────
+// Cada template pode ter geometria/estilo próprios via `{slug}-layout.json` ao lado
+// do PNG. Sem o JSON, usa LAYOUT_DEFAULT (= comportamento histórico: foto no topo,
+// chapéu+título na faixa de baixo). Assim portais existentes NÃO mudam nada.
+const LAYOUT_DEFAULT = {
+  fotoArea: { ...CARD.fotoArea },                       // onde a foto da matéria é desenhada
+  titulo: {                                             // bloco do título (class .resumo)
+    x: CARD.resumoArea.x, y: CARD.resumoArea.y, w: CARD.resumoArea.w, yOffset: 50,
+    fontFamily: "'Open Sans', 'DejaVu Sans', sans-serif",
+    fontWeight: 400, fontSize: 60, lineHeight: 80,
+    align: 'start',        // 'start' (esquerda, justificado) | 'middle' (centralizado)
+    uppercase: false,
+    justify: true,         // justifica linhas exceto a última (só faz sentido em align:start)
+    maxChars: 42, maxLinhas: 6,
+  },
+  chapeu: {                                             // caixinha do chapéu
+    show: true, centerX: CARD.chapeuBox.centerX, centerY: CARD.chapeuBox.centerY,
+    fontFamily: "'Montserrat', 'DejaVu Sans', sans-serif",
+    fontWeight: 700, letterSpacing: 2, boxW: CARD.chapeuBox.w,
+  },
+};
+
+// Merge raso por seção (o JSON do template só precisa sobrescrever o que muda)
+function mergeLayout(base, over = {}) {
+  return {
+    fotoArea: { ...base.fotoArea, ...(over.fotoArea || {}) },
+    titulo:   { ...base.titulo,   ...(over.titulo   || {}) },
+    chapeu:   { ...base.chapeu,   ...(over.chapeu   || {}) },
+  };
+}
+
+// Resolve o layout do portal; cai no default se não há JSON ou se está inválido.
+function resolveLayout(cardConfig = {}) {
+  const slug = (cardConfig.card_template || '').trim();
+  if (slug && slug !== 'default') {
+    const lp = path.join(TEMPLATES_DIR, `${slug}-layout.json`);
+    try {
+      if (fs.existsSync(lp)) return mergeLayout(LAYOUT_DEFAULT, JSON.parse(fs.readFileSync(lp, 'utf8')));
+    } catch (e) {
+      console.warn(`[card-generator] layout "${slug}-layout.json" inválido (${e.message}) — usando padrão`);
+    }
+  }
+  return LAYOUT_DEFAULT;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // Valida cor hex (#rgb ou #rrggbb). Retorna fallback se inválida (evita quebrar/injetar SVG).
@@ -125,12 +170,15 @@ function quebrarLinhas(texto, maxCharsPorLinha, maxLinhas) {
   return linhas;
 }
 
-// SVG dos textos (chapéu + título)
-function montarSvgTextos(chapeu, titulo, cardConfig = {}) {
+// SVG dos textos (chapéu + título) — geometria/estilo vêm do `layout`
+function montarSvgTextos(chapeu, titulo, cardConfig = {}, layout = LAYOUT_DEFAULT) {
+  const T = layout.titulo, C = layout.chapeu;
+
   // Cores configuráveis por portal (fallback branco). Toggle do chapéu na imagem.
   const corChapeu = sanitizeColor(cardConfig.card_chapeu_color, '#ffffff');
   const corTitulo = sanitizeColor(cardConfig.card_titulo_color, '#ffffff');
-  const mostrarChapeu = cardConfig.card_show_chapeu !== false; // padrão: mostra
+  // Chapéu desenha se o toggle do portal permitir E o layout não desligar (chapeu.show)
+  const mostrarChapeu = (cardConfig.card_show_chapeu !== false) && (C.show !== false);
 
   // Chapéu: até N palavras significativas (configurável por portal, padrão 2)
   const maxWords = Number(cardConfig.card_chapeu_words) || 2;
@@ -143,46 +191,49 @@ function montarSvgTextos(chapeu, titulo, cardConfig = {}) {
   const chapeuFinal = (substantivas.slice(0, maxWords).join(' ') || palavras.slice(0, maxWords).join(' ') || '').toUpperCase();
   const chapeuTexto = escapeXml(chapeuFinal);
 
-  // Font-size automático: reduz para caber na caixa 657×127px
+  // Font-size automático: reduz para caber na caixa do chapéu
   // 58px → até ~10 chars | 46px → até ~14 chars | 36px → até ~18 chars
   let chapeuFontSize = 58;
   if (chapeuFinal.length > 14) chapeuFontSize = 36;
   else if (chapeuFinal.length > 10) chapeuFontSize = 46;
 
-  // 42 chars/linha (margem de segurança para fontes mais largas em pt-BR); 6 linhas de capacidade
-  const linhasTitulo = quebrarLinhas(titulo || '', 42, 6);
-  const lineHeight = 80;
-  const resumoY0 = CARD.resumoArea.y + 50;
+  // Título: aplica MAIÚSCULAS se o layout pedir
+  let tituloTxt = titulo || '';
+  if (T.uppercase) tituloTxt = tituloTxt.toUpperCase();
 
-  // Justificação: todas as linhas EXCETO a última recebem textLength=resumoArea.w
-  // com lengthAdjust='spacing' (estica APENAS os espaços entre palavras — não distorce as letras)
+  const linhasTitulo = quebrarLinhas(tituloTxt, T.maxChars, T.maxLinhas);
+  const lineHeight = T.lineHeight;
+  const resumoY0   = T.y + T.yOffset;
+  const isMiddle   = T.align === 'middle';
+  const anchorX    = isMiddle ? Math.round(T.x + T.w / 2) : T.x;
+
+  // Justificação só em align:start (centralizado não justifica). Estica só os espaços.
   const lastIdx = linhasTitulo.length - 1;
   const tspans = linhasTitulo
     .map((l, i) => {
       const palavrasLinha = l.trim().split(/\s+/);
       const ehUltima = i === lastIdx;
-      // Não justifica: última linha; linhas com 1 palavra só; linhas muito curtas (< 60% da largura)
-      const podeJustificar = !ehUltima && palavrasLinha.length > 1 && l.length >= 28;
+      const podeJustificar = T.justify && !isMiddle && !ehUltima && palavrasLinha.length > 1 && l.length >= 28;
       const attrs = podeJustificar
-        ? `textLength="${CARD.resumoArea.w}" lengthAdjust="spacing"`
+        ? `textLength="${T.w}" lengthAdjust="spacing"`
         : '';
-      return `<tspan x="${CARD.resumoArea.x}" dy="${i === 0 ? 0 : lineHeight}" ${attrs}>${escapeXml(l)}</tspan>`;
+      return `<tspan x="${anchorX}" dy="${i === 0 ? 0 : lineHeight}" ${attrs}>${escapeXml(l)}</tspan>`;
     })
     .join('');
 
-  // Chapéu só é desenhado se o toggle estiver ligado (independente do template ter caixinha)
+  // Chapéu só é desenhado se ligado (independente do template ter caixinha)
   const chapeuSvg = mostrarChapeu
-    ? `<text x="${CARD.chapeuBox.centerX}" y="${CARD.chapeuBox.centerY + 20}" class="chapeu" text-anchor="middle">${chapeuTexto}</text>`
+    ? `<text x="${C.centerX}" y="${C.centerY + 20}" class="chapeu" text-anchor="middle">${chapeuTexto}</text>`
     : '';
 
   return Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${CARD.width}" height="${CARD.height}" xmlns="http://www.w3.org/2000/svg">
   <style>
-    .chapeu { font-family: 'Montserrat', 'DejaVu Sans', sans-serif; font-weight: 700; font-size: ${chapeuFontSize}px; fill: ${corChapeu}; letter-spacing: 2px; }
-    .resumo { font-family: 'Open Sans', 'DejaVu Sans', sans-serif; font-weight: 400; font-size: 60px; fill: ${corTitulo}; }
+    .chapeu { font-family: ${C.fontFamily}; font-weight: ${C.fontWeight}; font-size: ${chapeuFontSize}px; fill: ${corChapeu}; letter-spacing: ${C.letterSpacing}px; }
+    .resumo { font-family: ${T.fontFamily}; font-weight: ${T.fontWeight}; font-size: ${T.fontSize}px; fill: ${corTitulo}; }
   </style>
   ${chapeuSvg}
-  <text class="resumo" y="${resumoY0}">${tspans}</text>
+  <text class="resumo" y="${resumoY0}" text-anchor="${isMiddle ? 'middle' : 'start'}">${tspans}</text>
 </svg>`);
 }
 
@@ -227,23 +278,26 @@ async function baixarImagem(url) {
 // ─── Gerador principal ──────────────────────────────────────────────────────
 
 async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {} }) {
-  // 1) Baixa foto e ajusta pra área da foto
+  const layout = resolveLayout(cardConfig);
+  const foto   = layout.fotoArea;
+
+  // 1) Baixa foto e ajusta pra área da foto (posição/tamanho vêm do layout)
   let fotoBuffer;
   try {
     const original = await baixarImagem(imageUrl);
     fotoBuffer = await sharp(original)
-      .resize(CARD.fotoArea.w, CARD.fotoArea.h, { fit: 'cover', position: 'centre' })
+      .resize(foto.w, foto.h, { fit: 'cover', position: 'centre' })
       .jpeg({ quality: 95 })
       .toBuffer();
   } catch (err) {
     console.warn(`[card-generator] falha ao baixar imagem "${imageUrl}": ${err.message}`);
     // Fallback: gradiente azul-escuro (melhor visual que cinza sólido)
     fotoBuffer = await sharp({
-      create: { width: CARD.fotoArea.w, height: CARD.fotoArea.h, channels: 3, background: '#0f172a' },
+      create: { width: foto.w, height: foto.h, channels: 3, background: '#0f172a' },
     })
       .composite([{
         input: Buffer.from(
-          `<svg width="${CARD.fotoArea.w}" height="${CARD.fotoArea.h}" xmlns="http://www.w3.org/2000/svg">
+          `<svg width="${foto.w}" height="${foto.h}" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stop-color="#1e3a5f"/>
@@ -259,16 +313,16 @@ async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {} }) {
       .toBuffer();
   }
 
-  // 2) Cria canvas 1080x1080 com a foto no topo
+  // 2) Cria canvas 1600×2000 com a foto na posição definida pelo layout
   const canvas = await sharp({
     create: { width: CARD.width, height: CARD.height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
-    .composite([{ input: fotoBuffer, top: 0, left: 0 }])
+    .composite([{ input: fotoBuffer, top: foto.y, left: foto.x }])
     .png()
     .toBuffer();
 
   // 3) Sobrepõe template e textos
-  const svgTextos   = montarSvgTextos(chapeu, titulo, cardConfig);
+  const svgTextos    = montarSvgTextos(chapeu, titulo, cardConfig, layout);
   const templatePath = resolveTemplate(cardConfig);
 
   const cardFinal = await sharp(canvas)
@@ -316,5 +370,6 @@ function limparCardsAntigos(diasMax = 7) {
 module.exports = {
   gerarCard, gerarCardComUrl, limparCardsAntigos,
   listarTemplates, listarTemplatesComPreview, templatePathFor,
+  resolveLayout, mergeLayout, LAYOUT_DEFAULT,
   CARD, UPLOADS_DIR, TEMPLATES_DIR,
 };
