@@ -1297,10 +1297,17 @@ app.post('/api/admin/card-templates/:slug/preview', authMiddleware, requireAdmin
     const slug = String(req.params.slug || '').toLowerCase();
     if (!fs.existsSync(cg.templatePathFor(slug))) return res.status(404).json({ error: 'Template não encontrado.' });
     const layout = sanitizeLayoutInput((req.body && req.body.layout) || {});
+    // Foto fixa de exemplo (não depende de internet); fallback p/ picsum se faltar o arquivo.
+    let imageBuffer = null;
+    try {
+      const samplePath = require('path').join(cg.TEMPLATES_DIR, 'preview-sample.jpg');
+      if (fs.existsSync(samplePath)) imageBuffer = fs.readFileSync(samplePath);
+    } catch {}
     const buf = await cg.gerarCard({
       chapeu:   (req.body && req.body.chapeu)  || 'EXEMPLO',
       titulo:   (req.body && req.body.titulo)  || 'Título de exemplo para visualizar o card neste layout',
-      imageUrl: (req.body && req.body.imageUrl) || 'https://picsum.photos/1600/1320',
+      imageUrl: 'https://picsum.photos/1600/1320',
+      imageBuffer,
       cardConfig: { card_template: slug },
       layoutOverride: layout,
     });

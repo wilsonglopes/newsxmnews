@@ -362,15 +362,16 @@ async function baixarImagem(url) {
 
 // ─── Gerador principal ──────────────────────────────────────────────────────
 
-async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {}, layoutOverride = null }) {
+async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {}, layoutOverride = null, imageBuffer = null }) {
   // layoutOverride: usado pelo editor/preview (layout em edição, ainda não salvo)
+  // imageBuffer: foto já carregada (ex.: foto fixa de exemplo no preview) — pula o download
   const layout = layoutOverride ? mergeLayout(LAYOUT_DEFAULT, layoutOverride) : resolveLayout(cardConfig);
   const foto   = layout.fotoArea;
 
   // 1) Baixa foto e ajusta pra área da foto (posição/tamanho vêm do layout)
   let fotoBuffer;
   try {
-    const original = await baixarImagem(imageUrl);
+    const original = imageBuffer || await baixarImagem(imageUrl);
     fotoBuffer = await sharp(original)
       .resize(foto.w, foto.h, { fit: 'cover', position: 'centre' })
       .jpeg({ quality: 95 })
