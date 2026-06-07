@@ -1919,6 +1919,21 @@
         </div>
       </div>
 
+      <!-- WhatsApp (Evolution) — conexão por portal -->
+      <div style="border:1px solid #86efac;border-radius:8px;overflow:hidden;margin-top:4px">
+        <div style="padding:12px 14px;background:#f0fdf4;display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.1rem">💬</span>
+          <div>
+            <div style="font-weight:600;color:#166534">WhatsApp</div>
+            <div style="font-size:.74rem;color:#4b7c5f">Conecte o número do portal para publicar em grupos</div>
+          </div>
+          <span id="mcat-wa-status-badge" style="margin-left:auto;font-size:.78rem;font-weight:600"></span>
+        </div>
+        <div style="padding:12px 14px;background:#fff;border-top:1px solid #86efac">
+          <div id="mcat-wa-area" style="font-size:.84rem;color:var(--muted)">Salve o portal primeiro para habilitar a conexão do WhatsApp.</div>
+        </div>
+      </div>
+
       <!-- Personalização do Card e Legenda por portal -->
       <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-top:4px">
         <div style="padding:12px 14px;background:#f8fafc;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
@@ -4600,6 +4615,77 @@ async function carregarTemplatesDropdown(selectedSlug) {
   sel.value = selectedSlug || 'default';
 }
 
+// ── WhatsApp (conexão por portal) ─────────────────────────────────────────────
+let _waPollTimer = null;
+
+function _waPararPolling() { if (_waPollTimer) { clearInterval(_waPollTimer); _waPollTimer = null; } }
+
+function _waBadge(status) {
+  const el = document.getElementById('mcat-wa-status-badge');
+  if (!el) return;
+  if (status === 'open')            el.innerHTML = '<span style="color:#16a34a">🟢 Conectado</span>';
+  else if (status === 'connecting') el.innerHTML = '<span style="color:#d97706">🟡 Conectando…</span>';
+  else                              el.innerHTML = '<span style="color:#94a3b8">⚪ Desconectado</span>';
+}
+
+function renderWhatsappArea(siteId, status) {
+  const area = document.getElementById('mcat-wa-area');
+  if (!area) return;
+  _waBadge(status);
+  if (status === 'open') {
+    area.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="color:#166534;font-weight:600">✓ Número conectado e pronto para publicar.</span>
+      <button class="btn btn-ghost btn-sm" onclick="desconectarWhatsapp('${siteId}')">Desconectar</button>
+    </div>`;
+  } else {
+    area.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="conectarWhatsapp('${siteId}')">📲 Conectar WhatsApp</button>
+      <span style="font-size:.78rem;color:var(--muted)">Abre o QR code para escanear com o WhatsApp do portal</span>
+    </div>`;
+  }
+}
+
+async function conectarWhatsapp(siteId) {
+  const area = document.getElementById('mcat-wa-area');
+  area.innerHTML = '<span class="spin"></span> Gerando QR code…';
+  try {
+    const r = await fetch(`${BACKEND}/api/admin/whatsapp/${siteId}/connect`, { method: 'POST', headers: authHeader() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Falha ao conectar');
+    if (d.connected || d.status === 'open') { renderWhatsappArea(siteId, 'open'); return; }
+    area.innerHTML = `<div style="text-align:center">
+      <img src="${d.qr}" alt="QR WhatsApp" style="width:240px;height:240px;border:1px solid var(--border);border-radius:8px" />
+      <div style="font-size:.82rem;color:var(--muted);margin-top:8px">📱 No WhatsApp do portal: <b>Aparelhos conectados → Conectar aparelho</b> e escaneie. Aguardando conexão…</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="conectarWhatsapp('${siteId}')">↻ Gerar novo QR</button>
+    </div>`;
+    _waBadge('connecting');
+    // Polling do status até conectar (QR expira ~40s; o status confirma)
+    _waPararPolling();
+    let tentativas = 0;
+    _waPollTimer = setInterval(async () => {
+      tentativas++;
+      try {
+        const s = await fetch(`${BACKEND}/api/admin/whatsapp/${siteId}/status`, { headers: authHeader() }).then(x => x.json());
+        if (s.status === 'open') { _waPararPolling(); renderWhatsappArea(siteId, 'open'); toast('WhatsApp conectado!', 'sucesso'); }
+        else _waBadge(s.status);
+      } catch {}
+      if (tentativas > 40) _waPararPolling(); // ~2min
+    }, 3000);
+  } catch (e) {
+    area.innerHTML = `<span style="color:var(--red)">Erro: ${e.message}</span> <button class="btn btn-ghost btn-sm" onclick="conectarWhatsapp('${siteId}')">↻ Tentar de novo</button>`;
+  }
+}
+
+async function desconectarWhatsapp(siteId) {
+  if (!confirm('Desconectar o WhatsApp deste portal?')) return;
+  _waPararPolling();
+  try {
+    await fetch(`${BACKEND}/api/admin/whatsapp/${siteId}/disconnect`, { method: 'POST', headers: authHeader() });
+    renderWhatsappArea(siteId, 'desconectado');
+    toast('WhatsApp desconectado.', 'sucesso');
+  } catch (e) { toast('Erro: ' + e.message, 'erro'); }
+}
+
 function toggleCatalogPlatformFields() {
   const p = document.getElementById('mcat-platform').value;
   document.getElementById('mcat-wp-fields').style.display      = p === 'wordpress' ? '' : 'none';
@@ -4704,6 +4790,9 @@ async function abrirModalCatalog(siteId) {
   toggleFbFields();
   toggleAutopubFields();
   toggleCatalogPlatformFields();
+  _waPararPolling();
+  _waBadge('desconectado');
+  document.getElementById('mcat-wa-area').innerHTML = '<span style="font-size:.84rem;color:var(--muted)">Salve o portal primeiro para habilitar a conexão do WhatsApp.</span>';
   _todasFontes     = [];
   _catsCatalogSite = [];
   document.getElementById('mcat-fontes-lista').innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Carregando…</span>';
@@ -4725,6 +4814,7 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-fb-page-id').value   = s.facebook_page_id || '';
       document.getElementById('mcat-fb-page-token').value = s.facebook_page_token === '••••••••' ? '••••••••' : '';
       document.getElementById('mcat-autopub-enabled').checked = s.autopub_enabled !== false;
+      renderWhatsappArea(siteId, s.whatsapp_status || 'desconectado');
       // Instagram: mostra o bloco se site tem IG salvo
       if (s.instagram_business_account_id) {
         mostrarBlocoInstagram(s.instagram_username, s.instagram_business_account_id);

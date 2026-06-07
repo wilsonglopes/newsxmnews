@@ -511,6 +511,20 @@ async function criarIndicesBanco() {
   // Flag de pausa do autopub por site (sem perder configuração de fontes)
   await tryMigrate('sites_catalog.autopub_enabled',       `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS autopub_enabled BOOLEAN DEFAULT true`);
   await tryMigrate('sites_catalog.social_config',         `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS social_config JSONB DEFAULT '{}'`);
+  // WhatsApp (Evolution): instância e status da conexão por portal
+  await tryMigrate('sites_catalog.evolution_instance',    `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS evolution_instance VARCHAR(60)`);
+  await tryMigrate('sites_catalog.whatsapp_status',       `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS whatsapp_status VARCHAR(20) DEFAULT 'desconectado'`);
+  await tryMigrate('sites_catalog.whatsapp_enabled',      `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS whatsapp_enabled BOOLEAN DEFAULT false`);
+  await tryMigrate('grupos_whatsapp table', `
+    CREATE TABLE IF NOT EXISTS grupos_whatsapp (
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      catalog_id  UUID NOT NULL REFERENCES sites_catalog(id) ON DELETE CASCADE,
+      group_jid   VARCHAR(80) NOT NULL,
+      nome        VARCHAR(200),
+      ativo       BOOLEAN DEFAULT true,
+      criado_em   TIMESTAMPTZ DEFAULT now(),
+      UNIQUE(catalog_id, group_jid)
+    )`);
   await tryMigrate('publications.meta_ad_id',             `ALTER TABLE publications ADD COLUMN IF NOT EXISTS meta_ad_id VARCHAR(100)`);
   await tryMigrate('publications.meta_ad_url',            `ALTER TABLE publications ADD COLUMN IF NOT EXISTS meta_ad_url TEXT`);
 
@@ -1107,6 +1121,9 @@ app.use('/api/proxy-image', require('./routes/image-proxy'));
 
 // Catálogo central de sites (admin)
 app.use('/api/admin/sites-catalog', require('./routes/sites-catalog'));
+
+// WhatsApp (Evolution) — conexão/QR/status por portal (admin)
+app.use('/api/admin/whatsapp', require('./routes/whatsapp'));
 
 // ─── Templates de card (admin) ────────────────────────────────────────────────
 // Dimensões obrigatórias do template — as coordenadas de chapéu/texto são fixas.
