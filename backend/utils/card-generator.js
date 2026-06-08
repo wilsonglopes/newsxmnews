@@ -357,6 +357,23 @@ async function baixarImagem(url) {
       lastErr = e;
     }
   }
+
+  // Fallback CF Worker — sc.gov.br bloqueia a Oracle VPS (403). Mesmo mecanismo do
+  // image-proxy: baixa a imagem via Cloudflare Worker. Sem isto, o card fica sem foto.
+  try {
+    const cfProxy = require('./cf-proxy');
+    if (cfProxy.needsCFProxy(url) && cfProxy.isAvailable()) {
+      const r = await cfProxy.fetchViaCFProxy(url, { responseType: 'arraybuffer', timeout: 25000 });
+      const buf = Buffer.from(r.data);
+      if (buf.length >= 1000) {
+        console.log(`[card-generator] imagem via CF Worker (${buf.length}b): ${url.slice(0, 80)}`);
+        return buf;
+      }
+    }
+  } catch (e) {
+    console.warn(`[card-generator] CF Worker falhou para ${url.slice(0, 60)}: ${e.message}`);
+  }
+
   throw lastErr;
 }
 
