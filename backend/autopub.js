@@ -624,4 +624,35 @@ async function workerLoop() {
   }
 }
 
-module.exports = { rodarProdutor, workerLoop };
+// ── Manutenção da fila ────────────────────────────────────────────────────────
+
+// Destrava itens presos em 'processing' (worker travou/reiniciou no meio — ex.: disco cheio).
+// Sem isto, ficam presos para sempre (o worker só pega 'pending'). Roda a cada 10min.
+async function destravarPresos() {
+  try {
+    const r = await pool.query(
+      `UPDATE autopub_queue SET status = 'error',
+              error_message = 'destravado: preso em processing (worker interrompido)',
+              processed_at = now()
+       WHERE status = 'processing' AND enqueued_at < now() - interval '30 minutes'`
+    );
+    if (r.rowCount) console.log(`[FILA] ${r.rowCount} item(ns) preso(s) destravado(s)`);
+    return r.rowCount;
+  } catch (e) { console.error('[FILA/destravar]', e.message); return 0; }
+}
+
+// Reset diário: destrava presos + remove o histórico antigo (done/error) para a fila
+// começar o dia limpa. Mantém pending e processing recentes (<12h).
+async function resetDiarioFila() {
+  try {
+    await destravarPresos();
+    const r = await pool.query(
+      `DELETE FROM autopub_queue
+       WHERE status IN ('done', 'error') AND enqueued_at < now() - interval '12 hours'`
+    );
+    console.log(`[FILA] reset diário: ${r.rowCount} item(ns) antigo(s) removido(s)`);
+    return r.rowCount;
+  } catch (e) { console.error('[FILA/reset]', e.message); return 0; }
+}
+
+module.exports = { rodarProdutor, workerLoop, destravarPresos, resetDiarioFila };

@@ -1002,6 +1002,15 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // POST /api/admin/queue/reset — reset manual da fila (destrava presos + limpa histórico)
+  router.post('/queue/reset', async (req, res) => {
+    try {
+      const { destravarPresos, resetDiarioFila } = require('../autopub');
+      const removidos = await resetDiarioFila(); // já chama destravarPresos
+      res.json({ ok: true, removidos });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   // ════════════════════════════════════════════════════════════════════════════
   // META ADS — IMPULSIONAR POST
   // ════════════════════════════════════════════════════════════════════════════

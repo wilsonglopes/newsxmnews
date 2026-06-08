@@ -1042,9 +1042,13 @@ cron.schedule('*/15 * * * *', atualizarTodasFontes);
 cron.schedule('0 * * * *', limparArtigosAntigos); // limpeza a cada hora
 
 // Autopub — producer enfileira a cada 5min; worker processa 1 item a cada 30s
-const { rodarProdutor, workerLoop } = require('./autopub');
+const { rodarProdutor, workerLoop, destravarPresos, resetDiarioFila } = require('./autopub');
 cron.schedule('*/5 * * * *', () => rodarProdutor().catch(e => console.error('[PRODUCER]', e.message)));
 workerLoop().catch(e => console.error('[WORKER] Fatal:', e));
+// Destrava itens presos em 'processing' a cada 10min (worker interrompido nunca os libera sozinho)
+cron.schedule('*/10 * * * *', () => destravarPresos().catch(e => console.error('[FILA]', e.message)));
+// Reset diário da fila às 05h: destrava presos + limpa histórico antigo (done/error)
+cron.schedule('0 5 * * *', () => resetDiarioFila().catch(e => console.error('[FILA]', e.message)));
 
 const { iniciarBot } = require('./telegram');
 iniciarBot();
