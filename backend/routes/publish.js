@@ -6,6 +6,7 @@ const auth    = require('../middleware/auth');
 const { publishToWordPress } = require('../connectors/wordpress');
 const { publishToBlogger }   = require('../connectors/blogger');
 const { publishViaWebhook }  = require('../connectors/webhook');
+const wa                     = require('../connectors/whatsapp');
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ router.use(auth);
 
 // ── POST /api/publish ─────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
-  const { article_id, site_id, rewritten, force, publish_to_facebook, publish_to_story,
+  const { article_id, site_id, rewritten, force, publish_to_facebook, publish_to_story, publish_to_whatsapp,
           image_override_url, image_base64, image_mime, image_name } = req.body || {};
 
   if (!article_id || !site_id || !rewritten) {
@@ -70,7 +71,8 @@ router.post('/', async (req, res) => {
              COALESCE(sc.post_format, ss.post_format)         AS post_format,
              sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
              sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username,
-             sc.social_config
+             sc.social_config,
+             sc.id AS catalog_id, COALESCE(sc.whatsapp_enabled, false) AS whatsapp_enabled, sc.evolution_instance
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
@@ -264,6 +266,39 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // ── WhatsApp (grupos do portal) — independente do FB/IG ──────────────
+    let whatsappResult = null;
+    const wantsWhatsApp = publish_to_whatsapp === true || publish_to_whatsapp === 'true';
+    if (wantsWhatsApp && await wa.whatsappDisponivel(site)) {
+      let waFpath = null;
+      try {
+        let waCardUrl = null;
+        if (article.image_url) {
+          const { gerarCardComUrl } = require('../utils/card-generator');
+          const r = await gerarCardComUrl({
+            chapeu:     rewritten.chapeu || article.chapeu || '',
+            titulo:     rewritten.title  || article.title  || '',
+            imageUrl:   article.image_url,
+            cardConfig: site.social_config || {},
+          });
+          waCardUrl = r.publicUrl; waFpath = r.fpath;
+        }
+        const r = await wa.publicarNosGrupos(site, {
+          chapeu:  rewritten.chapeu || article.chapeu,
+          titulo:  rewritten.title  || article.title,
+          resumo:  rewritten.summary,
+          postUrl: result.post_url,
+          cardUrl: waCardUrl,
+        });
+        whatsappResult = { ok: r.ok > 0, enviados: r.ok, falhas: r.falhas, total: r.total };
+      } catch (e) {
+        console.error('[publish/whatsapp]', e.message);
+        whatsappResult = { ok: false, error: e.message };
+      } finally {
+        if (waFpath) { try { require('fs').unlinkSync(waFpath); } catch {} }
+      }
+    }
+
     res.json({
       success: true,
       post_url: result.post_url,
@@ -271,6 +306,7 @@ router.post('/', async (req, res) => {
       facebook:  facebookResult,
       instagram: instagramResult,
       story:     storyResult,
+      whatsapp:  whatsappResult,
     });
   } catch (err) {
     console.error('[publish]', err.message);
@@ -286,7 +322,7 @@ router.post('/manual', async (req, res) => {
           image_url, image_media_id,
           image_base64, image_mime, image_name,
           fonte_url, fonte_nome,
-          publish_to_facebook, publish_to_story } = req.body || {};
+          publish_to_facebook, publish_to_story, publish_to_whatsapp } = req.body || {};
 
   if (!site_id || !titulo || !corpo) {
     return res.status(400).json({ error: 'site_id, titulo e corpo são obrigatórios.' });
@@ -310,7 +346,8 @@ router.post('/manual', async (req, res) => {
              COALESCE(sc.post_format, ss.post_format)         AS post_format,
              sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
              sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username,
-             sc.social_config
+             sc.social_config,
+             sc.id AS catalog_id, COALESCE(sc.whatsapp_enabled, false) AS whatsapp_enabled, sc.evolution_instance
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
@@ -498,6 +535,39 @@ router.post('/manual', async (req, res) => {
       }
     }
 
+    // ── WhatsApp (grupos do portal) — independente do FB/IG ──────────────
+    let whatsappResultManual = null;
+    const wantsWhatsAppManual = publish_to_whatsapp === true || publish_to_whatsapp === 'true';
+    if (wantsWhatsAppManual && await wa.whatsappDisponivel(site)) {
+      let waFpath = null;
+      try {
+        let waCardUrl = null;
+        if (article.image_url) {
+          const { gerarCardComUrl } = require('../utils/card-generator');
+          const r = await gerarCardComUrl({
+            chapeu:     rewritten.chapeu || '',
+            titulo:     rewritten.title  || '',
+            imageUrl:   article.image_url,
+            cardConfig: site.social_config || {},
+          });
+          waCardUrl = r.publicUrl; waFpath = r.fpath;
+        }
+        const r = await wa.publicarNosGrupos(site, {
+          chapeu:  rewritten.chapeu,
+          titulo:  rewritten.title,
+          resumo:  rewritten.summary,
+          postUrl: result.post_url,
+          cardUrl: waCardUrl,
+        });
+        whatsappResultManual = { ok: r.ok > 0, enviados: r.ok, falhas: r.falhas, total: r.total };
+      } catch (e) {
+        console.error('[manual/whatsapp]', e.message);
+        whatsappResultManual = { ok: false, error: e.message };
+      } finally {
+        if (waFpath) { try { require('fs').unlinkSync(waFpath); } catch {} }
+      }
+    }
+
     res.json({
       success:   true,
       post_url:  result.post_url,
@@ -505,6 +575,7 @@ router.post('/manual', async (req, res) => {
       facebook:  facebookResultManual,
       instagram: instagramResultManual,
       story:     storyResultManual,
+      whatsapp:  whatsappResultManual,
     });
   } catch (err) {
     const status = err.response?.status;

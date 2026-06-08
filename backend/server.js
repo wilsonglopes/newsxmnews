@@ -515,6 +515,7 @@ async function criarIndicesBanco() {
   await tryMigrate('sites_catalog.evolution_instance',    `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS evolution_instance VARCHAR(60)`);
   await tryMigrate('sites_catalog.whatsapp_status',       `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS whatsapp_status VARCHAR(20) DEFAULT 'desconectado'`);
   await tryMigrate('sites_catalog.whatsapp_enabled',      `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS whatsapp_enabled BOOLEAN DEFAULT false`);
+  await tryMigrate('sites_catalog.whatsapp_autopub_enabled', `ALTER TABLE sites_catalog ADD COLUMN IF NOT EXISTS whatsapp_autopub_enabled BOOLEAN DEFAULT false`);
   await tryMigrate('grupos_whatsapp table', `
     CREATE TABLE IF NOT EXISTS grupos_whatsapp (
       id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

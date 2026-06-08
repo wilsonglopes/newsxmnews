@@ -1189,6 +1189,10 @@
                   <input type="checkbox" id="acp-chk-story" style="width:15px;height:15px;accent-color:#7e22ce">
                   🟣 Status / Stories (Facebook / Instagram)
                 </label>
+                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.83rem;font-weight:600;color:#166534">
+                  <input type="checkbox" id="acp-chk-whatsapp" style="width:15px;height:15px;accent-color:#166534">
+                  💬 WhatsApp (grupos do portal)
+                </label>
                 <div style="font-size:.72rem;color:#6366f1;margin-top:.3rem;padding-left:1.4rem">Usa o mesmo card. Story não leva link clicável (limitação da Meta).</div>
               </div>
 
@@ -1301,6 +1305,10 @@
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#fdf4ff;border:1px solid #e9d5ff;border-radius:6px;color:#7e22ce">
               <input type="checkbox" id="map-chk-story" style="width:16px;height:16px;cursor:pointer" />
               Status / Stories (Facebook / Instagram)
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;color:#166534">
+              <input type="checkbox" id="map-chk-whatsapp" style="width:16px;height:16px;cursor:pointer" />
+              💬 WhatsApp (grupos do portal)
             </label>
           </div>
         </div>
@@ -1969,6 +1977,10 @@
         </div>
         <div style="padding:12px 14px;background:#fff;border-top:1px solid #86efac">
           <div id="mcat-wa-area" style="font-size:.84rem;color:var(--muted)">Salve o portal primeiro para habilitar a conexão do WhatsApp.</div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:12px;padding-top:12px;border-top:1px dashed #bbf7d0;font-size:.85rem;color:#166534">
+            <input type="checkbox" id="mcat-whatsapp-autopub" style="width:16px;height:16px;cursor:pointer" />
+            <span><b>Enviar no WhatsApp automaticamente</b> quando este portal autopublicar (usa os grupos selecionados acima)</span>
+          </label>
         </div>
       </div>
       </div><!-- /aba redes -->
@@ -4059,6 +4071,7 @@ async function publicarPortalAdmin(idx) {
   };
   const publishToFb    = document.getElementById('map-chk-facebook')?.checked === true;
   const publishToStory = document.getElementById('map-chk-story')?.checked === true;
+  const publishToWa    = document.getElementById('map-chk-whatsapp')?.checked === true;
   const ov = artigoSelecionado._imgOverride || null;
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
@@ -4069,6 +4082,7 @@ async function publicarPortalAdmin(idx) {
       force,
       publish_to_facebook: publishToFb,
       publish_to_story: publishToStory,
+      publish_to_whatsapp: publishToWa,
       ...(ov?.url    ? { image_override_url: ov.url } : {}),
       ...(ov?.base64 ? { image_base64: ov.base64, image_mime: ov.mime, image_name: ov.name } : {}),
     })
@@ -4507,6 +4521,7 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
 
   const publishToFb    = document.getElementById('acp-chk-facebook')?.checked || false;
   const publishToStory = document.getElementById('acp-chk-story')?.checked || false;
+  const publishToWa    = document.getElementById('acp-chk-whatsapp')?.checked || false;
 
   const payload = {
     site_id:             siteId,
@@ -4522,6 +4537,7 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
     image_media_id:      imageMediaId,
     publish_to_facebook: publishToFb,
     publish_to_story:    publishToStory,
+    publish_to_whatsapp: publishToWa,
     // Fallback: upload falhou (ex: site sem wp_app_password) mas imagem está em memória.
     // Backend usará temp file no servidor — nenhuma credencial WP necessária.
     ...(!imageUrl && _acpImageData
@@ -5131,6 +5147,7 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-fb-page-token').value = '';
   document.getElementById('mcat-fb-status').textContent = '';
   document.getElementById('mcat-autopub-enabled').checked = true;
+  document.getElementById('mcat-whatsapp-autopub').checked = false;
   document.getElementById('mcat-sc-template').value       = 'default';
   document.getElementById('mcat-sc-chapeu-words').value   = '2';
   document.getElementById('mcat-sc-cor-chapeu').value     = '#ffffff';
@@ -5168,6 +5185,7 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-fb-page-id').value   = s.facebook_page_id || '';
       document.getElementById('mcat-fb-page-token').value = s.facebook_page_token === '••••••••' ? '••••••••' : '';
       document.getElementById('mcat-autopub-enabled').checked = s.autopub_enabled !== false;
+      document.getElementById('mcat-whatsapp-autopub').checked = s.whatsapp_autopub_enabled === true;
       renderWhatsappArea(siteId, s.whatsapp_status || 'desconectado');
       // Instagram: mostra o bloco se site tem IG salvo
       if (s.instagram_business_account_id) {
@@ -5243,6 +5261,7 @@ async function salvarCatalog() {
     facebook_page_token: document.getElementById('mcat-fb-page-token').value.trim() || null,
     instagram_enabled:   document.getElementById('mcat-ig-enabled')?.checked || false,
     autopub_enabled:     document.getElementById('mcat-autopub-enabled').checked,
+    whatsapp_autopub_enabled: document.getElementById('mcat-whatsapp-autopub').checked,
     social_config: {
       card_template:        document.getElementById('mcat-sc-template').value || 'default',
       card_chapeu_words:    parseInt(document.getElementById('mcat-sc-chapeu-words').value) || 2,

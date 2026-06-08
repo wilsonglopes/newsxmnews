@@ -12,6 +12,7 @@ const { publicar: publicarInstagram } = require('./connectors/instagram');
 const { decryptToken }       = require('./connectors/encrypt');
 const previewStore           = require('./utils/preview-store');
 const evo                    = require('./connectors/evolution');
+const wa                     = require('./connectors/whatsapp');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
@@ -253,25 +254,9 @@ async function buscarSites(subscriberId) {
   return rows;
 }
 
-// Grupos de WhatsApp selecionados (ativos) para este portal
-async function buscarGruposAtivos(catalogId) {
-  if (!catalogId) return [];
-  try {
-    const { rows } = await pool.query(
-      `SELECT group_jid, nome FROM grupos_whatsapp WHERE catalog_id = $1 AND ativo = true`,
-      [catalogId]
-    );
-    return rows;
-  } catch { return []; }
-}
-
-// WhatsApp disponível para publicar = habilitado + conectado + tem grupo selecionado
-async function whatsappDisponivel(site) {
-  if (!site || !site.whatsapp_enabled || !site.evolution_instance) return false;
-  if (!evo.disponivel()) return false;
-  const grupos = await buscarGruposAtivos(site.catalog_id);
-  return grupos.length > 0;
-}
+// WhatsApp: grupos ativos e disponibilidade vêm do helper compartilhado (connectors/whatsapp.js)
+const buscarGruposAtivos = wa.buscarGruposAtivos;
+const whatsappDisponivel = wa.whatsappDisponivel;
 
 // ─── Teclados inline ──────────────────────────────────────────────────────────
 
@@ -588,16 +573,6 @@ async function mostrarConfirmacao(bot, chatId, s) {
 
 // ─── Publicação ──────────────────────────────────────────────────────────────
 
-// Monta a legenda da mensagem de WhatsApp (formatação leve: *negrito*).
-function legendaWhatsapp(article, postUrl) {
-  const partes = [];
-  if (article.chapeu) partes.push(`*${String(article.chapeu).toUpperCase()}*`);
-  if (article.title)  partes.push(`*${article.title}*`);
-  if (article.summary) partes.push(article.summary);
-  if (postUrl)        partes.push(`\n🔗 ${postUrl}`);
-  return partes.join('\n\n');
-}
-
 async function publicar(bot, chatId, s, reporter) {
   await bot.sendMessage(chatId, '⏳ Publicando...');
   const site = s.selectedSite;
@@ -691,31 +666,13 @@ async function publicar(bot, chatId, s, reporter) {
     }
   }
 
-  // WhatsApp (grupos selecionados)
+  // WhatsApp (grupos selecionados) — helper compartilhado
   if (querWA) {
-    const grupos = await buscarGruposAtivos(site.catalog_id);
-    if (grupos.length === 0) {
-      fbInfo += '\n💬 WhatsApp: nenhum grupo selecionado.';
-    } else {
-      const legenda = legendaWhatsapp(article, resultado.post_url);
-      let ok = 0, falhas = 0;
-      for (const g of grupos) {
-        try {
-          if (imageUrl && cardPublicUrl) {
-            await evo.enviarImagem(site.evolution_instance, g.group_jid, cardPublicUrl, legenda);
-          } else {
-            await evo.enviarTexto(site.evolution_instance, g.group_jid, legenda);
-          }
-          ok++;
-          console.log(`[TELEGRAM/WA] ✓ ${site.site_name} → ${g.nome || g.group_jid}`);
-        } catch (waErr) {
-          falhas++;
-          const detalhe = waErr.response?.data?.message || waErr.message;
-          console.error(`[TELEGRAM/WA] ✗ ${site.site_name} → ${g.nome || g.group_jid}: ${detalhe}`);
-        }
-      }
-      fbInfo += `\n💬 WhatsApp: ${ok} enviado(s)${falhas ? `, ${falhas} falha(s)` : ''} de ${grupos.length} grupo(s).`;
-    }
+    const r = await wa.publicarNosGrupos(site, {
+      chapeu: article.chapeu, titulo: article.title, resumo: article.summary,
+      postUrl: resultado.post_url, cardUrl: (imageUrl && cardPublicUrl) ? cardPublicUrl : null,
+    });
+    if (r.info) fbInfo += `\n${r.info}`;
   }
 
   console.log(`[TELEGRAM] ✓ ${reporter.name} → ${site.site_name}: ${resultado.post_url}`);

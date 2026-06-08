@@ -10,6 +10,7 @@ const { publishToBlogger }   = require('./connectors/blogger');
 const { publishViaWebhook }  = require('./connectors/webhook');
 const { fetchFullContent }   = require('./scrapers/full-content');
 const { decryptToken }       = require('./connectors/encrypt');
+const wa                     = require('./connectors/whatsapp');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
@@ -288,6 +289,8 @@ async function processarProximoItem() {
              sc.instagram_enabled AS site_instagram_enabled,
              sc.instagram_business_account_id, sc.instagram_username,
              sc.social_config,
+             sc.whatsapp_enabled, sc.evolution_instance,
+             COALESCE(sc.whatsapp_autopub_enabled, false) AS whatsapp_autopub_enabled,
              ss.ai_prompt AS sub_ai_prompt,
              ss.wp_username AS ss_wp_username, ss.wp_app_password AS ss_wp_app_password,
              ss.default_category_id AS ss_default_category_id
@@ -369,6 +372,9 @@ async function processarItem(item) {
     instagram_business_account_id: item.instagram_business_account_id,
     instagram_username: item.instagram_username,
     social_config:     item.social_config,
+    whatsapp_enabled:  item.whatsapp_enabled,
+    evolution_instance: item.evolution_instance,
+    whatsapp_autopub_enabled: item.whatsapp_autopub_enabled,
   };
 
   // Busca artigo com dados da fonte
@@ -565,6 +571,33 @@ async function processarItem(item) {
 
     } catch (socialErr) {
       console.error(`[WORKER/SOCIAL] ✗ "${reescrito.title.slice(0, 50)}": ${socialErr.message}`);
+    }
+  }
+
+  // 4.2 WhatsApp (grupos do portal) — se ligado para autopub e disponível
+  if (site.whatsapp_autopub_enabled && await wa.whatsappDisponivel(site)) {
+    let waFpath = null;
+    try {
+      let waCardUrl = null;
+      if (artigo.image_url) {
+        const { gerarCardComUrl } = require('./utils/card-generator');
+        const r = await gerarCardComUrl({
+          chapeu:     reescrito.chapeu || artigo.chapeu || '',
+          titulo:     reescrito.title  || artigo.title  || '',
+          imageUrl:   artigo.image_url,
+          cardConfig: site.social_config || {},
+        });
+        waCardUrl = r.publicUrl; waFpath = r.fpath;
+      }
+      const r = await wa.publicarNosGrupos(site, {
+        chapeu:  reescrito.chapeu, titulo: reescrito.title, resumo: reescrito.summary,
+        postUrl: resultado.post_url, cardUrl: waCardUrl,
+      });
+      console.log(`[WORKER/WA] "${reescrito.title.slice(0, 40)}": ${r.info}`);
+    } catch (waErr) {
+      console.error(`[WORKER/WA] ✗ "${reescrito.title.slice(0, 40)}": ${waErr.message}`);
+    } finally {
+      if (waFpath) { try { require('fs').unlinkSync(waFpath); } catch {} }
     }
   }
 

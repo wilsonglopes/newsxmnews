@@ -921,6 +921,10 @@
               <input type="checkbox" id="chk-publish-facebook" checked style="width:16px;height:16px;cursor:pointer" />
               Publicar também no Facebook
             </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;color:#166534;margin-top:6px">
+              <input type="checkbox" id="chk-publish-whatsapp" style="width:16px;height:16px;cursor:pointer" />
+              💬 Enviar no WhatsApp (grupos do portal)
+            </label>
           </div>
         </div>
         <div class="publicar-bar-acoes">
@@ -1787,6 +1791,7 @@ async function publicarPortal(idx) {
     category_ids: portal.categoryIds || []
   };
   const publishToFb = document.getElementById('chk-publish-facebook')?.checked === true;
+  const publishToWa = document.getElementById('chk-publish-whatsapp')?.checked === true;
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
     body: JSON.stringify({
@@ -1795,6 +1800,7 @@ async function publicarPortal(idx) {
       rewritten,
       force,
       publish_to_facebook: publishToFb,
+      publish_to_whatsapp: publishToWa,
     })
   });
   try {
