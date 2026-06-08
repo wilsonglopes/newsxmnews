@@ -178,6 +178,11 @@
     .fila-chip { padding: 5px 12px; font-size: .8rem; font-weight: 600; border: 1px solid var(--border); border-radius: 16px; background: #fff; color: #475569; cursor: pointer; }
     .fila-chip:hover { background: #f1f5f9; }
     .fila-chip.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+    .rs-grid { display:grid; grid-template-columns:auto 1fr 1fr; gap:5px 10px; align-items:center; font-size:.82rem; }
+    .rs-grid .rs-h { font-weight:700; text-align:center; font-size:.74rem; }
+    .rs-grid .rs-row { font-weight:600; color:#334155; }
+    .rs-grid label { display:flex; justify-content:center; cursor:pointer; margin:0; }
+    .rs-grid input { width:17px; height:17px; cursor:pointer; }
     .btn-danger { background: #fee2e2; color: #991b1b; }
     .btn-success { background: #dcfce7; color: #166534; }
     .btn-info { background: #dbeafe; color: #1e40af; }
@@ -731,9 +736,10 @@
               <option value="">Todos os status</option>
               <option value="problema">⚠️ Só com problema</option>
               <option value="ok">✅ OK</option>
+              <option value="atencao">⚠️ Atenção (coletando c/ erro pontual)</option>
               <option value="sem_artigos">Sem artigos</option>
               <option value="sem_coleta">Sem coleta</option>
-              <option value="erro">Com erro</option>
+              <option value="erro">🔴 Erro (não coleta)</option>
               <option value="bloqueado">Bloqueado (Cloudflare)</option>
             </select>
           </div>
@@ -1192,19 +1198,22 @@
 
               <!-- Facebook / Instagram (visível só quando o site tem facebook_enabled) -->
               <div id="acp-grupo-facebook" style="display:none;margin-bottom:1rem;padding:.75rem;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:var(--radius)">
-                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.83rem;font-weight:600;color:#3730a3;margin-bottom:.4rem">
-                  <input type="checkbox" id="acp-chk-facebook" style="width:15px;height:15px;accent-color:#3730a3">
-                  📘 Feed (Facebook / Instagram)
-                </label>
-                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.83rem;font-weight:600;color:#7e22ce">
-                  <input type="checkbox" id="acp-chk-story" style="width:15px;height:15px;accent-color:#7e22ce">
-                  🟣 Status / Stories (Facebook / Instagram)
-                </label>
+                <div class="rs-grid" style="margin-bottom:.5rem">
+                  <span></span>
+                  <span class="rs-h" style="color:#3730a3">📘 Facebook</span>
+                  <span class="rs-h" style="color:#be185d">📷 Instagram</span>
+                  <span class="rs-row">Feed</span>
+                  <label><input type="checkbox" id="acp-fb-feed"></label>
+                  <label><input type="checkbox" id="acp-ig-feed"></label>
+                  <span class="rs-row">Status</span>
+                  <label><input type="checkbox" id="acp-fb-story"></label>
+                  <label><input type="checkbox" id="acp-ig-story"></label>
+                </div>
                 <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.83rem;font-weight:600;color:#166534">
                   <input type="checkbox" id="acp-chk-whatsapp" style="width:15px;height:15px;accent-color:#166534">
                   💬 WhatsApp (grupos do portal)
                 </label>
-                <div style="font-size:.72rem;color:#6366f1;margin-top:.3rem;padding-left:1.4rem">Usa o mesmo card. Story não leva link clicável (limitação da Meta).</div>
+                <div style="font-size:.72rem;color:#6366f1;margin-top:.3rem">Usa o mesmo card. Story não leva link clicável (limitação da Meta).</div>
               </div>
 
               <button id="acp-btn-publicar" class="btn btn-primary"
@@ -1309,14 +1318,17 @@
           </div>
           <div class="publicar-sel-grupo" id="map-grupo-facebook" style="display:none">
             <label>📘 Redes Sociais</label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;color:#1d4ed8;margin-bottom:6px">
-              <input type="checkbox" id="map-chk-facebook" checked style="width:16px;height:16px;cursor:pointer" />
-              Feed (Facebook / Instagram)
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#fdf4ff;border:1px solid #e9d5ff;border-radius:6px;color:#7e22ce">
-              <input type="checkbox" id="map-chk-story" style="width:16px;height:16px;cursor:pointer" />
-              Status / Stories (Facebook / Instagram)
-            </label>
+            <div class="rs-grid" style="padding:8px 12px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;margin-bottom:6px">
+              <span></span>
+              <span class="rs-h" style="color:#1d4ed8">📘 Facebook</span>
+              <span class="rs-h" style="color:#be185d">📷 Instagram</span>
+              <span class="rs-row">Feed</span>
+              <label><input type="checkbox" id="map-fb-feed" checked></label>
+              <label><input type="checkbox" id="map-ig-feed" checked></label>
+              <span class="rs-row">Status</span>
+              <label><input type="checkbox" id="map-fb-story"></label>
+              <label><input type="checkbox" id="map-ig-story"></label>
+            </div>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;color:#166534">
               <input type="checkbox" id="map-chk-whatsapp" style="width:16px;height:16px;cursor:pointer" />
               💬 WhatsApp (grupos do portal)
@@ -4110,9 +4122,11 @@ async function publicarPortalAdmin(idx) {
     image_url:    artigoSelecionado.image_url || null,
     category_ids: portal.categoryIds || []
   };
-  const publishToFb    = document.getElementById('map-chk-facebook')?.checked === true;
-  const publishToStory = document.getElementById('map-chk-story')?.checked === true;
-  const publishToWa    = document.getElementById('map-chk-whatsapp')?.checked === true;
+  const fbFeed  = document.getElementById('map-fb-feed')?.checked === true;
+  const igFeed  = document.getElementById('map-ig-feed')?.checked === true;
+  const fbStory = document.getElementById('map-fb-story')?.checked === true;
+  const igStory = document.getElementById('map-ig-story')?.checked === true;
+  const publishToWa = document.getElementById('map-chk-whatsapp')?.checked === true;
   const ov = artigoSelecionado._imgOverride || null;
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
@@ -4121,8 +4135,8 @@ async function publicarPortalAdmin(idx) {
       site_id: destSiteId,
       rewritten,
       force,
-      publish_to_facebook: publishToFb,
-      publish_to_story: publishToStory,
+      publish_fb_feed: fbFeed, publish_ig_feed: igFeed,
+      publish_fb_story: fbStory, publish_ig_story: igStory,
       publish_to_whatsapp: publishToWa,
       ...(ov?.url    ? { image_override_url: ov.url } : {}),
       ...(ov?.base64 ? { image_base64: ov.base64, image_mime: ov.mime, image_name: ov.name } : {}),
@@ -4519,8 +4533,9 @@ async function acpCarregarCategorias(siteId) {
   if (acpFbGrupo) {
     acpFbGrupo.style.display = acpSiteConf?.facebook_enabled ? '' : 'none';
     if (!acpSiteConf?.facebook_enabled) {
-      const chk = document.getElementById('acp-chk-facebook');
-      if (chk) chk.checked = false;
+      ['acp-fb-feed','acp-ig-feed','acp-fb-story','acp-ig-story'].forEach(id => {
+        const c = document.getElementById(id); if (c) c.checked = false;
+      });
     }
   }
 }
@@ -4560,9 +4575,11 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
     document.querySelectorAll('#acp-categorias input[type="checkbox"]:checked')
   ).map(i => Number(i.value)).filter(id => id > 0);
 
-  const publishToFb    = document.getElementById('acp-chk-facebook')?.checked || false;
-  const publishToStory = document.getElementById('acp-chk-story')?.checked || false;
-  const publishToWa    = document.getElementById('acp-chk-whatsapp')?.checked || false;
+  const fbFeed  = document.getElementById('acp-fb-feed')?.checked || false;
+  const igFeed  = document.getElementById('acp-ig-feed')?.checked || false;
+  const fbStory = document.getElementById('acp-fb-story')?.checked || false;
+  const igStory = document.getElementById('acp-ig-story')?.checked || false;
+  const publishToWa = document.getElementById('acp-chk-whatsapp')?.checked || false;
 
   const payload = {
     site_id:             siteId,
@@ -4576,8 +4593,8 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
     fonte_nome:          document.getElementById('acp-fonte-nome').value.trim(),
     image_url:           imageUrl,
     image_media_id:      imageMediaId,
-    publish_to_facebook: publishToFb,
-    publish_to_story:    publishToStory,
+    publish_fb_feed: fbFeed, publish_ig_feed: igFeed,
+    publish_fb_story: fbStory, publish_ig_story: igStory,
     publish_to_whatsapp: publishToWa,
     // Fallback: upload falhou (ex: site sem wp_app_password) mas imagem está em memória.
     // Backend usará temp file no servidor — nenhuma credencial WP necessária.
@@ -5727,6 +5744,7 @@ let _fontesSaude = []; // cache da saúde das fontes
 
 const FS_STATUS = {
   ok:          { label: 'OK',          cor: '#16a34a', bg: '#f0fdf4', emoji: '✅' },
+  atencao:     { label: 'Atenção',     cor: '#ca8a04', bg: '#fefce8', emoji: '⚠️' },
   sem_artigos: { label: 'Sem artigos', cor: '#92400e', bg: '#fffbeb', emoji: '🟡' },
   sem_coleta:  { label: 'Sem coleta',  cor: '#c2410c', bg: '#fff7ed', emoji: '🟠' },
   erro:        { label: 'Erro',        cor: '#dc2626', bg: '#fef2f2', emoji: '🔴' },
@@ -5762,11 +5780,11 @@ function renderFontesSaude() {
   const tbody  = document.querySelector('#tbl-fontes-saude tbody');
 
   let lista = _fontesSaude.filter(f => !busca || f.name.toLowerCase().includes(busca) || (f.slug || '').toLowerCase().includes(busca));
-  if (filtro === 'problema') lista = lista.filter(f => f.status !== 'ok');
+  if (filtro === 'problema') lista = lista.filter(f => f.status !== 'ok' && f.status !== 'atencao');
   else if (filtro)           lista = lista.filter(f => f.status === filtro);
 
   // Ordena: problemas primeiro
-  const ordem = { erro: 0, bloqueado: 1, sem_coleta: 2, sem_artigos: 3, ok: 4 };
+  const ordem = { erro: 0, bloqueado: 1, sem_coleta: 2, sem_artigos: 3, atencao: 4, ok: 5 };
   lista.sort((a, b) => (ordem[a.status] ?? 9) - (ordem[b.status] ?? 9) || a.name.localeCompare(b.name, 'pt-BR'));
 
   if (!lista.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma fonte neste filtro.</td></tr>'; return; }

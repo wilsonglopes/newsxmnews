@@ -12,9 +12,34 @@ const router = express.Router();
 
 router.use(auth);
 
+// Resolve os 4 canais sociais INDEPENDENTES (Facebook/Instagram × Feed/Status).
+// Retrocompatível: se o cliente mandar só o formato antigo (publish_to_facebook = Feed
+// FB+IG juntos; publish_to_story = Status FB+IG juntos), traduz para os 4 flags.
+// O Instagram só conta se o portal tiver IG configurado.
+function resolverCanaisSociais(body = {}, site = {}) {
+  const bool = v => v === true || v === 'true';
+  const temNovos = ['publish_fb_feed', 'publish_ig_feed', 'publish_fb_story', 'publish_ig_story']
+    .some(k => body[k] !== undefined);
+  let fbFeed, igFeed, fbStory, igStory;
+  if (temNovos) {
+    fbFeed  = bool(body.publish_fb_feed);
+    igFeed  = bool(body.publish_ig_feed);
+    fbStory = bool(body.publish_fb_story);
+    igStory = bool(body.publish_ig_story);
+  } else {
+    fbFeed = igFeed = bool(body.publish_to_facebook); // Feed antigo = FB+IG
+    fbStory = igStory = bool(body.publish_to_story);   // Status antigo = FB+IG
+  }
+  const temIG = !!(site.instagram_enabled && site.instagram_business_account_id);
+  igFeed  = igFeed  && temIG;
+  igStory = igStory && temIG;
+  return { fbFeed, igFeed, fbStory, igStory };
+}
+
 // ── POST /api/publish ─────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
   const { article_id, site_id, rewritten, force, publish_to_facebook, publish_to_story, publish_to_whatsapp,
+          publish_fb_feed, publish_ig_feed, publish_fb_story, publish_ig_story,
           image_override_url, image_base64, image_mime, image_name } = req.body || {};
 
   if (!article_id || !site_id || !rewritten) {
@@ -146,34 +171,32 @@ router.post('/', async (req, res) => {
       console.error('[publish] falha ao registrar no banco (post criado):', dbErr.message);
     }
 
-    // ── Publicação no Facebook + Instagram (opcional) ────────────────────
+    // ── Publicação no Facebook + Instagram (canais independentes) ────────
     let facebookResult  = null;
     let instagramResult = null;
-    const wantsFacebook = publish_to_facebook === true || publish_to_facebook === 'true'; // Feed
-    const wantsStory    = publish_to_story === true || publish_to_story === 'true';       // Status (Stories)
     let storyResult = null;
+    const { fbFeed, igFeed, fbStory, igStory } = resolverCanaisSociais(req.body, site);
 
     // Artigos sem imagem geram card com fundo vazio — não publicar no FB/IG (feed nem story).
-    if ((wantsFacebook || wantsStory) && !article.image_url) {
+    if ((fbFeed || igFeed || fbStory || igStory) && !article.image_url) {
       console.log(`[publish/social] artigo sem imagem — pulando FB/IG para "${rewritten.title?.slice(0, 50)}"`);
       facebookResult  = { ok: false, skipped: true, reason: 'sem_imagem' };
       instagramResult = { ok: false, skipped: true, reason: 'sem_imagem' };
       storyResult     = { ok: false, skipped: true, reason: 'sem_imagem' };
     }
 
-    if ((wantsFacebook || wantsStory) && article.image_url && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
+    if ((fbFeed || igFeed || fbStory || igStory) && article.image_url && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
       try {
         const { gerarCard, gerarCardComUrl } = require('../utils/card-generator');
         const { publicarFoto, publicarStory: publicarStoryFB } = require('../connectors/facebook');
         const { publicar: publicarInstagram, publicarStory: publicarStoryIG } = require('../connectors/instagram');
         const { decryptToken } = require('../connectors/encrypt');
 
-        const wantsInstagram = site.instagram_enabled && site.instagram_business_account_id;
         const pageToken = decryptToken(site.facebook_page_token);
         const socialConfig = site.social_config || {};
 
-        // Card em URL pública é necessário para: IG feed, story (FB e IG). Senão, só buffer.
-        const precisaUrlPublica = wantsStory || (wantsFacebook && wantsInstagram);
+        // Card em URL pública é necessário para: IG (feed/story) e story do FB. Só FB feed = buffer.
+        const precisaUrlPublica = igFeed || fbStory || igStory;
         let cardBuffer, cardPublicUrl, cardFpath;
         if (precisaUrlPublica) {
           const r = await gerarCardComUrl({
@@ -194,9 +217,8 @@ router.post('/', async (req, res) => {
           });
         }
 
-        // ── FEED ──────────────────────────────────────────────────────────────
-        if (wantsFacebook) {
-          // Facebook feed
+        // ── Facebook FEED ─────────────────────────────────────────────────────
+        if (fbFeed) {
           try {
             const fb = await publicarFoto(
               { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
@@ -215,40 +237,40 @@ router.post('/', async (req, res) => {
             console.error('[publish/fb]', fbErr.message);
             facebookResult = { ok: false, error: fbErr.message };
           }
+        }
 
-          // Instagram feed
-          if (wantsInstagram && cardPublicUrl) {
+        // ── Instagram FEED ────────────────────────────────────────────────────
+        if (igFeed && cardPublicUrl) {
+          try {
+            const ig = await publicarInstagram(
+              { instagram_business_account_id: site.instagram_business_account_id, facebook_page_token: pageToken },
+              cardPublicUrl,
+              { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+            );
+            instagramResult = { ok: true, post_url: ig.post_url, post_id: ig.post_id };
             try {
-              const ig = await publicarInstagram(
-                { instagram_business_account_id: site.instagram_business_account_id, facebook_page_token: pageToken },
-                cardPublicUrl,
-                { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+              await pool.query(
+                `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
+                 WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
+                [ig.post_id, ig.post_url, pubSubscriberId, article_id, site_id]
               );
-              instagramResult = { ok: true, post_url: ig.post_url, post_id: ig.post_id };
-              try {
-                await pool.query(
-                  `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
-                   WHERE subscriber_id = $3 AND article_id = $4 AND site_id = $5 AND status = 'published'`,
-                  [ig.post_id, ig.post_url, pubSubscriberId, article_id, site_id]
-                );
-              } catch (e) { console.warn('[publish/ig] grava ID:', e.message); }
-            } catch (igErr) {
-              console.error('[publish/ig]', igErr.message);
-              instagramResult = { ok: false, error: igErr.message };
-            }
+            } catch (e) { console.warn('[publish/ig] grava ID:', e.message); }
+          } catch (igErr) {
+            console.error('[publish/ig]', igErr.message);
+            instagramResult = { ok: false, error: igErr.message };
           }
         }
 
-        // ── STATUS (Stories) ──────────────────────────────────────────────────
-        if (wantsStory && cardPublicUrl) {
+        // ── STATUS (Stories) — FB e IG independentes ──────────────────────────
+        if ((fbStory || igStory) && cardPublicUrl) {
           storyResult = {};
-          // Facebook story
-          try {
-            const fbs = await publicarStoryFB({ facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken }, cardPublicUrl);
-            storyResult.facebook = { ok: true, post_id: fbs.post_id };
-          } catch (e) { console.error('[publish/fb-story]', e.message); storyResult.facebook = { ok: false, error: e.message }; }
-          // Instagram story
-          if (wantsInstagram) {
+          if (fbStory) {
+            try {
+              const fbs = await publicarStoryFB({ facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken }, cardPublicUrl);
+              storyResult.facebook = { ok: true, post_id: fbs.post_id };
+            } catch (e) { console.error('[publish/fb-story]', e.message); storyResult.facebook = { ok: false, error: e.message }; }
+          }
+          if (igStory) {
             try {
               const igs = await publicarStoryIG({ instagram_business_account_id: site.instagram_business_account_id, facebook_page_token: pageToken }, cardPublicUrl);
               storyResult.instagram = { ok: true, post_id: igs.post_id };
@@ -260,9 +282,9 @@ router.post('/', async (req, res) => {
 
       } catch (err) {
         console.error('[publish/social]', err.message);
-        if (wantsFacebook && !facebookResult)  facebookResult  = { ok: false, error: err.message };
-        if (wantsFacebook && !instagramResult) instagramResult = { ok: false, error: err.message };
-        if (wantsStory && !storyResult)        storyResult     = { ok: false, error: err.message };
+        if (fbFeed  && !facebookResult)  facebookResult  = { ok: false, error: err.message };
+        if (igFeed  && !instagramResult) instagramResult = { ok: false, error: err.message };
+        if ((fbStory || igStory) && !storyResult) storyResult = { ok: false, error: err.message };
       }
     }
 
@@ -322,7 +344,8 @@ router.post('/manual', async (req, res) => {
           image_url, image_media_id,
           image_base64, image_mime, image_name,
           fonte_url, fonte_nome,
-          publish_to_facebook, publish_to_story, publish_to_whatsapp } = req.body || {};
+          publish_to_facebook, publish_to_story, publish_to_whatsapp,
+          publish_fb_feed, publish_ig_feed, publish_fb_story, publish_ig_story } = req.body || {};
 
   if (!site_id || !titulo || !corpo) {
     return res.status(400).json({ error: 'site_id, titulo e corpo são obrigatórios.' });
@@ -407,12 +430,12 @@ router.post('/manual', async (req, res) => {
     let facebookResultManual  = null;
     let instagramResultManual = null;
     let storyResultManual     = null;
-    const wantsFacebookManual = publish_to_facebook === true || publish_to_facebook === 'true'; // Feed
-    const wantsStoryManual    = publish_to_story === true || publish_to_story === 'true';        // Status
+    const { fbFeed, igFeed, fbStory, igStory } = resolverCanaisSociais(req.body, site);
+    const querSocialManual = fbFeed || igFeed || fbStory || igStory;
 
     // Se a imagem não subiu pro WP (image_url vazio, ex: site sem senha de aplicação válida)
     // mas temos o base64 em memória, hospeda temporariamente p/ o card das redes poder usá-la.
-    if ((wantsFacebookManual || wantsStoryManual) && !article.image_url && image_base64) {
+    if (querSocialManual && !article.image_url && image_base64) {
       try {
         const { resolveImageBuffer, criarTempImagemPublica } = require('../connectors/wordpress');
         const img = await resolveImageBuffer({ image_base64, image_mime, image_name });
@@ -427,26 +450,25 @@ router.post('/manual', async (req, res) => {
     }
 
     // Artigos sem imagem geram card com fundo vazio — não publicar no FB/IG (feed nem story).
-    if ((wantsFacebookManual || wantsStoryManual) && !article.image_url) {
+    if (querSocialManual && !article.image_url) {
       console.log(`[manual/social] artigo sem imagem — pulando FB/IG para "${rewritten.title?.slice(0, 50)}"`);
       facebookResultManual  = { ok: false, skipped: true, reason: 'sem_imagem' };
       instagramResultManual = { ok: false, skipped: true, reason: 'sem_imagem' };
       storyResultManual     = { ok: false, skipped: true, reason: 'sem_imagem' };
     }
 
-    if ((wantsFacebookManual || wantsStoryManual) && article.image_url && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
+    if (querSocialManual && article.image_url && site.facebook_enabled && site.facebook_page_id && site.facebook_page_token) {
       try {
         const { gerarCard, gerarCardComUrl } = require('../utils/card-generator');
         const { publicarFoto, publicarStory: publicarStoryFB } = require('../connectors/facebook');
         const { publicar: publicarInstagram, publicarStory: publicarStoryIG } = require('../connectors/instagram');
         const { decryptToken } = require('../connectors/encrypt');
 
-        const wantsInstagram = site.instagram_enabled && site.instagram_business_account_id;
         const pageToken = decryptToken(site.facebook_page_token);
         const socialConfigManual = site.social_config || {};
         const pubSubscriberId = site.subscriber_id || req.subscriber.id;
 
-        const precisaUrlPublica = wantsStoryManual || (wantsFacebookManual && wantsInstagram);
+        const precisaUrlPublica = igFeed || fbStory || igStory;
         let cardBuffer, cardPublicUrl, cardFpath;
         if (precisaUrlPublica) {
           const r = await gerarCardComUrl({
@@ -467,8 +489,8 @@ router.post('/manual', async (req, res) => {
           });
         }
 
-        // ── FEED ──────────────────────────────────────────────────────────────
-        if (wantsFacebookManual) {
+        // ── Facebook FEED ─────────────────────────────────────────────────────
+        if (fbFeed) {
           try {
             const fb = await publicarFoto(
               { facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken },
@@ -487,37 +509,40 @@ router.post('/manual', async (req, res) => {
             console.error('[manual/fb]', fbErr.message);
             facebookResultManual = { ok: false, error: fbErr.message };
           }
+        }
 
-          if (wantsInstagram && cardPublicUrl) {
+        // ── Instagram FEED ────────────────────────────────────────────────────
+        if (igFeed && cardPublicUrl) {
+          try {
+            const ig = await publicarInstagram(
+              { instagram_business_account_id: site.instagram_business_account_id, facebook_page_token: pageToken },
+              cardPublicUrl,
+              { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+            );
+            instagramResultManual = { ok: true, post_url: ig.post_url, post_id: ig.post_id };
             try {
-              const ig = await publicarInstagram(
-                { instagram_business_account_id: site.instagram_business_account_id, facebook_page_token: pageToken },
-                cardPublicUrl,
-                { chapeu: rewritten.chapeu, title: rewritten.title, summary: rewritten.summary, post_url: result.post_url }
+              await pool.query(
+                `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
+                 WHERE subscriber_id = $3 AND site_id = $4 AND external_post_id = $5`,
+                [ig.post_id, ig.post_url, pubSubscriberId, site_id, result.post_id]
               );
-              instagramResultManual = { ok: true, post_url: ig.post_url, post_id: ig.post_id };
-              try {
-                await pool.query(
-                  `UPDATE publications SET instagram_post_id = $1, instagram_post_url = $2
-                   WHERE subscriber_id = $3 AND site_id = $4 AND external_post_id = $5`,
-                  [ig.post_id, ig.post_url, pubSubscriberId, site_id, result.post_id]
-                );
-              } catch (e) { console.warn('[manual/ig] grava ID:', e.message); }
-            } catch (igErr) {
-              console.error('[manual/ig]', igErr.message);
-              instagramResultManual = { ok: false, error: igErr.message };
-            }
+            } catch (e) { console.warn('[manual/ig] grava ID:', e.message); }
+          } catch (igErr) {
+            console.error('[manual/ig]', igErr.message);
+            instagramResultManual = { ok: false, error: igErr.message };
           }
         }
 
-        // ── STATUS (Stories) ──────────────────────────────────────────────────
-        if (wantsStoryManual && cardPublicUrl) {
+        // ── STATUS (Stories) — FB e IG independentes ──────────────────────────
+        if ((fbStory || igStory) && cardPublicUrl) {
           storyResultManual = {};
-          try {
-            const fbs = await publicarStoryFB({ facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken }, cardPublicUrl);
-            storyResultManual.facebook = { ok: true, post_id: fbs.post_id };
-          } catch (e) { console.error('[manual/fb-story]', e.message); storyResultManual.facebook = { ok: false, error: e.message }; }
-          if (wantsInstagram) {
+          if (fbStory) {
+            try {
+              const fbs = await publicarStoryFB({ facebook_page_id: site.facebook_page_id, facebook_page_token: pageToken }, cardPublicUrl);
+              storyResultManual.facebook = { ok: true, post_id: fbs.post_id };
+            } catch (e) { console.error('[manual/fb-story]', e.message); storyResultManual.facebook = { ok: false, error: e.message }; }
+          }
+          if (igStory) {
             try {
               const igs = await publicarStoryIG({ instagram_business_account_id: site.instagram_business_account_id, facebook_page_token: pageToken }, cardPublicUrl);
               storyResultManual.instagram = { ok: true, post_id: igs.post_id };
@@ -529,9 +554,9 @@ router.post('/manual', async (req, res) => {
 
       } catch (err) {
         console.error('[manual/social]', err.message);
-        if (wantsFacebookManual && !facebookResultManual)  facebookResultManual  = { ok: false, error: err.message };
-        if (wantsFacebookManual && !instagramResultManual) instagramResultManual = { ok: false, error: err.message };
-        if (wantsStoryManual && !storyResultManual)        storyResultManual     = { ok: false, error: err.message };
+        if (fbFeed  && !facebookResultManual)  facebookResultManual  = { ok: false, error: err.message };
+        if (igFeed  && !instagramResultManual) instagramResultManual = { ok: false, error: err.message };
+        if ((fbStory || igStory) && !storyResultManual) storyResultManual = { ok: false, error: err.message };
       }
     }
 

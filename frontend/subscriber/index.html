@@ -917,11 +917,18 @@
           </div>
           <div class="publicar-sel-grupo" id="sel-grupo-facebook" style="display:none">
             <label>📘 Redes Sociais</label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;color:#1d4ed8">
-              <input type="checkbox" id="chk-publish-facebook" checked style="width:16px;height:16px;cursor:pointer" />
-              Publicar também no Facebook
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;color:#166534;margin-top:6px">
+            <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:5px 10px;align-items:center;font-size:.82rem;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px">
+              <span></span>
+              <span style="font-weight:700;text-align:center;font-size:.74rem;color:#1d4ed8">📘 Facebook</span>
+              <span style="font-weight:700;text-align:center;font-size:.74rem;color:#be185d">📷 Instagram</span>
+              <span style="font-weight:600;color:#334155">Feed</span>
+              <label style="display:flex;justify-content:center;margin:0;cursor:pointer"><input type="checkbox" id="pub-fb-feed" checked style="width:17px;height:17px;cursor:pointer"></label>
+              <label style="display:flex;justify-content:center;margin:0;cursor:pointer"><input type="checkbox" id="pub-ig-feed" checked style="width:17px;height:17px;cursor:pointer"></label>
+              <span style="font-weight:600;color:#334155">Status</span>
+              <label style="display:flex;justify-content:center;margin:0;cursor:pointer"><input type="checkbox" id="pub-fb-story" style="width:17px;height:17px;cursor:pointer"></label>
+              <label style="display:flex;justify-content:center;margin:0;cursor:pointer"><input type="checkbox" id="pub-ig-story" style="width:17px;height:17px;cursor:pointer"></label>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;color:#166534">
               <input type="checkbox" id="chk-publish-whatsapp" style="width:16px;height:16px;cursor:pointer" />
               💬 Enviar no WhatsApp (grupos do portal)
             </label>
@@ -1790,7 +1797,10 @@ async function publicarPortal(idx) {
     tags:         portal.tags.split(',').map(t => t.trim()).filter(Boolean),
     category_ids: portal.categoryIds || []
   };
-  const publishToFb = document.getElementById('chk-publish-facebook')?.checked === true;
+  const fbFeed  = document.getElementById('pub-fb-feed')?.checked === true;
+  const igFeed  = document.getElementById('pub-ig-feed')?.checked === true;
+  const fbStory = document.getElementById('pub-fb-story')?.checked === true;
+  const igStory = document.getElementById('pub-ig-story')?.checked === true;
   const publishToWa = document.getElementById('chk-publish-whatsapp')?.checked === true;
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
@@ -1799,7 +1809,8 @@ async function publicarPortal(idx) {
       site_id: destSiteId,
       rewritten,
       force,
-      publish_to_facebook: publishToFb,
+      publish_fb_feed: fbFeed, publish_ig_feed: igFeed,
+      publish_fb_story: fbStory, publish_ig_story: igStory,
       publish_to_whatsapp: publishToWa,
     })
   });

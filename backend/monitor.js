@@ -348,11 +348,21 @@ async function saudeDasFontes() {
     const erroRecente = !!erro && ultColeta && horasSemColeta < 24;
     const ehCloudflare = /cloudflare|cf-mitigated|just a moment|challenge|\b403\b/i.test(erro);
 
+    // A fonte ESTÁ funcionando se trouxe artigos nas últimas 24h — nesse caso um
+    // last_error é só um tropeço pontual (ex: 1 página falhou, mas o RSS coletou).
+    // Só é 'erro'/'bloqueado' de verdade quando NÃO coletou nada (art24 === 0).
     let status = 'ok';
-    if (erroRecente && ehCloudflare)        status = 'bloqueado';
-    else if (erroRecente)                   status = 'erro';
-    else if (horasSemColeta === null || horasSemColeta > HORAS_SEM_ARTIGO) status = 'sem_coleta';
-    else if (art24 === 0)                    status = 'sem_artigos';
+    if (art24 > 0) {
+      status = erroRecente ? 'atencao' : 'ok';   // coletou, mas teve erro pontual → atenção (amarelo)
+    } else if (erroRecente && ehCloudflare) {
+      status = 'bloqueado';
+    } else if (erroRecente) {
+      status = 'erro';
+    } else if (horasSemColeta === null || horasSemColeta > HORAS_SEM_ARTIGO) {
+      status = 'sem_coleta';
+    } else {
+      status = 'sem_artigos';
+    }
 
     return {
       slug: r.slug,
