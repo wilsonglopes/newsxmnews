@@ -248,6 +248,21 @@ function quebrarLinhasLargura(texto, larguraMax, fontSize, bold, maxLinhas) {
   return linhas;
 }
 
+// ⚠️ REGRA Nº1: o título JAMAIS pode aparecer cortado. Em vez de truncar, REDUZ o
+// tamanho da fonte até o título INTEIRO caber em maxLinhas. Devolve {fontSize, linhas}.
+// Como último recurso (título absurdo no tamanho mínimo), deixa passar de maxLinhas
+// — texto completo menor é sempre melhor que texto cortado.
+function ajustarTituloAutoFit(texto, larguraMax, maxLinhas, fontSizeIni, bold, fontSizeMin = 34) {
+  let fs = Math.max(fontSizeMin, fontSizeIni);
+  // Infinity em maxLinhas → quebrarLinhasLargura NUNCA corta (mede o título completo)
+  let linhas = quebrarLinhasLargura(texto, larguraMax, fs, bold, Infinity);
+  while (linhas.length > maxLinhas && fs > fontSizeMin) {
+    fs -= 2;
+    linhas = quebrarLinhasLargura(texto, larguraMax, fs, bold, Infinity);
+  }
+  return { fontSize: fs, linhas };
+}
+
 // SVG dos textos (chapéu + título) — geometria/estilo vêm do `layout`
 function montarSvgTextos(chapeu, titulo, cardConfig = {}, layout = LAYOUT_DEFAULT) {
   const T = layout.titulo, C = layout.chapeu;
@@ -281,10 +296,18 @@ function montarSvgTextos(chapeu, titulo, cardConfig = {}, layout = LAYOUT_DEFAUL
 
   // Layouts do editor quebram pela LARGURA REAL da caixa (wrapByWidth); o default
   // mantém a quebra por nº de caracteres (sem mudar os cards existentes).
-  const linhasTitulo = T.wrapByWidth
-    ? quebrarLinhasLargura(tituloTxt, T.w * 0.97, T.fontSize, T.fontWeight === 700, T.maxLinhas)
-    : quebrarLinhas(tituloTxt, T.maxChars, T.maxLinhas);
-  const lineHeight = T.lineHeight;
+  // Auto-fit (wrapByWidth): reduz a fonte até o título caber INTEIRO (nunca trunca).
+  let tituloFontSize = T.fontSize;
+  let lineHeight     = T.lineHeight;
+  let linhasTitulo;
+  if (T.wrapByWidth) {
+    const fit = ajustarTituloAutoFit(tituloTxt, T.w * 0.97, T.maxLinhas, T.fontSize, T.fontWeight === 700, T.fontMin || 34);
+    tituloFontSize = fit.fontSize;
+    linhasTitulo   = fit.linhas;
+    lineHeight     = Math.round(tituloFontSize * 1.2); // entrelinha acompanha a fonte ajustada
+  } else {
+    linhasTitulo = quebrarLinhas(tituloTxt, T.maxChars, T.maxLinhas);
+  }
   const resumoY0   = T.y + T.yOffset;
   const isMiddle   = T.align === 'middle';
   const anchorX    = isMiddle ? Math.round(T.x + T.w / 2) : T.x;
@@ -315,7 +338,7 @@ function montarSvgTextos(chapeu, titulo, cardConfig = {}, layout = LAYOUT_DEFAUL
 <svg width="${CARD.width}" height="${CARD.height}" xmlns="http://www.w3.org/2000/svg">
   <style>
     .chapeu { font-family: ${fontChapeu}; font-weight: ${C.fontWeight}; font-size: ${chapeuFontSize}px; fill: ${corChapeu}; letter-spacing: ${C.letterSpacing}px; }
-    .resumo { font-family: ${fontTitulo}; font-weight: ${T.fontWeight}; font-size: ${T.fontSize}px; fill: ${corTitulo}; }
+    .resumo { font-family: ${fontTitulo}; font-weight: ${T.fontWeight}; font-size: ${tituloFontSize}px; fill: ${corTitulo}; }
   </style>
   ${chapeuSvg}
   <text class="resumo" y="${resumoY0}" text-anchor="${isMiddle ? 'middle' : 'start'}">${tspans}</text>
