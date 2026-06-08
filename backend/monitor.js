@@ -280,9 +280,11 @@ async function verificarDisco() {
     const critico = uso >= DISCO_CRITICO;
 
     if (critico) {
-      // Auto-limpeza emergencial: remove perfis Puppeteer/Chromium antigos (>60min)
+      // Auto-limpeza emergencial via script ROOT (sudo NOPASSWD) — limpa perfis
+      // puppeteer_dev_chrome_profile-* (o rm como 'ubuntu' falhava por permissão).
+      // Fallback: tenta o find direto se o script não existir.
       try {
-        await execAsync("find /tmp/snap-private-tmp/snap.chromium/tmp/ -maxdepth 1 -type d -mmin +60 2>/dev/null | xargs -r rm -rf 2>/dev/null");
+        await execAsync("sudo /usr/local/bin/cleanup-chromium.sh 2>/dev/null || find /tmp/snap-private-tmp/snap.chromium/tmp/ -maxdepth 1 -type d -name 'puppeteer_dev_chrome_profile-*' -mmin +20 2>/dev/null | xargs -r rm -rf 2>/dev/null");
         const novo = await usoDiscoRaiz();
         acao = `\n🧹 Limpeza emergencial executada → disco agora em *${novo}%*`;
         if (novo < DISCO_ALERTA) {
