@@ -6,6 +6,8 @@ const fs       = require('fs');
 const path     = require('path');
 const pool     = require('../db/connection');
 const adminAuth = require('../middleware/adminAuth');
+const { sugerirMetadados, hostSemWww } = require('../utils/source-detector');
+const { addAllowedHost } = require('../utils/allowed-hosts');
 
 const SOURCES_PATH   = path.join(__dirname, '../sources.json');
 const SETTINGS_PATH  = path.join(__dirname, '../settings.json');
@@ -21,7 +23,7 @@ function salvarSettings(obj) {
  * Cria o router admin injetando o contexto do servidor
  * (sources array mutável, cache, atualizarFonte).
  */
-module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) {
+module.exports = function createAdminRouter({ sources, cache, atualizarFonte, buscarRSS }) {
   const router = express.Router();
   router.use(adminAuth);
 
@@ -166,7 +168,7 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
 
   // POST /api/admin/sources — cria nova fonte
   router.post('/sources', async (req, res) => {
-    const { name, slug, type, url, category, scraping, extract_body_image, featured_image_selector } = req.body || {};
+    const { name, slug, type, url, category, scraping, extract_body_image, featured_image_selector, image_hosts } = req.body || {};
     if (!name || !slug || !type || !url) {
       return res.status(400).json({ error: 'name, slug, type e url são obrigatórios.' });
     }
@@ -200,8 +202,22 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
           featured_image_selector || null]);
     } catch {}
 
-    // Coleta imediatamente
-    atualizarFonte(novaFonte).catch(() => {});
+    // Libera os domínios de imagem no proxy — senão as fotos da fonte dão 403.
+    // Junta: domínio do site + hosts detectados na análise (og:image).
+    const hostsParaLiberar = new Set();
+    try { hostsParaLiberar.add(new URL(url).hostname.replace(/^www\./, '').toLowerCase()); } catch {}
+    if (Array.isArray(image_hosts)) image_hosts.forEach(h => h && hostsParaLiberar.add(String(h).toLowerCase()));
+
+    // Coleta imediatamente; ao concluir, libera também os domínios das imagens que vieram
+    // de fato nos artigos (cobre CDNs externos). Roda nos dois desfechos da coleta.
+    const liberarHosts = () => {
+      for (const art of (cache[slug]?.data || [])) {
+        if (art.image) { try { hostsParaLiberar.add(new URL(art.image).hostname.replace(/^www\./, '').toLowerCase()); } catch {} }
+      }
+      hostsParaLiberar.forEach(h => addAllowedHost(h));
+    };
+    atualizarFonte(novaFonte).then(liberarHosts).catch(liberarHosts);
+
     res.status(201).json(novaFonte);
   });
 
@@ -419,18 +435,49 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte }) 
         }
       }
 
+      // ── Preview real da coleta (só RSS) + amostra de títulos para a IA ──────────
+      // Reusa o buscarRSS do servidor (com todo o fallback de encoding/User-Agent).
+      let preview = [];
+      let sampleTitles = [];
+      if (rssUrl && typeof buscarRSS === 'function') {
+        try {
+          const itens = await buscarRSS({ url: rssUrl, name: siteName, slug, category: 'geral' });
+          sampleTitles = itens.map(i => i.title).filter(Boolean).slice(0, 6);
+          preview = itens.slice(0, 5).map(i => ({
+            title:        i.title,
+            published_at: i.published_at,
+            url:          i.url,
+            has_image:    !!i.image,
+          }));
+        } catch (e) {
+          console.warn('[sources/analyze] preview RSS falhou:', e.message);
+        }
+      }
+
+      // ── IA (DeepSeek) sugere nome e categoria; fallback determinístico no helper ──
+      const meta = await sugerirMetadados({ url, sampleTitles });
+
+      // Hosts de imagem a liberar no cadastro (domínio do site + og:image)
+      const imageHosts = [...new Set([
+        hostSemWww(url),
+        ogImageUrl ? hostSemWww(ogImageUrl) : null,
+      ].filter(Boolean))];
+
       res.json({
-        name:               siteName,
+        name:               meta.name || siteName,
         slug,
         type:               rssUrl ? 'rss' : 'scraping',
         url:                rssUrl || url,
         rss_url:            rssUrl,
         content_selector:   bestSelector,
         extract_body_image: extractBodyImg,
-        category:           'nacional',
+        category:           meta.category || 'regional',
         sample_article_url: sampleUrl,
         og_image_url:       ogImageUrl,
         scraping:           scrapingSelectors,
+        preview,                       // até 5 artigos reais que a fonte traria
+        preview_count:      preview.length,
+        image_hosts:        imageHosts,
       });
     } catch (err) {
       console.error('[sources/analyze]', err.message);

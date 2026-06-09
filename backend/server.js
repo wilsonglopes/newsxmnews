@@ -553,6 +553,43 @@ async function criarIndicesBanco() {
   `);
 }
 
+// ─── UPSERT de uma fonte na tabela sources ───────────────────────────────────
+// Extraído de sincronizarFontesDB para ser reusado pelo cadastro self-service
+// (routes/admin.js → POST /api/admin/sources/create).
+async function upsertFonteDB(s) {
+  if (!pool) return;
+  const cfg = s.scraping || {};
+  await pool.query(`
+    INSERT INTO sources
+      (name, slug, type, url, section_selector, title_selector, date_selector,
+       link_selector, image_selector, content_selector, category, active,
+       extract_body_image, featured_image_selector)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+    ON CONFLICT (slug) DO UPDATE SET
+      name                    = EXCLUDED.name,
+      url                     = EXCLUDED.url,
+      type                    = EXCLUDED.type,
+      category                = EXCLUDED.category,
+      active                  = CASE WHEN sources.active = false THEN false ELSE EXCLUDED.active END,
+      content_selector        = EXCLUDED.content_selector,
+      extract_body_image      = EXCLUDED.extract_body_image,
+      featured_image_selector = EXCLUDED.featured_image_selector`,
+    [
+      s.name, s.slug, s.type || 'rss', s.url || null,
+      cfg.itemSelector  || null,
+      cfg.titleSelector || null,
+      cfg.dateSelector  || null,
+      cfg.linkSelector  || null,
+      cfg.imageSelector || null,
+      s.content_selector        || cfg.contentSelector || null,
+      s.category || null,
+      s.active !== false,
+      s.extract_body_image || false,
+      s.featured_image_selector || null,
+    ]
+  );
+}
+
 // ─── Sincronizar sources.json → tabela sources do banco ──────────────────────
 // Garante que featured_image_selector e content_selector estejam gravados
 // para fontes adicionadas diretamente ao arquivo (sem passar pelo admin UI).
@@ -560,36 +597,7 @@ async function sincronizarFontesDB() {
   if (!pool) return;
   try {
     for (const s of sources) {
-      const cfg = s.scraping || {};
-      await pool.query(`
-        INSERT INTO sources
-          (name, slug, type, url, section_selector, title_selector, date_selector,
-           link_selector, image_selector, content_selector, category, active,
-           extract_body_image, featured_image_selector)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-        ON CONFLICT (slug) DO UPDATE SET
-          name                    = EXCLUDED.name,
-          url                     = EXCLUDED.url,
-          type                    = EXCLUDED.type,
-          category                = EXCLUDED.category,
-          active                  = CASE WHEN sources.active = false THEN false ELSE EXCLUDED.active END,
-          content_selector        = EXCLUDED.content_selector,
-          extract_body_image      = EXCLUDED.extract_body_image,
-          featured_image_selector = EXCLUDED.featured_image_selector`,
-        [
-          s.name, s.slug, s.type || 'rss', s.url || null,
-          cfg.itemSelector  || null,
-          cfg.titleSelector || null,
-          cfg.dateSelector  || null,
-          cfg.linkSelector  || null,
-          cfg.imageSelector || null,
-          s.content_selector        || cfg.contentSelector || null,
-          s.category || null,
-          s.active !== false,
-          s.extract_body_image || false,
-          s.featured_image_selector || null,
-        ]
-      );
+      await upsertFonteDB(s);
     }
     console.log(`[DB] ${sources.length} fontes sincronizadas com o banco.`);
 
@@ -1348,7 +1356,7 @@ app.put('/api/admin/card-templates/:slug/layout', authMiddleware, requireAdmin, 
 });
 
 // Admin (Fase 4) — injeta contexto mutável do servidor
-app.use('/api/admin', require('./routes/admin')({ sources, cache, atualizarFonte }));
+app.use('/api/admin', require('./routes/admin')({ sources, cache, atualizarFonte, buscarRSS, upsertFonteDB }));
 
 // Página HTML com lista de matérias recentes pra testar geração de card
 app.get('/api/test-card', async (req, res) => {

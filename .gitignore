@@ -57,6 +57,7 @@ files.zip
 # Use settings.json.example / sources.default.json como referência
 backend/settings.json
 backend/sources.json
+backend/allowed-hosts.user.json
 
 # Imagens grandes de referência de design
 modelo modal admin.png

@@ -5571,7 +5571,10 @@ async function deletarFonte(slug, nome) {
   } catch(e) { toast('Erro ao remover: ' + e.message, 'erro'); }
 }
 
+let _analiseImageHosts = [];   // hosts de imagem detectados na análise (repassados ao salvar)
+
 async function analisarFonte() {
+  const escH = s => String(s || '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   const url = document.getElementById('mf-analyze-url').value.trim();
   if (!url) { toast('Cole uma URL para analisar', 'erro'); return; }
 
@@ -5607,16 +5610,25 @@ async function analisarFonte() {
       document.getElementById('mf-imageSelector').value = d.scraping.imageSelector || '';
     }
     toggleScrapingFields();
+    _analiseImageHosts = Array.isArray(d.image_hosts) ? d.image_hosts : [];
+
+    const previewHtml = (d.preview && d.preview.length)
+      ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1">`
+        + `<div style="font-weight:600;margin-bottom:4px">🗞️ Prévia da coleta (${d.preview_count} de teste):</div>`
+        + d.preview.map(p => `<div style="display:flex;gap:6px;align-items:start;margin-bottom:3px"><span>${p.has_image ? '🖼️' : '▫️'}</span><span style="flex:1">${escH(p.title)}</span></div>`).join('')
+        + `</div>`
+      : (d.rss_url ? `<div style="margin-top:6px;color:#b45309">⚠️ Feed encontrado, mas a coleta de teste não trouxe artigos — confira a URL.</div>` : '');
 
     resultDiv.innerHTML = [
-      `<div style="color:#166534;font-weight:600;margin-bottom:4px">✅ Análise concluída — revise os campos antes de salvar</div>`,
-      `<div>📰 Nome: <b>${d.name || '—'}</b></div>`,
+      `<div style="color:#166534;font-weight:600;margin-bottom:4px">✅ Análise concluída (IA) — revise os campos antes de salvar</div>`,
+      `<div>📰 Nome: <b>${escH(d.name) || '—'}</b> &nbsp;·&nbsp; 🏷️ Categoria: <b>${escH(d.category) || '—'}</b></div>`,
       d.rss_url
-        ? `<div>✅ RSS encontrado: <code style="font-size:.75rem;background:#f1f5f9;padding:1px 4px;border-radius:3px">${d.rss_url}</code></div>`
-        : `<div>⚠️ RSS não encontrado — tipo: <b>scraping</b>${d.scraping ? ' — item selector: <b>' + d.scraping.itemSelector + '</b>' : ' — seletores não detectados, preencha manualmente'}</div>`,
-      `<div>🎯 Seletor: <b>${d.content_selector || 'nenhum — Readability automático'}</b></div>`,
+        ? `<div>✅ RSS encontrado: <code style="font-size:.75rem;background:#f1f5f9;padding:1px 4px;border-radius:3px">${escH(d.rss_url)}</code></div>`
+        : `<div>⚠️ RSS não encontrado — tipo: <b>scraping</b>${d.scraping ? ' — item selector: <b>' + escH(d.scraping.itemSelector) + '</b>' : ' — seletores não detectados, preencha manualmente'}</div>`,
+      `<div>🎯 Seletor: <b>${escH(d.content_selector) || 'nenhum — Readability automático'}</b></div>`,
       `<div>🖼️ Imagem: ${d.extract_body_image ? '⚠️ og:image suspeita — configurado para extrair do corpo' : '✅ og:image parece confiável'}</div>`,
       d.sample_article_url ? `<div>🧪 URL de teste preenchida — clique em <b>Testar</b> para verificar a extração</div>` : '',
+      previewHtml,
     ].filter(Boolean).join('');
     resultDiv.style.display = 'block';
   } catch (err) {
@@ -5713,6 +5725,11 @@ async function salvarFonte() {
     content_selector:        document.getElementById('mf-content-selector').value.trim()        || null,
     featured_image_selector: document.getElementById('mf-featured-image-selector').value.trim() || null,
   };
+  // Na criação, repassa os domínios de imagem detectados na análise → o backend
+  // libera no proxy automaticamente (evita o 403 de imagem em fonte nova).
+  if (!slugOrig && Array.isArray(_analiseImageHosts) && _analiseImageHosts.length) {
+    body.image_hosts = _analiseImageHosts;
+  }
   if (tipo === 'scraping') {
     const scr = {};
     ['itemSelector','titleSelector','linkSelector','imageSelector','dateSelector','linkFilter'].forEach(k => {
