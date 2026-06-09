@@ -2213,6 +2213,7 @@
             <option value="nacional">Nacional</option><option value="regional">Regional</option>
             <option value="esporte">Esporte</option><option value="governo">Governo</option>
             <option value="prefeitura">Prefeitura</option><option value="agro">Agro</option>
+            <option value="policial">Policial</option><option value="judicial">Judicial</option><option value="geral">Geral</option>
           </select>
         </div>
       </div>
@@ -5598,6 +5599,7 @@ async function analisarFonte() {
                  document.getElementById('mf-slug').value = d.slug;
     if (d.type)  document.getElementById('mf-type').value = d.type;
     if (d.url)   document.getElementById('mf-url').value  = d.url;
+    if (d.category) document.getElementById('mf-category').value = d.category;
     document.getElementById('mf-content-selector').value          = d.content_selector          || '';
     document.getElementById('mf-featured-image-selector').value   = d.featured_image_selector   || '';
     document.getElementById('mf-extract-body-image').checked      = !!d.extract_body_image;
