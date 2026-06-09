@@ -11,6 +11,25 @@ function stripHtml(html) {
   return (html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Decide se vale retentar. Só transitórios REAIS:
+//  - code 1  → "An unknown error" / "reduce the amount of data" (instável da Meta)
+//  - code 2  → "Service temporarily unavailable"
+//  - timeout/erros de rede (ECONNABORTED, ECONNRESET, ETIMEDOUT)
+//  - HTTP 5xx
+// NÃO retenta rate limits de app/usuário (code 4/17/32/341/368/613): a janela é
+// horária, retry rápido só martela a API e piora o bloqueio.
+function isTransientFbError(err) {
+  const code = err.response?.data?.error?.code;
+  if (code === 1 || code === 2) return true;
+  const status = err.response?.status;
+  if (status >= 500 && status < 600) return true;
+  const netCodes = ['ECONNABORTED', 'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN'];
+  if (netCodes.includes(err.code)) return true;
+  return false;
+}
+
 function montarCaption({ chapeu, title, summary, post_url, captionConfig = {} }) {
   const linhas = [];
   if (captionConfig.caption_show_chapeu && chapeu) linhas.push(`📰 ${chapeu.toUpperCase()}`);
@@ -62,35 +81,53 @@ async function publicarFoto(site, imageBuffer, article) {
     captionConfig: article.captionConfig || {},
   });
 
-  const form = new FormData();
-  form.append('source', imageBuffer, { filename: 'card.jpg', contentType: 'image/jpeg' });
-  form.append('caption', caption);
-  form.append('access_token', site.facebook_page_token);
+  // Retry com backoff p/ erros transitórios da Meta (até 3 tentativas: 0s, 3s, 8s).
+  // O FormData é um stream consumido a cada POST, então é reconstruído por tentativa.
+  const MAX_TENTATIVAS = 3;
+  const backoff = [0, 3000, 8000];
+  let ultimoErro;
 
-  try {
-    const r = await axios.post(
-      `${GRAPH}/${site.facebook_page_id}/photos`,
-      form,
-      { headers: form.getHeaders(), timeout: 30000, maxContentLength: Infinity, maxBodyLength: Infinity }
-    );
-    const data = r.data || {};
-    // Constrói URL do post (Facebook não retorna URL pronta no /photos)
-    const postId = data.post_id || data.id;
-    const postUrl = postId ? `https://www.facebook.com/${postId}` : null;
-    return {
-      ok: true,
-      photo_id: data.id,
-      post_id:  data.post_id || null,
-      post_url: postUrl,
-    };
-  } catch (err) {
-    const fbErr = err.response?.data?.error;
-    throw new Error(
-      fbErr
-        ? `Facebook: ${fbErr.message} (code ${fbErr.code}${fbErr.error_subcode ? '/' + fbErr.error_subcode : ''})`
-        : `Facebook: ${err.message}`
-    );
+  for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
+    if (backoff[tentativa - 1]) await sleep(backoff[tentativa - 1]);
+
+    const form = new FormData();
+    form.append('source', imageBuffer, { filename: 'card.jpg', contentType: 'image/jpeg' });
+    form.append('caption', caption);
+    form.append('access_token', site.facebook_page_token);
+
+    try {
+      const r = await axios.post(
+        `${GRAPH}/${site.facebook_page_id}/photos`,
+        form,
+        { headers: form.getHeaders(), timeout: 30000, maxContentLength: Infinity, maxBodyLength: Infinity }
+      );
+      const data = r.data || {};
+      // Constrói URL do post (Facebook não retorna URL pronta no /photos)
+      const postId = data.post_id || data.id;
+      const postUrl = postId ? `https://www.facebook.com/${postId}` : null;
+      return {
+        ok: true,
+        photo_id: data.id,
+        post_id:  data.post_id || null,
+        post_url: postUrl,
+      };
+    } catch (err) {
+      ultimoErro = err;
+      if (tentativa < MAX_TENTATIVAS && isTransientFbError(err)) {
+        const fbErr = err.response?.data?.error;
+        console.warn(`[FB] tentativa ${tentativa}/${MAX_TENTATIVAS} falhou (transitório): ${fbErr ? fbErr.message + ' (code ' + fbErr.code + ')' : err.message} — retentando...`);
+        continue;
+      }
+      break; // erro não-transitório ou última tentativa: desiste
+    }
   }
+
+  const fbErr = ultimoErro.response?.data?.error;
+  throw new Error(
+    fbErr
+      ? `Facebook: ${fbErr.message} (code ${fbErr.code}${fbErr.error_subcode ? '/' + fbErr.error_subcode : ''})`
+      : `Facebook: ${ultimoErro.message}`
+  );
 }
 
 // ─── Publicar imagem no STORY (Stories) da Página ───────────────────────────

@@ -1013,10 +1013,16 @@ async function limparArtigosAntigos() {
   try {
     // Exclui apenas artigos que NÃO foram publicados (sem registro em publications)
     // Artigos publicados são preservados para manter o histórico de publicações.
+    // Também preserva artigos ainda referenciados na autopub_queue: a FK
+    // autopub_queue_article_id_fkey bloqueia o DELETE e, por ser um único comando,
+    // uma única linha em conflito abortava a limpeza inteira (nada era removido).
+    // Esses artigos serão limpos numa rodada futura, depois que resetDiarioFila
+    // remover suas entradas da fila (done/error > 12h). pending/processing seguem.
     const r = await pool.query(
       `DELETE FROM articles
        WHERE published_at < NOW() - INTERVAL '2 days'
-         AND id NOT IN (SELECT DISTINCT article_id FROM publications WHERE article_id IS NOT NULL)`
+         AND id NOT IN (SELECT DISTINCT article_id FROM publications WHERE article_id IS NOT NULL)
+         AND id NOT IN (SELECT article_id FROM autopub_queue WHERE article_id IS NOT NULL)`
     );
     if (r.rowCount > 0) console.log(`[CLEANUP] ${r.rowCount} artigos antigos removidos.`);
   } catch (e) {

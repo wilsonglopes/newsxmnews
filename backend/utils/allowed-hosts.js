@@ -69,6 +69,8 @@ const ALLOWED_HOSTS = [
   // ── CDNs genéricos ───────────────────────────────────────────────────────────
   'cdn.jsdelivr.net',    // Agência Brasil usa este CDN para imagens
   'img.youtube.com',     // thumbnails de vídeos do YouTube (ex: CNN Brasil)
+  's.w.org',             // assets do WordPress.org (featured images da Jovem Pan)
+  'api.telegram.org',    // fotos enviadas pelo bot do Telegram (getFile)
 
   // ── WordPress / Wix CDNs ─────────────────────────────────────────────────────
   'static.wixstatic.com',
