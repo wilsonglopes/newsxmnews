@@ -1,6 +1,7 @@
 'use strict';
 
 const axios = require('axios');
+const { gerarHashtags } = require('./hashtags');
 
 const GRAPH = 'https://graph.facebook.com/v19.0';
 
@@ -10,7 +11,7 @@ function stripHtml(html) {
   return (html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function montarCaption({ chapeu, title, summary, post_url }) {
+function montarCaption({ chapeu, title, summary, post_url, hashtags }) {
   // Caption do Instagram: texto puro, sem markdown.
   // Limit Instagram: 2200 chars.
   const linhas = [];
@@ -25,6 +26,7 @@ function montarCaption({ chapeu, title, summary, post_url }) {
     linhas.push('', `🔗 Leia a matéria completa em:`);
     linhas.push(post_url);
   }
+  if (hashtags) linhas.push('', hashtags.trim());
   return linhas.join('\n').substring(0, 2200);
 }
 
@@ -64,7 +66,9 @@ async function publicar(site, imagePublicUrl, article) {
 
   const igId   = site.instagram_business_account_id;
   const token  = site.facebook_page_token;
-  const caption = montarCaption(article);
+  // Hashtags por IA (mesmo helper do Facebook → cache garante as mesmas tags nas 2 redes).
+  const hashtags = await gerarHashtags({ title: article.title, summary: article.summary });
+  const caption = montarCaption({ ...article, hashtags });
 
   // Etapa 1: cria container de mídia
   let creationId;

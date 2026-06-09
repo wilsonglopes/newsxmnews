@@ -2,6 +2,7 @@
 
 const axios    = require('axios');
 const FormData = require('form-data');
+const { gerarHashtags } = require('./hashtags');
 
 const GRAPH = 'https://graph.facebook.com/v19.0';
 
@@ -73,12 +74,18 @@ async function publicarFoto(site, imageBuffer, article) {
     throw new Error('Página do Facebook não configurada para este site.');
   }
 
+  // Hashtags dinâmicas geradas por IA a partir do tema. Têm prioridade; se a IA
+  // falhar (retorna ''), mantém as hashtags fixas do social_config (retrocompat).
+  const hashtagsIA = await gerarHashtags({ title: article.title, summary: article.summary });
+  const captionConfig = { ...(article.captionConfig || {}) };
+  if (hashtagsIA) captionConfig.caption_hashtags = hashtagsIA;
+
   const caption = montarCaption({
     chapeu:        article.chapeu,
     title:         article.title,
     summary:       article.summary,
     post_url:      article.post_url,
-    captionConfig: article.captionConfig || {},
+    captionConfig,
   });
 
   // Retry com backoff p/ erros transitórios da Meta (até 3 tentativas: 0s, 3s, 8s).
