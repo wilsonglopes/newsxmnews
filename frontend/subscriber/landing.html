@@ -1035,6 +1035,23 @@
       if (d && d.open && !d.contains(e.target)) d.removeAttribute("open");
     });
 
+    // ── Eventos de conversão (Google Analytics) ────────────────────────────────
+    function gaEvent(nome, params) {
+      if (typeof gtag === "function") gtag("event", nome, params || {});
+    }
+
+    // Clique em qualquer botão de WhatsApp — registra de qual seção veio
+    document.querySelectorAll('a[href*="wa.me"]').forEach((link) => {
+      link.addEventListener("click", () => {
+        let local = "outro";
+        if (link.closest(".nav")) local = "nav";
+        else if (link.closest(".hero")) local = "hero";
+        else if (link.closest(".offer")) local = "contato";
+        else if (link.closest("footer")) local = "rodape";
+        gaEvent("clique_whatsapp", { local: local });
+      });
+    });
+
     // Formulário de contato → POST /api/contato (envia ao Telegram do admin)
     const formContato = document.getElementById("form-contato");
     if (formContato) {
@@ -1054,6 +1071,7 @@
           });
           const data = await r.json();
           if (!r.ok) throw new Error(data.error || "Não foi possível enviar.");
+          gaEvent("envio_formulario");
           status.style.color = "#1f9d6b";
           status.textContent = "Mensagem enviada! Retornaremos em breve.";
           formContato.reset();
