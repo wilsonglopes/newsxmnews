@@ -1479,57 +1479,9 @@ app.get('/api/health', async (req, res) => {
   res.status(httpCode).json(status);
 });
 
-// GET /api/proxy-image?url=... → proxy de imagens para contornar hotlink protection
-app.get('/api/proxy-image', async (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).end();
-
-  // Validação básica: deve ser http/https
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    return res.status(400).end();
-  }
-
-  try {
-    const parsed    = new URL(url);
-    const referer   = parsed.origin + '/';
-    const UA        = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-    const response = await axios.get(url, {
-      responseType : 'stream',
-      timeout      : 10000,
-      headers      : {
-        'User-Agent' : UA,
-        'Referer'    : referer,
-        'Accept'     : 'image/webp,image/apng,image/*,*/*;q=0.8',
-      },
-      httpsAgent: agenteSemSSL,
-    });
-
-    const contentType = response.headers['content-type'] || 'image/jpeg';
-    res.set('Content-Type',  contentType);
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.set('Access-Control-Allow-Origin', '*');
-    response.data.pipe(res);
-  } catch (e) {
-    // Fallback CF Worker para domínios bloqueados na Oracle Cloud (sc.gov.br etc)
-    const cfProxy = require('./utils/cf-proxy');
-    if (cfProxy.needsCFProxy(url) && cfProxy.isAvailable()) {
-      try {
-        const resp = await cfProxy.fetchViaCFProxy(url, { responseType: 'arraybuffer', timeout: 20000 });
-        const contentType = resp.headers['content-type'] || 'image/jpeg';
-        res.set('Content-Type',  contentType);
-        res.set('Cache-Control', 'public, max-age=86400');
-        res.set('Access-Control-Allow-Origin', '*');
-        return res.send(Buffer.from(resp.data));
-      } catch (e2) {
-        console.warn(`[proxy-image] CF Worker falhou: ${e2.message} para ${url}`);
-        return res.status(502).end();
-      }
-    }
-    console.warn(`[proxy-image] ${e.message}`);
-    res.status(404).end();
-  }
-});
+// Nota: /api/proxy-image é atendido por routes/image-proxy.js (registrado acima,
+// com validação de allowed-hosts). A rota duplicada sem validação foi removida
+// em 16/06 — era um vetor de SSRF caso a ordem de registro mudasse.
 
 // GET /api/sources → lista de fontes com status (requer login)
 app.get('/api/sources', authMiddleware, (req, res) => {

@@ -94,7 +94,7 @@ Retorne SOMENTE um JSON com:
     res.json(aplicarLimites(resultado));
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
-    console.error(`[ia/rewrite][${provider}]`, msg);
+    console.error('[ia/rewrite][deepseek]', msg);
     res.status(502).json({ error: msg });
   }
 });
@@ -160,7 +160,7 @@ Regras:
       : [];
     res.json({ category_ids: ids });
   } catch (err) {
-    console.error(`[ia/categorize][${provider}]`, err.response?.data?.error?.message || err.message);
+    console.error('[ia/categorize][deepseek]', err.response?.data?.error?.message || err.message);
     res.json({ category_ids: [] });
   }
 });
@@ -203,7 +203,7 @@ Retorne SOMENTE um JSON com:
     res.json(aplicarLimites(resultado));
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
-    console.error(`[ia/gerar][${provider}]`, msg);
+    console.error('[ia/gerar][deepseek]', msg);
     res.status(502).json({ error: msg });
   }
 });
