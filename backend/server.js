@@ -4,6 +4,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const express   = require('express');
 const cors      = require('cors');
+const helmet    = require('helmet');
 const RSSParser = require('rss-parser');
 const cheerio   = require('cheerio');
 const cron      = require('node-cron');
@@ -52,7 +53,31 @@ const rss     = new RSSParser({
 const PORT    = process.env.PORT || 3000;
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
-app.use(cors());
+// ─── Headers de segurança (helmet) ────────────────────────────────────────────
+// CSP desativado: o painel usa JS/CSS inline em todos os HTMLs — CSP estrito quebraria tudo.
+// CORP 'cross-origin': cards e imagens do proxy podem ser embutidos por outros sites (WP dos portais).
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false,
+}));
+
+// ─── CORS restrito aos domínios do próprio sistema ────────────────────────────
+// O frontend usa window.location.origin (mesma origem) nos dois domínios servidos
+// pelo nginx (news.xmnews.com.br e scatto.site). Requisições sem header Origin
+// (curl, Meta, plugin WP, server-to-server) não são afetadas por CORS.
+const CORS_ORIGINS = [
+  'https://news.xmnews.com.br',
+  'https://scatto.site',
+  'https://www.scatto.site',
+  'http://localhost:3002', // dev local
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || CORS_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(null, false); // origem desconhecida: responde sem headers CORS (browser bloqueia)
+  },
+}));
 app.use(express.json({ limit: '20mb' }));
 
 // ─── Landing page pública (raiz do domínio) ───────────────────────────────────
