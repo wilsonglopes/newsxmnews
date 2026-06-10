@@ -14,6 +14,24 @@
     gtag('config', 'G-G3EGY4MS12');
   </script>
 
+  <!-- Meta Pixel Code -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '2250460565708365');
+    fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=2250460565708365&ev=PageView&noscript=1"
+  /></noscript>
+  <!-- End Meta Pixel Code -->
+
   <title>Scatto | Automatize seu portal de notícias</title>
   <meta name="description" content="O Scatto automatiza a operação editorial do seu portal de notícias — coleta, reescrita com IA, publicação no WordPress e distribuição no Facebook, Instagram, WhatsApp e Telegram." />
   <link rel="icon" type="image/png" href="/subscriber/logo_scatto.png" />
@@ -1049,6 +1067,7 @@
         else if (link.closest(".offer")) local = "contato";
         else if (link.closest("footer")) local = "rodape";
         gaEvent("clique_whatsapp", { local: local });
+        if (typeof fbq === "function") fbq("track", "Contact", { local: local });
       });
     });
 
@@ -1072,6 +1091,7 @@
           const data = await r.json();
           if (!r.ok) throw new Error(data.error || "Não foi possível enviar.");
           gaEvent("envio_formulario");
+          if (typeof fbq === "function") fbq("track", "Lead");
           status.style.color = "#1f9d6b";
           status.textContent = "Mensagem enviada! Retornaremos em breve.";
           formContato.reset();
