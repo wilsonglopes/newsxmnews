@@ -155,6 +155,19 @@
   <script>
     const BACKEND = window.location.origin;
 
+    // Personaliza a tela conforme o perfil escolhido na landing (?perfil=admin|usuario).
+    // O login em si é o mesmo — o backend roteia admin→admin.html, usuário→index.html.
+    (() => {
+      const perfil = new URLSearchParams(location.search).get('perfil');
+      if (perfil === 'admin') {
+        const sub = document.querySelector('.logo-sub');
+        const h2  = document.querySelector('.card h2');
+        if (sub) sub.textContent = 'Painel Administrativo';
+        if (h2)  h2.textContent  = 'Acesso administrativo';
+        document.title = 'Scatto — Login administrativo';
+      }
+    })();
+
     // Se já tem token, valida no servidor antes de redirecionar
     // (evita loop infinito se o token estiver expirado ou o servidor fora do ar)
     (async () => {

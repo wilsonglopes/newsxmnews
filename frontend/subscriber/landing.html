@@ -125,6 +125,42 @@
       background: rgba(251,253,255,0.1);
     }
 
+    /* Dropdown "Entrar" (admin / usuário) — usa <details> nativo */
+    .login-dropdown { position: relative; }
+    .login-dropdown > summary {
+      list-style: none;
+      cursor: pointer;
+      gap: 6px;
+    }
+    .login-dropdown > summary::-webkit-details-marker { display: none; }
+    .login-caret { font-size: 11px; transition: transform 180ms ease; }
+    .login-dropdown[open] .login-caret { transform: rotate(180deg); }
+    .login-menu {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      min-width: 230px;
+      background: #ffffff;
+      border: 1px solid rgba(7,17,31,0.10);
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(7,17,31,0.20);
+      padding: 6px;
+      z-index: 60;
+    }
+    .login-menu a {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 11px 13px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #07111f;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .login-menu a small { font-weight: 500; color: #64748b; font-size: 12px; }
+    .login-menu a:hover { background: #f1f5f9; }
+
     .nav-actions {
       display: flex;
       align-items: center;
@@ -625,7 +661,13 @@
         <a href="#contato">Contato</a>
       </div>
       <div class="nav-actions">
-        <a class="nav-login" href="/subscriber/login.html">Entrar</a>
+        <details class="login-dropdown">
+          <summary class="nav-login">Entrar <span class="login-caret" aria-hidden="true">▾</span></summary>
+          <div class="login-menu">
+            <a href="/subscriber/login.html?perfil=usuario">Entrar como usuário<small>Painel do assinante</small></a>
+            <a href="/subscriber/login.html?perfil=admin">Entrar como admin<small>Painel administrativo</small></a>
+          </div>
+        </details>
         <a class="nav-cta" href="mailto:contato@scatto.site?subject=Quero%20conhecer%20o%20Scatto">Falar com a equipe</a>
       </div>
     </div>
@@ -804,6 +846,12 @@
     } else {
       reveals.forEach((el) => el.classList.add("visible"));
     }
+
+    // Fecha o menu "Entrar" ao clicar fora dele
+    document.addEventListener("click", (e) => {
+      const d = document.querySelector(".login-dropdown");
+      if (d && d.open && !d.contains(e.target)) d.removeAttribute("open");
+    });
   </script>
 </body>
 </html>
