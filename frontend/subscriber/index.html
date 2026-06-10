@@ -2299,6 +2299,16 @@ function renderPortaisCheckboxes() {
     });
     container.appendChild(lbl);
   });
+
+  // Com um único portal cadastrado, já vem selecionado (poupa um clique).
+  if (sitesData.length === 1) {
+    const inp = container.querySelector('input[type="checkbox"]');
+    if (inp) {
+      inp.checked = true;
+      inp.closest('label').classList.add('selecionado');
+    }
+  }
+  atualizarBotaoGerar();
 }
 
 function toggleSelecionarTodos() {
