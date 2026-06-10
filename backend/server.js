@@ -1160,6 +1160,9 @@ app.get('/api/settings', (req, res) => {
   } catch { res.json({ ia_provider: 'deepseek' }); }
 });
 
+// Formulário de contato da landing (público — envia ao Telegram do admin)
+app.use('/api/contato', require('./routes/contato'));
+
 // Proxy de imagens (evita bloqueio de hotlink nos portais)
 app.use('/api/proxy-image', require('./routes/image-proxy'));
 

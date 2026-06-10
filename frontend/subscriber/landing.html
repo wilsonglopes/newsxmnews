@@ -612,6 +612,71 @@
       transform: translateY(0);
     }
 
+    .contact-wrap {
+      margin-top: 24px;
+      padding: clamp(28px, 4vw, 44px);
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 18px 45px rgba(7, 17, 31, 0.06);
+    }
+
+    .contact-wrap h3 {
+      color: var(--ink);
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: 28px;
+    }
+
+    .contact-wrap > p {
+      margin-top: 10px;
+      color: var(--muted);
+    }
+
+    .contact {
+      margin-top: 22px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .contact-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .contact input,
+    .contact textarea {
+      width: 100%;
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+    }
+
+    .contact input:focus,
+    .contact textarea:focus {
+      outline: 2px solid var(--blue);
+      outline-offset: 1px;
+    }
+
+    .contact textarea { min-height: 110px; resize: vertical; }
+
+    .contact .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+    .contact .button.primary { min-height: 50px; }
+
+    .contact-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .contact-status { font-size: 14px; font-weight: 700; }
+
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       *, *::before, *::after {
@@ -704,7 +769,7 @@
           <div class="proof-strip" aria-label="Indicadores de operação">
             <div class="proof"><strong>24/7</strong><span>operação monitorada com auto-recuperação</span></div>
             <div class="proof"><strong>3.000+</strong><span>notícias monitoradas por dia</span></div>
-            <div class="proof"><strong>78</strong><span>fontes de notícias integradas</span></div>
+            <div class="proof"><strong>Regional</strong><span>fontes integradas e personalizáveis por portal</span></div>
             <div class="proof"><strong>200/h</strong><span>capacidade de processamento</span></div>
           </div>
         </div>
@@ -773,7 +838,7 @@
           <article class="flow-step reveal">
             <strong>1</strong>
             <h3>Conecta fontes</h3>
-            <p>RSS, sitemaps, APIs, scraping e fontes regionais entram em um fluxo único.</p>
+            <p>Cada portal cadastra as fontes da sua região — RSS, sitemaps, APIs e scraping num fluxo único.</p>
           </article>
           <article class="flow-step reveal">
             <strong>2</strong>
@@ -789,6 +854,35 @@
             <strong>4</strong>
             <h3>Distribui e monitora</h3>
             <p>Cards no Facebook, Instagram, WhatsApp e Telegram, com alertas e histórico fechando o ciclo.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="modos">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <p class="kicker">Você no controle</p>
+            <h2>Do 100% automático ao publicado à mão. Você decide.</h2>
+          </div>
+          <p class="lead">O Scatto trabalha sozinho quando você quer escala — e te entrega o controle quando a pauta pede cuidado.</p>
+        </div>
+        <div class="pain-grid">
+          <article class="pain-card reveal">
+            <span class="num">AUTOMÁTICO</span>
+            <h3>Publicação automática</h3>
+            <p>Ligue a autopublicação e o sistema coleta, reescreve com IA e publica sozinho, 24/7, nos portais e redes que você escolher — com fila que protege seu WordPress.</p>
+          </article>
+          <article class="pain-card reveal">
+            <span class="num">ASSISTIDO</span>
+            <h3>Publicação com revisão</h3>
+            <p>Prefere conferir antes? A IA prepara chapéu, título, resumo e imagem; você revisa, ajusta e publica com um clique no portal certo.</p>
+          </article>
+          <article class="pain-card reveal">
+            <span class="num">MANUAL</span>
+            <h3>Postagem manual com IA</h3>
+            <p>Crie uma matéria do zero a partir de um tema: a IA escreve o texto completo, você ajusta e publica no WordPress e nas redes — sem depender de fonte externa.</p>
           </article>
         </div>
       </div>
@@ -827,6 +921,27 @@
             <div class="offer-line">Plano de implantação guiada</div>
             <div class="offer-line">Suporte para equipe editorial</div>
           </div>
+        </div>
+
+        <div class="contact-wrap reveal">
+          <h3>Fale com a gente</h3>
+          <p>Preencha e retornamos pelo canal que você preferir. Sem compromisso.</p>
+          <form class="contact" id="form-contato">
+            <div class="contact-row">
+              <input type="text" name="nome" placeholder="Seu nome *" required maxlength="120" autocomplete="name" />
+              <input type="text" name="portal" placeholder="Seu portal ou cidade" maxlength="120" />
+            </div>
+            <div class="contact-row">
+              <input type="email" name="email" placeholder="E-mail" maxlength="160" autocomplete="email" />
+              <input type="tel" name="telefone" placeholder="WhatsApp / telefone" maxlength="40" autocomplete="tel" />
+            </div>
+            <textarea name="mensagem" placeholder="Conte rapidamente o que você precisa" maxlength="1000"></textarea>
+            <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+            <div class="contact-actions">
+              <button type="submit" class="button primary" id="btn-contato">Enviar mensagem</button>
+              <span class="contact-status" id="contato-status" role="status" aria-live="polite"></span>
+            </div>
+          </form>
         </div>
       </div>
     </section>
@@ -867,6 +982,38 @@
       const d = document.querySelector(".login-dropdown");
       if (d && d.open && !d.contains(e.target)) d.removeAttribute("open");
     });
+
+    // Formulário de contato → POST /api/contato (envia ao Telegram do admin)
+    const formContato = document.getElementById("form-contato");
+    if (formContato) {
+      formContato.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("btn-contato");
+        const status = document.getElementById("contato-status");
+        const dados = Object.fromEntries(new FormData(formContato).entries());
+        btn.disabled = true;
+        btn.textContent = "Enviando…";
+        status.textContent = "";
+        try {
+          const r = await fetch("/api/contato", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dados),
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || "Não foi possível enviar.");
+          status.style.color = "#1f9d6b";
+          status.textContent = "Mensagem enviada! Retornaremos em breve.";
+          formContato.reset();
+        } catch (err) {
+          status.style.color = "#dc2626";
+          status.textContent = err.message + " Se preferir, escreva para contato@scatto.site.";
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Enviar mensagem";
+        }
+      });
+    }
   </script>
 </body>
 </html>
