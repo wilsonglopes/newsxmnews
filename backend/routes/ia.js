@@ -12,6 +12,11 @@ router.use(auth);
 const REGRA_ANTICOPIA = `
 REGRA INVIOLÁVEL DE REESCRITA: PROIBIDO copiar frases ou trechos do texto original. Cada frase deve ser completamente reformulada com palavras e estruturas de frases diferentes. Escreva como se você conhecesse os fatos mas nunca tivesse lido o texto original — use seu próprio vocabulário e estilo jornalístico.`;
 
+// Regra de idioma — injetada após o prompt (mesmo quando há ai_prompt customizado).
+// Permite usar fontes/briefings em qualquer idioma: a saída é SEMPRE PT-BR.
+const REGRA_IDIOMA = `
+REGRA DE IDIOMA: Se o texto/briefing fornecido estiver em idioma diferente do português, TRADUZA e escreva a matéria diretamente em português do Brasil, com naturalidade jornalística — nunca tradução literal. Converta unidades para o padrão brasileiro (milhas→km, °F→°C, libras→kg), mantenha valores em moeda estrangeira com contexto (ex: "US$ 100"), e adapte referências culturais quando necessário. TODOS os campos do JSON (chapeu, titulo, resumo, corpo, tags) devem sair 100% em português do Brasil — nenhuma palavra do idioma original deve permanecer, exceto nomes próprios.`;
+
 function truncarSemEspacos(str, maxChars) {
   if (!str) return str;
   let count = 0;
@@ -65,7 +70,7 @@ router.post('/rewrite', async (req, res) => {
 Retorne SOMENTE um JSON com:
 { "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com <p> — OBRIGATÓRIO: mantenha extensão proporcional ao original; cubra TODOS os pontos e detalhes presentes no texto; use no mínimo ${nParas} parágrafos; NÃO comprima nem resuma em excesso), "tags": string[] }.`;
 
-  const promptSistema = promptBase + REGRA_ANTICOPIA;
+  const promptSistema = promptBase + REGRA_ANTICOPIA + REGRA_IDIOMA;
 
   try {
     const deepseekKey = process.env.DEEPSEEK_KEY || '';
@@ -172,10 +177,11 @@ router.post('/gerar', async (req, res) => {
   const { tema = '', ai_prompt = '' } = req.body;
   if (!tema || !tema.trim()) return res.status(400).json({ error: 'Forneça o tema do artigo.' });
 
-  const promptSistema = ai_prompt ||
+  const promptSistema = (ai_prompt ||
     `Você é um jornalista profissional. Com base no briefing fornecido, escreva um artigo jornalístico completo, original e informativo.
 Retorne SOMENTE um JSON com:
-{ "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com pelo menos 4 parágrafos em <p>), "tags": string[] }.`;
+{ "chapeu": string(EXATAMENTE 1 palavra MAIÚSCULA autossuficiente — substantivo único como categoria, ex: "ECONOMIA", "POLÍTICA", "ESPORTES", "INDÚSTRIA", "SAÚDE". NUNCA use frases truncadas como "INDÚSTRIA DE" ou "MINISTÉRIO DA"), "titulo": string(máx 90 caracteres sem contar espaços), "resumo": string(uma frase única curta e completa, máx 130 caracteres, OBRIGATORIAMENTE terminando com ponto final, com sentido completo por si só — NÃO truncar palavra), "corpo": string(HTML com pelo menos 4 parágrafos em <p>), "tags": string[] }.`)
+    + REGRA_IDIOMA;
 
   try {
     const deepseekKey = process.env.DEEPSEEK_KEY || '';
