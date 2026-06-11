@@ -296,14 +296,19 @@ router.post('/', async (req, res) => {
       try {
         let waCardUrl = null;
         if (article.image_url) {
-          const { gerarCardComUrl } = require('../utils/card-generator');
-          const r = await gerarCardComUrl({
-            chapeu:     rewritten.chapeu || article.chapeu || '',
-            titulo:     rewritten.title  || article.title  || '',
-            imageUrl:   article.image_url,
-            cardConfig: site.social_config || {},
-          });
-          waCardUrl = r.publicUrl; waFpath = r.fpath;
+          // Card falhou? WhatsApp degrada para texto+link (FB/IG sem card não publicam)
+          try {
+            const { gerarCardComUrl } = require('../utils/card-generator');
+            const r = await gerarCardComUrl({
+              chapeu:     rewritten.chapeu || article.chapeu || '',
+              titulo:     rewritten.title  || article.title  || '',
+              imageUrl:   article.image_url,
+              cardConfig: site.social_config || {},
+            });
+            waCardUrl = r.publicUrl; waFpath = r.fpath;
+          } catch (cardErr) {
+            console.warn(`[publish/whatsapp] card indisponível, enviando só texto+link: ${cardErr.message}`);
+          }
         }
         const r = await wa.publicarNosGrupos(site, {
           chapeu:  rewritten.chapeu || article.chapeu,

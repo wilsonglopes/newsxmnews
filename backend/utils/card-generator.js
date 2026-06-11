@@ -417,27 +417,11 @@ async function gerarCard({ chapeu, titulo, imageUrl, cardConfig = {}, layoutOver
       .jpeg({ quality: 95 })
       .toBuffer();
   } catch (err) {
+    // REGRA: card sem foto NUNCA é publicado (era pior postar gradiente vazio do que
+    // não postar — caso Pref. Araranguá 11/06: emoji ⚠️ como imagem → card sem foto no FB/IG).
+    // O erro propaga; cada caminho de publicação tem try/catch que pula o social e loga.
     console.warn(`[card-generator] falha ao baixar imagem "${imageUrl}": ${err.message}`);
-    // Fallback: gradiente azul-escuro (melhor visual que cinza sólido)
-    fotoBuffer = await sharp({
-      create: { width: foto.w, height: foto.h, channels: 3, background: '#0f172a' },
-    })
-      .composite([{
-        input: Buffer.from(
-          `<svg width="${foto.w}" height="${foto.h}" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#1e3a5f"/>
-                <stop offset="100%" stop-color="#0f172a"/>
-              </linearGradient>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#g)"/>
-          </svg>`
-        ),
-        top: 0, left: 0,
-      }])
-      .png()
-      .toBuffer();
+    throw new Error(`Card abortado — imagem indisponível (${err.message}). Social não será publicado sem foto.`);
   }
 
   // 2) Cria canvas 1600×2000 com a foto na posição definida pelo layout

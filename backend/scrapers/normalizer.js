@@ -219,6 +219,20 @@ function normalizeBody(html, sourceUrl) {
 }
 
 // ─── Extração de imagem ───────────────────────────────────────────────────────
+
+// Imagens que NUNCA devem virar imagem destacada do artigo.
+// Caso real (11/06): WordPress converte emoji do texto em <img src="s.w.org/.../72x72/26a0.png">
+// → virava image_url → featured errada no WP e card sem foto no FB/IG.
+function imagemIndesejadaNoCorpo(src, classAttr = '') {
+  if (/s\.w\.org\/images\/core\/emoji\//i.test(src)) return true; // CDN de emojis do WordPress
+  if (/\/emojis?\//i.test(src))                      return true; // outros CDNs de emoji
+  if (/wp-smiley|emoji/i.test(classAttr))            return true; // classe padrão do WP para emoji
+  if (/\.svg(\?|$)/i.test(src))                      return true; // ícones vetoriais
+  if (/gravatar\.com/i.test(src))                    return true; // avatares de autor
+  if (/\/(1x1|pixel|spacer|blank)\.(png|gif)/i.test(src)) return true; // pixels de tracking
+  return false;
+}
+
 function extractFirstImage(html) {
   if (!html) return null;
   try {
@@ -226,10 +240,12 @@ function extractFirstImage(html) {
     let found = null;
     $('img').each((_, el) => {
       const src    = $(el).attr('src') || '';
+      const cls    = $(el).attr('class') || '';
       const width  = parseInt($(el).attr('width')  || '0', 10);
       const height = parseInt($(el).attr('height') || '0', 10);
       if (width  > 0 && width  < 100) return;
       if (height > 0 && height < 100) return;
+      if (imagemIndesejadaNoCorpo(src, cls)) return;
       if (src && (src.startsWith('http') || src.startsWith('//'))) {
         found = src;
         return false; // break

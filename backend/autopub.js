@@ -580,14 +580,20 @@ async function processarItem(item) {
     try {
       let waCardUrl = null;
       if (artigo.image_url) {
-        const { gerarCardComUrl } = require('./utils/card-generator');
-        const r = await gerarCardComUrl({
-          chapeu:     reescrito.chapeu || artigo.chapeu || '',
-          titulo:     reescrito.title  || artigo.title  || '',
-          imageUrl:   artigo.image_url,
-          cardConfig: site.social_config || {},
-        });
-        waCardUrl = r.publicUrl; waFpath = r.fpath;
+        // Card falhou (ex: imagem indisponível)? WhatsApp degrada para texto+link
+        // — diferente de FB/IG, onde sem card não se publica.
+        try {
+          const { gerarCardComUrl } = require('./utils/card-generator');
+          const r = await gerarCardComUrl({
+            chapeu:     reescrito.chapeu || artigo.chapeu || '',
+            titulo:     reescrito.title  || artigo.title  || '',
+            imageUrl:   artigo.image_url,
+            cardConfig: site.social_config || {},
+          });
+          waCardUrl = r.publicUrl; waFpath = r.fpath;
+        } catch (cardErr) {
+          console.warn(`[WORKER/WA] card indisponível, enviando só texto+link: ${cardErr.message}`);
+        }
       }
       const r = await wa.publicarNosGrupos(site, {
         chapeu:  reescrito.chapeu, titulo: reescrito.title, resumo: reescrito.summary,
