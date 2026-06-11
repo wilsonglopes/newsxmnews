@@ -4616,7 +4616,7 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
     // Monta status das redes sociais
     const fbOk = data.facebook?.ok;
     const igOk = data.instagram?.ok;
-    const socialMsg = publishToFb
+    const socialMsg = (fbFeed || fbStory)
       ? (fbOk ? ` ✔ FB${igOk ? '+IG' : ''}` : ' ⚠️ FB falhou')
       : '';
 
