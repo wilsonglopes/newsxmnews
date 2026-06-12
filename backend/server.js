@@ -1097,6 +1097,19 @@ const { limparCardsAntigos } = require('./utils/card-generator');
 cron.schedule('0 3 * * *', () => limparCardsAntigos(7));
 limparCardsAntigos(7); // roda na inicialização também
 
+// 📺 Vídeos do YouTube — migrations no boot + coleta/rotação horária
+// Aditivo e isolado: falha aqui nunca derruba o servidor (try/catch próprio)
+if (pool) {
+  try {
+    const yt = require('./youtube-videos');
+    yt.migrar().catch(e => console.error('[youtube] migrar:', e.message));
+    cron.schedule('10 * * * *', () => yt.rodada()); // min 10 de cada hora (fora do pico dos outros crons)
+    console.log('[youtube] Coleta/rotação de vídeos ativa — a cada hora (min 10).');
+  } catch (e) {
+    console.error('[youtube] módulo desativado:', e.message);
+  }
+}
+
 // ─── Monitor de saúde ─────────────────────────────────────────────────────────
 // Só ativa se banco configurado e MONITOR_CHAT_ID definido no .env
 if (pool && process.env.MONITOR_CHAT_ID) {
@@ -1171,6 +1184,9 @@ app.use('/api/admin/sites-catalog', require('./routes/sites-catalog'));
 
 // WhatsApp (Evolution) — conexão/QR/status por portal (admin)
 app.use('/api/admin/whatsapp', require('./routes/whatsapp'));
+
+// 📺 Vídeos do YouTube — canais por portal + rotação de slots (admin)
+app.use('/api/admin/youtube', require('./routes/youtube'));
 
 // ─── Templates de card (admin) ────────────────────────────────────────────────
 // Dimensões obrigatórias do template — as coordenadas de chapéu/texto são fixas.
