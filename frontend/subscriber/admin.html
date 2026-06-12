@@ -1870,6 +1870,7 @@
         <button type="button" class="mcat-tabbtn"        data-tab="redes"   onclick="mcatTab('redes')">📡 Redes sociais</button>
         <button type="button" class="mcat-tabbtn"        data-tab="card"    onclick="mcatTab('card')">🎨 Card</button>
         <button type="button" class="mcat-tabbtn"        data-tab="autopub" onclick="mcatTab('autopub')">⚙️ Autopublicação</button>
+        <button type="button" class="mcat-tabbtn"        data-tab="videos"  onclick="mcatTab('videos'); ytAbaCarregar()">📺 Vídeos</button>
       </div>
 
       <!-- ═══════ ABA: GERAL ═══════ -->
@@ -2104,6 +2105,47 @@
         </div>
       </div>
       </div><!-- /aba autopub -->
+
+      <!-- ═══════ ABA: VÍDEOS DO YOUTUBE ═══════ -->
+      <div class="mcat-tab" data-tab="videos" style="display:none">
+        <div id="mcat-yt-salvar-primeiro" style="display:none;padding:14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;color:#92400e;font-size:.85rem">
+          💾 Salve o site primeiro — depois reabra para configurar os canais do YouTube.
+        </div>
+        <div id="mcat-yt-wrap" style="display:none">
+          <div style="border:1px solid #fca5a5;border-radius:8px;overflow:hidden;margin-top:4px">
+            <div style="padding:12px 14px;background:#fef2f2">
+              <div style="font-weight:600;color:#991b1b">📺 Canais do YouTube deste portal</div>
+              <div style="font-size:.78rem;color:#b91c1c;margin-top:4px">
+                A cada hora o sistema busca vídeos novos e rotaciona os slots no site.
+                Exiba com o shortcode <code style="background:#fff;padding:1px 5px;border-radius:4px">[portal_videos]</code> (requer plugin v2.2.0+).
+              </div>
+            </div>
+            <div style="padding:12px 14px;background:#fff;border-top:1px solid #fca5a5">
+              <div style="display:flex;gap:8px;margin-bottom:10px">
+                <input type="text" id="mcat-yt-url" placeholder="Cole a URL ou @handle do canal (ex: @JovemPanNews)"
+                       style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:.85rem" />
+                <button type="button" class="btn btn-primary btn-sm" id="mcat-yt-add" onclick="ytAddCanal()">+ Adicionar</button>
+              </div>
+              <div id="mcat-yt-canais" style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:.82rem;color:var(--muted)">Carregando canais…</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:14px">
+            <div style="padding:10px 14px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div>
+                <span style="font-weight:600">🎬 Slots atuais no site</span>
+                <span id="mcat-yt-updated" style="font-size:.76rem;color:var(--muted);margin-left:8px"></span>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="mcat-yt-run" onclick="ytRodarAgora()">🔄 Rodar agora</button>
+            </div>
+            <div id="mcat-yt-slots" style="padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+              <span style="font-size:.82rem;color:var(--muted)">—</span>
+            </div>
+          </div>
+        </div>
+      </div><!-- /aba videos -->
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="fecharModal('modal-catalog')">Cancelar</button>
@@ -5185,6 +5227,136 @@ function mcatTab(nome) {
   });
   const body = document.querySelector('#modal-catalog .modal-body');
   if (body) body.scrollTop = 0;
+}
+
+// ══ ABA VÍDEOS DO YOUTUBE (modal do site) ════════════════════════════════════
+function ytEsc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function ytAbaCarregar() {
+  const catalogId = document.getElementById('mcat-id').value;
+  const aviso = document.getElementById('mcat-yt-salvar-primeiro');
+  const wrap  = document.getElementById('mcat-yt-wrap');
+  if (!catalogId) { aviso.style.display = ''; wrap.style.display = 'none'; return; }
+  aviso.style.display = 'none'; wrap.style.display = '';
+  ytCarregarCanais(); ytCarregarSlots();
+}
+
+async function ytCarregarCanais() {
+  const catalogId = document.getElementById('mcat-id').value;
+  const lista = document.getElementById('mcat-yt-canais');
+  try {
+    const canais = await fetch(`${BACKEND}/api/admin/youtube/channels?catalog_id=${catalogId}`, { headers: authHeader() }).then(r => r.json());
+    if (!Array.isArray(canais) || !canais.length) {
+      lista.innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Nenhum canal cadastrado ainda — cole a URL acima.</span>';
+      return;
+    }
+    lista.innerHTML = canais.map(c => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:${c.active ? '#fff' : '#f8fafc'}">
+        <span style="flex:1;font-size:.85rem;${c.active ? '' : 'color:var(--muted);text-decoration:line-through'}">📺 ${ytEsc(c.name || c.channel_id)}</span>
+        <button type="button" class="btn btn-ghost btn-sm" data-id="${c.id}" data-active="${c.active}" onclick="ytToggleCanal(this)">${c.active ? '⏸ Pausar' : '▶ Ativar'}</button>
+        <button type="button" class="btn btn-ghost btn-sm" style="color:#b91c1c" data-id="${c.id}" onclick="ytDelCanal(this)">🗑</button>
+      </div>`).join('');
+  } catch (e) {
+    lista.innerHTML = `<span style="font-size:.82rem;color:#b91c1c">Erro ao carregar canais: ${ytEsc(e.message)}</span>`;
+  }
+}
+
+async function ytAddCanal() {
+  const catalogId = document.getElementById('mcat-id').value;
+  const input = document.getElementById('mcat-yt-url');
+  const btn   = document.getElementById('mcat-yt-add');
+  const url   = input.value.trim();
+  if (!url) { toast('Cole a URL ou @handle do canal.', 'aviso'); return; }
+  btn.disabled = true; btn.textContent = 'Resolvendo…';
+  try {
+    const res  = await fetch(`${BACKEND}/api/admin/youtube/channels`, {
+      method: 'POST', headers: authHeader(),
+      body: JSON.stringify({ catalog_id: catalogId, url })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao adicionar canal.');
+    toast(`Canal "${data.name}" adicionado (${data.videos_no_feed} vídeos no feed)!`, 'sucesso');
+    input.value = '';
+    ytCarregarCanais();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = '+ Adicionar';
+  }
+}
+
+async function ytToggleCanal(el) {
+  const novo = el.dataset.active !== 'true';
+  try {
+    await fetch(`${BACKEND}/api/admin/youtube/channels/${el.dataset.id}`, {
+      method: 'PATCH', headers: authHeader(), body: JSON.stringify({ active: novo })
+    });
+    ytCarregarCanais();
+  } catch (e) { toast('Erro: ' + e.message, 'erro'); }
+}
+
+async function ytDelCanal(el) {
+  if (!confirm('Remover este canal do portal?')) return;
+  try {
+    await fetch(`${BACKEND}/api/admin/youtube/channels/${el.dataset.id}`, { method: 'DELETE', headers: authHeader() });
+    ytCarregarCanais();
+  } catch (e) { toast('Erro: ' + e.message, 'erro'); }
+}
+
+async function ytCarregarSlots() {
+  const catalogId = document.getElementById('mcat-id').value;
+  const grid = document.getElementById('mcat-yt-slots');
+  const upd  = document.getElementById('mcat-yt-updated');
+  try {
+    const sel = await fetch(`${BACKEND}/api/admin/youtube/selection/${catalogId}`, { headers: authHeader() }).then(r => r.json());
+    const videos = sel.videos || [];
+    upd.textContent = sel.updated_at
+      ? 'Última rotação: ' + new Date(sel.updated_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+      : '';
+    if (!videos.length) {
+      grid.innerHTML = '<span style="font-size:.82rem;color:var(--muted)">Nenhuma rotação ainda — adicione canais e clique em "Rodar agora".</span>';
+      return;
+    }
+    grid.innerHTML = videos.map((v, i) => `
+      <a href="https://www.youtube.com/watch?v=${ytEsc(v.video_id)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+        <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#fff">
+          <img src="${ytEsc(v.thumbnail || ('https://i.ytimg.com/vi/' + v.video_id + '/hqdefault.jpg'))}" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block" />
+          <div style="padding:6px 8px">
+            <div style="font-size:.7rem;color:var(--muted)">Slot ${i + 1} · ${ytEsc(v.channel_name || '')}</div>
+            <div style="font-size:.76rem;font-weight:600;line-height:1.25;max-height:2.5em;overflow:hidden">${ytEsc(v.title || v.video_id)}</div>
+          </div>
+        </div>
+      </a>`).join('');
+  } catch (e) {
+    grid.innerHTML = `<span style="font-size:.82rem;color:#b91c1c">Erro: ${ytEsc(e.message)}</span>`;
+  }
+}
+
+async function ytRodarAgora() {
+  const catalogId = document.getElementById('mcat-id').value;
+  const btn = document.getElementById('mcat-yt-run');
+  btn.disabled = true; btn.textContent = 'Rodando…';
+  try {
+    const res  = await fetch(`${BACKEND}/api/admin/youtube/run`, {
+      method: 'POST', headers: authHeader(), body: JSON.stringify({ catalog_id: catalogId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro na rotação.');
+    if (!data.videos?.length) {
+      toast('Sem vídeos para rotacionar — cadastre canais primeiro.', 'aviso');
+    } else if (data.push?.pushed) {
+      toast(`Rotação feita e ${data.videos.length} vídeos enviados ao site!`, 'sucesso');
+    } else {
+      toast(`Rotação feita (${data.videos.length} vídeos). Push não realizado: ${data.push?.motivo || 'plugin v2.2.0 necessário'}.`, 'aviso');
+    }
+    ytCarregarSlots();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = '🔄 Rodar agora';
+  }
 }
 
 async function abrirModalCatalog(siteId) {
