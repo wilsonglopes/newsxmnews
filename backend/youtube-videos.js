@@ -22,9 +22,11 @@ const rss = new RSSParser({ timeout: 15000 });
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-// Quantos slots cada portal exibe e tamanho do pool de sorteio
-const SLOTS     = 4;
-const POOL_SIZE = 12;
+// Quantos slots cada portal exibe e quantos vídeos recentes POR CANAL entram no pool.
+// 3 slots = 1 linha no site (4 quebrava em 2 linhas — pedido do Wilson 12/06).
+// Pool por canal (e não global) garante que canais que postam pouco também apareçam.
+const SLOTS               = 3;
+const RECENTES_POR_CANAL  = 3;
 
 // ─── Migrations (idempotentes, individuais — padrão tryMigrate) ───────────────
 async function tryMigrate(sql, label) {
@@ -155,14 +157,16 @@ function embaralhar(arr) {
 }
 
 async function rotacionarPortal(catalogId) {
-  // Pool: vídeos mais recentes dos canais ativos deste portal
+  // Pool: os N vídeos mais recentes DE CADA canal ativo (não global) —
+  // canal que posta muito não domina; canal que posta pouco também aparece.
   const { rows: pool_ } = await pool.query(
-    `SELECT v.video_id, v.title, v.channel_id, v.published_at, c.name AS channel_name
-     FROM youtube_videos v
-     JOIN youtube_channels c ON c.channel_id = v.channel_id AND c.catalog_id = $1 AND c.active = true
-     ORDER BY v.published_at DESC NULLS LAST
-     LIMIT $2`,
-    [catalogId, POOL_SIZE]
+    `SELECT video_id, title, channel_id, published_at, channel_name FROM (
+       SELECT v.video_id, v.title, v.channel_id, v.published_at, c.name AS channel_name,
+              ROW_NUMBER() OVER (PARTITION BY v.channel_id ORDER BY v.published_at DESC NULLS LAST) AS rn
+       FROM youtube_videos v
+       JOIN youtube_channels c ON c.channel_id = v.channel_id AND c.catalog_id = $1 AND c.active = true
+     ) t WHERE rn <= $2`,
+    [catalogId, RECENTES_POR_CANAL]
   );
   if (!pool_.length) return null; // sem vídeos → mantém o que estiver no site
 
@@ -172,10 +176,23 @@ async function rotacionarPortal(catalogId) {
   );
   const prevIds = new Set((prevRows[0]?.videos || []).map(v => v.video_id));
 
-  // Sorteia: prioriza vídeos fora da seleção anterior; completa com o restante
-  const foraDaAnterior = embaralhar(pool_.filter(v => !prevIds.has(v.video_id)));
-  const daAnterior     = embaralhar(pool_.filter(v =>  prevIds.has(v.video_id)));
-  const escolhidos     = [...foraDaAnterior, ...daAnterior].slice(0, SLOTS).map(v => ({
+  // Sorteia priorizando: (1) vídeos fora da seleção anterior, (2) diversidade de canais
+  const candidatos = [
+    ...embaralhar(pool_.filter(v => !prevIds.has(v.video_id))),
+    ...embaralhar(pool_.filter(v =>  prevIds.has(v.video_id))),
+  ];
+  const sorteados     = [];
+  const canaisUsados  = new Set();
+  for (const v of candidatos) { // 1ª passada: um vídeo por canal
+    if (sorteados.length >= SLOTS) break;
+    if (canaisUsados.has(v.channel_id)) continue;
+    sorteados.push(v); canaisUsados.add(v.channel_id);
+  }
+  for (const v of candidatos) { // 2ª passada: completa se houver menos canais que slots
+    if (sorteados.length >= SLOTS) break;
+    if (!sorteados.includes(v)) sorteados.push(v);
+  }
+  const escolhidos = sorteados.map(v => ({
     video_id:     v.video_id,
     title:        v.title,
     channel_name: v.channel_name,
