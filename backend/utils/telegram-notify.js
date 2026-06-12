@@ -24,7 +24,10 @@ const axios = require('axios');
  * @param {object} [opts]  - Opções extras para a API sendMessage
  */
 async function notifyAdmin(text, opts = {}) {
-  const token  = process.env.TELEGRAM_BOT_TOKEN;
+  // Bot dedicado de avisos (MONITOR_BOT_TOKEN) separa alertas/contatos do
+  // @PortalNewsBot, que fica exclusivo para o fluxo de postagem de notícias.
+  // Fallback para TELEGRAM_BOT_TOKEN mantém compatibilidade se não configurado.
+  const token  = process.env.MONITOR_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.MONITOR_CHAT_ID;
 
   if (!token || !chatId) return; // monitor não configurado — ignora silenciosamente
