@@ -193,6 +193,31 @@ async function rotacionarPortal(catalogId) {
   return escolhidos;
 }
 
+// ─── Push: envia a seleção rotacionada para o WordPress do portal ─────────────
+// Plugin Portal Publisher v2.2.0+ — endpoint xmn/v1/videos guarda em wp_option
+// e o shortcode [portal_videos] renderiza localmente (sem depender do nosso uptime).
+const https = require('https');
+const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
+
+async function pushParaSite(catalogId, videos) {
+  const { rows } = await pool.query(
+    `SELECT name, site_url, xixo_api_key FROM sites_catalog WHERE id = $1 AND active = true`,
+    [catalogId]
+  );
+  const site = rows[0];
+  if (!site?.site_url || !site?.xixo_api_key) return { pushed: false, motivo: 'site sem URL ou chave do plugin' };
+
+  const baseUrl = site.site_url.replace(/\/$/, '');
+  const r = await axios.post(`${baseUrl}/wp-json/xmn/v1/videos`, { videos }, {
+    timeout: 20000,
+    httpsAgent: HTTPS_AGENT,
+    headers: { 'Content-Type': 'application/json', 'X-XMNews-Key': site.xixo_api_key },
+  });
+  if (!r.data?.success) throw new Error(r.data?.error || 'resposta inesperada do plugin');
+  console.log(`[youtube] ✓ ${videos.length} vídeos enviados para ${site.name}`);
+  return { pushed: true, site: site.name };
+}
+
 async function rotacionarTodos() {
   const { rows: portais } = await pool.query(
     `SELECT DISTINCT catalog_id FROM youtube_channels WHERE active = true AND catalog_id IS NOT NULL`
@@ -201,7 +226,12 @@ async function rotacionarTodos() {
   for (const p of portais) {
     try {
       const sel = await rotacionarPortal(p.catalog_id);
-      if (sel) ok++;
+      if (sel) {
+        ok++;
+        // Push é best-effort: plugin antigo (sem /videos) ou site fora do ar não param a rodada
+        try { await pushParaSite(p.catalog_id, sel); }
+        catch (e) { console.warn(`[youtube] push falhou para ${p.catalog_id}: ${e.message}`); }
+      }
     } catch (e) {
       console.warn(`[youtube] rotação falhou para ${p.catalog_id}: ${e.message}`);
     }
@@ -227,4 +257,4 @@ async function rodada() {
   }
 }
 
-module.exports = { migrar, resolverChannelId, coletarCanal, coletarTodos, rotacionarPortal, rotacionarTodos, rodada, SLOTS };
+module.exports = { migrar, resolverChannelId, coletarCanal, coletarTodos, rotacionarPortal, rotacionarTodos, pushParaSite, rodada, SLOTS };

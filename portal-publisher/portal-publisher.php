@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Portal Publisher
  * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     2.1.0
+ * Version:     2.2.0
  * Author:      XMNews Publisher
  * Text Domain: portal-publisher
  */
@@ -175,6 +175,69 @@ add_action( 'rest_api_init', function () {
         'callback'            => 'xmn_handle_categories',
         'permission_callback' => '__return_true',
     ] );
+    // v2.2.0 — recebe a seleção de vídeos do YouTube (rotação de slots)
+    register_rest_route( 'xmn/v1', '/videos', [
+        'methods'             => 'POST',
+        'callback'            => 'xmn_handle_videos',
+        'permission_callback' => '__return_true',
+    ] );
+} );
+
+// ── POST /wp-json/xmn/v1/videos — recebe os vídeos rotacionados (v2.2.0) ──────
+// O backend EMPURRA a seleção a cada rotação; o site renderiza do banco local
+// via shortcode [portal_videos] — sem dependência do servidor na visita.
+function xmn_handle_videos( WP_REST_Request $request ) {
+    $api_key  = get_option( 'xixo_api_key', '' );
+    $sent_key = $request->get_header( 'X-XMNews-Key' );
+    if ( ! $api_key || ! hash_equals( $api_key, (string) $sent_key ) ) {
+        return new WP_REST_Response( [ 'error' => 'Chave API inválida.' ], 401 );
+    }
+
+    $d      = $request->get_json_params();
+    $videos = is_array( $d['videos'] ?? null ) ? $d['videos'] : [];
+
+    $clean = [];
+    foreach ( array_slice( $videos, 0, 8 ) as $v ) {
+        $vid = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) ( $v['video_id'] ?? '' ) );
+        if ( strlen( $vid ) !== 11 ) continue; // IDs do YouTube têm 11 chars
+        $clean[] = [
+            'video_id'     => $vid,
+            'title'        => sanitize_text_field( $v['title'] ?? '' ),
+            'channel_name' => sanitize_text_field( $v['channel_name'] ?? '' ),
+        ];
+    }
+    if ( ! $clean ) {
+        return new WP_REST_Response( [ 'error' => 'Nenhum vídeo válido no payload.' ], 400 );
+    }
+
+    update_option( 'xmn_videos', $clean, false );
+    update_option( 'xmn_videos_updated_at', current_time( 'mysql' ), false );
+
+    return new WP_REST_Response( [ 'success' => true, 'count' => count( $clean ) ], 200 );
+}
+
+// ── Shortcode [portal_videos] — grid responsivo com os vídeos atuais ──────────
+// Uso: [portal_videos]  ou  [portal_videos slots="2"]  (limita a quantidade)
+add_shortcode( 'portal_videos', function ( $atts ) {
+    $atts   = shortcode_atts( [ 'slots' => 4 ], $atts, 'portal_videos' );
+    $max    = max( 1, min( 8, intval( $atts['slots'] ) ) );
+    $videos = get_option( 'xmn_videos', [] );
+    if ( ! is_array( $videos ) || ! count( $videos ) ) return '';
+
+    $html = '<div class="xmn-videos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:1.5rem 0;">';
+    foreach ( array_slice( $videos, 0, $max ) as $v ) {
+        $vid   = preg_replace( '/[^A-Za-z0-9_-]/', '', $v['video_id'] ?? '' );
+        if ( strlen( $vid ) !== 11 ) continue;
+        $title = esc_attr( $v['title'] ?? '' );
+        $html .= '<div class="xmn-video" style="position:relative;width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#000;">'
+            . '<iframe src="https://www.youtube.com/embed/' . esc_attr( $vid ) . '" title="' . $title . '"'
+            . ' style="position:absolute;inset:0;width:100%;height:100%;border:0;"'
+            . ' loading="lazy" allowfullscreen'
+            . ' allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>'
+            . '</div>';
+    }
+    $html .= '</div>';
+    return $html;
 } );
 
 // ── GET /wp-json/xmn/v1/categories — retorna categorias autenticado por chave ─

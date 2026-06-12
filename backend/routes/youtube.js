@@ -100,7 +100,12 @@ router.post('/run', async (req, res) => {
     if (catalog_id) {
       await yt.coletarTodos(); // coleta é barata e compartilhada entre portais
       const sel = await yt.rotacionarPortal(catalog_id);
-      return res.json({ ok: true, videos: sel || [] });
+      let push = { pushed: false };
+      if (sel) {
+        try { push = await yt.pushParaSite(catalog_id, sel); }
+        catch (e) { push = { pushed: false, motivo: e.message }; }
+      }
+      return res.json({ ok: true, videos: sel || [], push });
     }
     await yt.rodada();
     res.json({ ok: true });
