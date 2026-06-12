@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Portal Publisher
  * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     2.2.0
+ * Version:     2.2.1
  * Author:      XMNews Publisher
  * Text Domain: portal-publisher
  */
@@ -219,12 +219,20 @@ function xmn_handle_videos( WP_REST_Request $request ) {
 // ── Shortcode [portal_videos] — grid responsivo com os vídeos atuais ──────────
 // Uso: [portal_videos]  ou  [portal_videos slots="2"]  (limita a quantidade)
 add_shortcode( 'portal_videos', function ( $atts ) {
-    $atts   = shortcode_atts( [ 'slots' => 4 ], $atts, 'portal_videos' );
+    $atts   = shortcode_atts( [ 'slots' => 4, 'colunas' => 4 ], $atts, 'portal_videos' );
     $max    = max( 1, min( 8, intval( $atts['slots'] ) ) );
+    $cols   = max( 1, min( 6, intval( $atts['colunas'] ) ) );
     $videos = get_option( 'xmn_videos', [] );
     if ( ! is_array( $videos ) || ! count( $videos ) ) return '';
 
-    $html = '<div class="xmn-videos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:1.5rem 0;">';
+    // v2.2.1: colunas fixas no desktop (players menores cabem 4 numa linha),
+    // 2 colunas em tablet e 1 no celular — via <style> com media queries.
+    $html  = '<style>
+        .xmn-videos { display:grid; grid-template-columns:repeat(' . $cols . ',1fr); gap:12px; margin:1.5rem 0; }
+        @media (max-width: 900px) { .xmn-videos { grid-template-columns:repeat(2,1fr); } }
+        @media (max-width: 520px) { .xmn-videos { grid-template-columns:1fr; } }
+    </style>';
+    $html .= '<div class="xmn-videos">';
     foreach ( array_slice( $videos, 0, $max ) as $v ) {
         $vid   = preg_replace( '/[^A-Za-z0-9_-]/', '', $v['video_id'] ?? '' );
         if ( strlen( $vid ) !== 11 ) continue;

@@ -23,9 +23,10 @@ const rss = new RSSParser({ timeout: 15000 });
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 // Quantos slots cada portal exibe e quantos vídeos recentes POR CANAL entram no pool.
-// 3 slots = 1 linha no site (4 quebrava em 2 linhas — pedido do Wilson 12/06).
+// 4 slots numa linha — o shortcode v2.2.1 usa grid de 4 colunas com players menores
+// (responsivo: 2 colunas em tablet, 1 no celular).
 // Pool por canal (e não global) garante que canais que postam pouco também apareçam.
-const SLOTS               = 3;
+const SLOTS               = 4;
 const RECENTES_POR_CANAL  = 3;
 
 // ─── Migrations (idempotentes, individuais — padrão tryMigrate) ───────────────
