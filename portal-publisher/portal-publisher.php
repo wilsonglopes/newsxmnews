@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Portal Publisher
  * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     2.3.0
+ * Version:     2.4.0
  * Author:      XMNews Publisher
  * Text Domain: portal-publisher
  */
@@ -181,7 +181,72 @@ add_action( 'rest_api_init', function () {
         'callback'            => 'xmn_handle_videos',
         'permission_callback' => '__return_true',
     ] );
+    // v2.4.0 — upload de imagem autenticado pela chave (sem senha de aplicação)
+    register_rest_route( 'xmn/v1', '/upload-image', [
+        'methods'             => 'POST',
+        'callback'            => 'xmn_handle_upload_image',
+        'permission_callback' => '__return_true',
+    ] );
 } );
+
+// ── POST /wp-json/xmn/v1/upload-image — sobe imagem à biblioteca (v2.4.0) ─────
+// Recebe { image_base64, image_mime, image_name } e devolve { image_url, media_id }.
+// Autenticado pela MESMA chave (X-XMNews-Key) — dispensa senha de aplicação no WP.
+function xmn_handle_upload_image( WP_REST_Request $request ) {
+    $api_key  = get_option( 'xixo_api_key', '' );
+    $sent_key = $request->get_header( 'X-XMNews-Key' );
+    if ( ! $api_key || ! hash_equals( $api_key, (string) $sent_key ) ) {
+        return new WP_REST_Response( [ 'error' => 'Chave API inválida.' ], 401 );
+    }
+
+    $d      = $request->get_json_params();
+    $b64    = $d['image_base64'] ?? '';
+    $mime   = sanitize_text_field( $d['image_mime'] ?? '' );
+    $name   = sanitize_file_name( $d['image_name'] ?? 'imagem.jpg' );
+    if ( ! $b64 || ! $mime ) {
+        return new WP_REST_Response( [ 'error' => 'image_base64 e image_mime são obrigatórios.' ], 400 );
+    }
+
+    $bytes = base64_decode( $b64, true );
+    if ( $bytes === false || strlen( $bytes ) < 100 ) {
+        return new WP_REST_Response( [ 'error' => 'Imagem inválida.' ], 400 );
+    }
+
+    // Garante extensão coerente com o mime
+    $ext_map = [ 'image/jpeg' => 'jpg', 'image/jpg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif' ];
+    $ext     = $ext_map[ $mime ] ?? 'jpg';
+    if ( ! preg_match( '/\.(jpe?g|png|webp|gif)$/i', $name ) ) {
+        $name = preg_replace( '/[^a-zA-Z0-9._-]/', '_', $name ) . '.' . $ext;
+    }
+
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    require_once ABSPATH . 'wp-admin/includes/media.php';
+    require_once ABSPATH . 'wp-admin/includes/image.php';
+
+    $upload = wp_upload_bits( $name, null, $bytes );
+    if ( ! empty( $upload['error'] ) ) {
+        return new WP_REST_Response( [ 'error' => $upload['error'] ], 500 );
+    }
+
+    $attachment = [
+        'post_mime_type' => $mime,
+        'post_title'     => sanitize_text_field( pathinfo( $name, PATHINFO_FILENAME ) ),
+        'post_content'   => '',
+        'post_status'    => 'inherit',
+    ];
+    $attach_id = wp_insert_attachment( $attachment, $upload['file'] );
+    if ( is_wp_error( $attach_id ) || ! $attach_id ) {
+        return new WP_REST_Response( [ 'error' => 'Falha ao registrar a imagem.' ], 500 );
+    }
+    $meta = wp_generate_attachment_metadata( $attach_id, $upload['file'] );
+    wp_update_attachment_metadata( $attach_id, $meta );
+
+    return new WP_REST_Response( [
+        'success'   => true,
+        'image_url' => wp_get_attachment_url( $attach_id ),
+        'media_id'  => $attach_id,
+    ], 200 );
+}
 
 // ── POST /wp-json/xmn/v1/videos — recebe os vídeos rotacionados (v2.2.0) ──────
 // O backend EMPURRA a seleção a cada rotação; o site renderiza do banco local

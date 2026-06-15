@@ -85,7 +85,7 @@ router.get('/me', async (req, res) => {
       categoria_id:   v.coluna_category_id,
       categoria_nome,
       auto_publish:   v.coluna_auto_publish,
-      pode_subir_imagem: !!(v.wp_username && v.wp_app_password),
+      pode_subir_imagem: !!(v.xixo_api_key || (v.wp_username && v.wp_app_password)),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -93,27 +93,45 @@ router.get('/me', async (req, res) => {
 });
 
 // ── POST /api/colunista/upload-imagem — capa ou imagem do corpo → WP ─────────
+// Preferência: plugin v2.4.0 (xmn/v1/upload-image, só a chave). Fallback: REST
+// nativa do WP (precisa de senha de aplicação). Cada portal usa o que tiver.
 router.post('/upload-imagem', async (req, res) => {
   const { image_base64, image_mime, image_name } = req.body || {};
   if (!image_base64 || !image_mime) return res.status(400).json({ error: 'image_base64 e image_mime são obrigatórios.' });
   try {
     const v = await carregarVinculo(req.subscriber.id);
     if (!v?.site_url) return res.status(400).json({ error: 'Portal não configurado.' });
-    if (!v.wp_username || !v.wp_app_password) {
-      return res.status(400).json({ error: 'Portal sem senha de aplicação WordPress — não é possível enviar imagens.' });
+    const baseUrl = v.site_url.replace(/\/$/, '');
+
+    // 1) Via plugin (chave) — dispensa senha de aplicação
+    if (v.xixo_api_key) {
+      try {
+        const r = await axios.post(`${baseUrl}/wp-json/xmn/v1/upload-image`,
+          { image_base64, image_mime, image_name },
+          { timeout: 40000, httpsAgent: HTTPS_AGENT, maxContentLength: Infinity, maxBodyLength: Infinity,
+            headers: { 'Content-Type': 'application/json', 'X-XMNews-Key': v.xixo_api_key } });
+        if (r.data?.success && r.data?.image_url) {
+          return res.json({ image_url: r.data.image_url, media_id: r.data.media_id });
+        }
+        // plugin respondeu mas sem sucesso → tenta fallback abaixo
+      } catch (e) {
+        // 404 = plugin antigo sem o endpoint; outros erros também caem no fallback
+        console.warn('[colunista/upload] plugin falhou, tentando REST nativa:', e.response?.status || e.message);
+      }
     }
-    const baseUrl  = v.site_url.replace(/\/$/, '');
+
+    // 2) Fallback: REST nativa (requer senha de aplicação)
+    if (!v.wp_username || !v.wp_app_password) {
+      return res.status(400).json({ error: 'Portal sem plugin v2.4.0 nem senha de aplicação — não é possível enviar imagens.' });
+    }
     const password = decryptToken(v.wp_app_password);
     const wpAuth   = Buffer.from(`${v.wp_username}:${password}`).toString('base64');
     const buffer   = Buffer.from(image_base64, 'base64');
     const fileName = (image_name || 'imagem.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
-
     const form = new FormData();
     form.append('file', buffer, { filename: fileName, contentType: image_mime });
-
     const up = await axios.post(`${baseUrl}/wp-json/wp/v2/media`, form, {
-      timeout: 30000, httpsAgent: HTTPS_AGENT,
-      maxContentLength: Infinity, maxBodyLength: Infinity,
+      timeout: 30000, httpsAgent: HTTPS_AGENT, maxContentLength: Infinity, maxBodyLength: Infinity,
       headers: { 'Authorization': `Basic ${wpAuth}`, 'Accept': 'application/json', ...form.getHeaders() },
     });
     const mediaId  = up.data?.id;
@@ -121,7 +139,7 @@ router.post('/upload-imagem', async (req, res) => {
     if (!mediaId || !imageUrl) return res.status(500).json({ error: 'Upload retornou resposta inválida.' });
     res.json({ image_url: imageUrl, media_id: mediaId });
   } catch (err) {
-    const wpMsg = err.response?.data?.message || err.message;
+    const wpMsg = err.response?.data?.error || err.response?.data?.message || err.message;
     console.error('[colunista/upload]', wpMsg);
     res.status(500).json({ error: `Falha no upload: ${wpMsg}` });
   }
