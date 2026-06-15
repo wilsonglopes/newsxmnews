@@ -67,6 +67,18 @@ router.get('/me', async (req, res) => {
   try {
     const v = await carregarVinculo(req.subscriber.id);
     if (!v) return res.status(404).json({ error: 'Vínculo não encontrado.' });
+
+    // Admin sem portal fixo: pode escolher portal/categoria na hora (modo livre).
+    if (req.subscriber.is_admin && !v.coluna_site_id) {
+      return res.json({
+        autor:        v.coluna_autor || v.subscriber_name,
+        is_admin:     true,
+        escolhe_destino: true,   // frontend mostra seletor de portal/categoria
+        auto_publish: true,      // admin publica direto (pode mudar manualmente no WP)
+        pode_subir_imagem: true, // portais escolhíveis têm a chave do plugin
+      });
+    }
+
     if (!v.coluna_site_id || !v.site_url) {
       return res.status(400).json({ error: 'Colunista sem portal configurado. Peça ao admin para vincular um site.' });
     }
@@ -85,8 +97,23 @@ router.get('/me', async (req, res) => {
       categoria_id:   v.coluna_category_id,
       categoria_nome,
       auto_publish:   v.coluna_auto_publish,
+      is_admin:       !!req.subscriber.is_admin,
+      escolhe_destino: false,
       pode_subir_imagem: !!(v.xixo_api_key || (v.wp_username && v.wp_app_password)),
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/colunista/portais — lista de portais p/ o admin escolher destino ─
+router.get('/portais', async (req, res) => {
+  if (!req.subscriber.is_admin) return res.status(403).json({ error: 'Apenas admin.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name FROM sites_catalog WHERE active = true AND xixo_api_key IS NOT NULL ORDER BY name`
+    );
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -96,11 +123,19 @@ router.get('/me', async (req, res) => {
 // Preferência: plugin v2.4.0 (xmn/v1/upload-image, só a chave). Fallback: REST
 // nativa do WP (precisa de senha de aplicação). Cada portal usa o que tiver.
 router.post('/upload-imagem', async (req, res) => {
-  const { image_base64, image_mime, image_name } = req.body || {};
+  const { image_base64, image_mime, image_name, site_id } = req.body || {};
   if (!image_base64 || !image_mime) return res.status(400).json({ error: 'image_base64 e image_mime são obrigatórios.' });
   try {
-    const v = await carregarVinculo(req.subscriber.id);
-    if (!v?.site_url) return res.status(400).json({ error: 'Portal não configurado.' });
+    let v = await carregarVinculo(req.subscriber.id);
+    // Admin em modo livre: usa o portal escolhido (site_id do payload)
+    if (req.subscriber.is_admin && !v?.coluna_site_id && site_id) {
+      const { rows } = await pool.query(
+        `SELECT site_url, xixo_api_key, wp_username, wp_app_password
+         FROM sites_catalog WHERE id = $1 AND active = true`, [site_id]
+      );
+      if (rows[0]) v = { ...v, ...rows[0] };
+    }
+    if (!v?.site_url) return res.status(400).json({ error: 'Portal não definido — escolha o portal antes de enviar imagens.' });
     const baseUrl = v.site_url.replace(/\/$/, '');
 
     // 1) Via plugin (chave) — dispensa senha de aplicação
@@ -147,12 +182,30 @@ router.post('/upload-imagem', async (req, res) => {
 
 // ── POST /api/colunista/publicar — publica no portal+categoria FIXOS ─────────
 router.post('/publicar', async (req, res) => {
-  const { chapeu, title, subtitulo, body, image_url, image_media_id, tags } = req.body || {};
+  const { chapeu, title, subtitulo, body, image_url, image_media_id, tags, site_id, category_id } = req.body || {};
   if (!title || !title.trim()) return res.status(400).json({ error: 'Título é obrigatório.' });
   if (!body || !body.trim())   return res.status(400).json({ error: 'O corpo do artigo está vazio.' });
 
   try {
-    const v = await carregarVinculo(req.subscriber.id);
+    let v = await carregarVinculo(req.subscriber.id);
+
+    // Admin em modo livre (sem vínculo fixo): usa o portal escolhido no payload.
+    if (req.subscriber.is_admin && (!v?.coluna_site_id) && site_id) {
+      const { rows } = await pool.query(
+        `SELECT id AS site_id, name AS site_name, site_url, post_format, xixo_api_key,
+                wp_username, wp_app_password
+         FROM sites_catalog WHERE id = $1 AND active = true`, [site_id]
+      );
+      const site = rows[0];
+      if (!site) return res.status(400).json({ error: 'Portal escolhido não encontrado.' });
+      v = {
+        ...site,
+        coluna_category_id: category_id || null,
+        coluna_autor: v?.coluna_autor || v?.subscriber_name || null,
+        coluna_auto_publish: true, // admin publica direto
+      };
+    }
+
     if (!v?.site_url)     return res.status(400).json({ error: 'Portal não configurado.' });
     if (!v.xixo_api_key)  return res.status(400).json({ error: 'Portal sem o plugin Publisher configurado (chave ausente).' });
 

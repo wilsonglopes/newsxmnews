@@ -81,6 +81,21 @@
       <div id="col-form" style="display:none">
         <div class="modo-aviso" id="col-modo"></div>
 
+        <!-- Seletor de destino (só aparece para admin em modo livre) -->
+        <div id="col-destino" style="display:none;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:14px;margin-bottom:18px">
+          <div style="font-size:.82rem;font-weight:600;color:#1e40af;margin-bottom:10px">🌐 Onde publicar (modo administrador)</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <label style="display:block;font-size:.72rem;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Portal</label>
+              <select id="col-dest-site" onchange="carregarCatDestino()" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-family:var(--font)"><option value="">Selecione…</option></select>
+            </div>
+            <div style="flex:1;min-width:200px">
+              <label style="display:block;font-size:.72rem;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Categoria</label>
+              <select id="col-dest-cat" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-family:var(--font)"><option value="">Selecione o portal primeiro…</option></select>
+            </div>
+          </div>
+        </div>
+
         <div class="campo">
           <label>Chapéu</label>
           <input type="text" id="col-chapeu" maxlength="80" placeholder="Ex: POLÍTICA, OPINIÃO, ECONOMIA" />
@@ -129,6 +144,12 @@
     let vinculo = null;       // dados do /me
     let capa = null;          // { image_url, media_id }
     let quill = null;
+    let modoLivre = false;    // admin escolhe portal/categoria na hora
+
+    // site_id escolhido (modo admin) — usado em upload e publicar
+    function destinoSiteId() {
+      return modoLivre ? (document.getElementById('col-dest-site').value || null) : null;
+    }
 
     function toast(msg, tipo = 'info') {
       const el = document.createElement('div');
@@ -152,14 +173,38 @@
     }
 
     async function subirImagem(file) {
+      if (modoLivre && !destinoSiteId()) throw new Error('Escolha o portal antes de enviar imagens.');
       const base64 = await fileToBase64(file);
       const res = await fetch(`${BACKEND}/api/colunista/upload-imagem`, {
         method: 'POST', headers: authHeader(),
-        body: JSON.stringify({ image_base64: base64, image_mime: file.type, image_name: file.name })
+        body: JSON.stringify({ image_base64: base64, image_mime: file.type, image_name: file.name, site_id: destinoSiteId() })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha no upload.');
       return data; // { image_url, media_id }
+    }
+
+    // Modo admin: carrega portais e categorias
+    async function carregarPortaisDestino() {
+      const sel = document.getElementById('col-dest-site');
+      try {
+        const portais = await fetch(`${BACKEND}/api/colunista/portais`, { headers: authHeader() }).then(r => r.json());
+        sel.innerHTML = '<option value="">Selecione…</option>' +
+          portais.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      } catch (e) { toast('Erro ao carregar portais: ' + e.message, 'erro'); }
+    }
+    async function carregarCatDestino() {
+      const catalogId = document.getElementById('col-dest-site').value;
+      const sel = document.getElementById('col-dest-cat');
+      if (!catalogId) { sel.innerHTML = '<option value="">Selecione o portal primeiro…</option>'; return; }
+      sel.innerHTML = '<option value="">Carregando…</option>'; sel.disabled = true;
+      try {
+        const cats = await fetch(`${BACKEND}/api/admin/sites-catalog/${catalogId}/wp-categories`, { headers: authHeader() }).then(r => r.json());
+        if (!Array.isArray(cats) || !cats.length) { sel.innerHTML = '<option value="">— Sem categorias —</option>'; sel.disabled = false; return; }
+        sel.innerHTML = '<option value="">— Selecione —</option>' +
+          cats.map(c => `<option value="${c.id}">${c.name}${c.count != null ? ` (${c.count})` : ''}</option>`).join('');
+        sel.disabled = false;
+      } catch { sel.innerHTML = '<option value="">Erro ao carregar</option>'; sel.disabled = false; }
     }
 
     // ── Capa ──────────────────────────────────────────────────────────────────
@@ -243,6 +288,7 @@
       const corpo  = quill.root.innerHTML;
       if (!titulo) { toast('Informe o título.', 'aviso'); return; }
       if (quill.getText().trim().length < 10) { toast('Escreva o corpo da matéria.', 'aviso'); return; }
+      if (modoLivre && !destinoSiteId()) { toast('Escolha o portal de destino.', 'aviso'); return; }
 
       const btn = document.getElementById('col-btn-publicar');
       const status = document.getElementById('col-status');
@@ -258,6 +304,8 @@
             body:           corpo,
             image_url:      capa?.image_url || '',
             image_media_id: capa?.media_id || 0,
+            site_id:        destinoSiteId(),
+            category_id:    modoLivre ? (document.getElementById('col-dest-cat').value ? Number(document.getElementById('col-dest-cat').value) : null) : null,
           })
         });
         const data = await res.json();
@@ -290,11 +338,23 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Não foi possível carregar seu espaço.');
         vinculo = data;
+        modoLivre = !!data.escolhe_destino;
 
         document.getElementById('col-autor').textContent = data.autor || 'Colunista';
-        document.getElementById('col-categoria').textContent = data.categoria_nome || (data.categoria_id ? `Categoria #${data.categoria_id}` : 'Sem categoria') ;
+
+        // Modo admin: mostra seletor de portal/categoria; sem categoria fixa no topo
+        if (modoLivre) {
+          document.getElementById('col-categoria').textContent = 'Administrador';
+          document.getElementById('col-destino').style.display = '';
+          await carregarPortaisDestino();
+        } else {
+          document.getElementById('col-categoria').textContent = data.categoria_nome || (data.categoria_id ? `Categoria #${data.categoria_id}` : 'Sem categoria');
+        }
         const modo = document.getElementById('col-modo');
-        if (data.auto_publish) {
+        if (modoLivre) {
+          modo.className = 'modo-aviso modo-publicar';
+          modo.innerHTML = '🛠️ Modo administrador: escolha o portal e a categoria acima. A matéria é <strong>publicada direto</strong>.';
+        } else if (data.auto_publish) {
           modo.className = 'modo-aviso modo-publicar';
           modo.innerHTML = '✓ Suas matérias são <strong>publicadas direto</strong> no portal ' + (data.site_nome || '') + '.';
         } else {
