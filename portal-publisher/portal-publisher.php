@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Portal Publisher
  * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     2.5.0
+ * Version:     2.5.1
  * Author:      XMNews Publisher
  * Text Domain: portal-publisher
  */
@@ -12,7 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // Versão atual e URL FIXA de download (auto-update por botão no painel admin).
 // A URL é fixa de propósito: o self-update só baixa do nosso servidor — nunca
 // de origem arbitrária, mesmo que a chave vaze.
-define( 'XMN_PLUGIN_VERSION',  '2.5.0' );
+// v2.5.1 — bump de teste do ciclo de auto-update (sem mudança funcional).
+define( 'XMN_PLUGIN_VERSION',  '2.5.1' );
 define( 'XMN_PLUGIN_ZIP_URL',  'https://news.xmnews.com.br/api/plugin/download' );
 
 // ── Ativação: gera chave automaticamente se ainda não existir ─────────────────
