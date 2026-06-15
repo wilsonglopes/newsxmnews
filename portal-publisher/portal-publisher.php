@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Portal Publisher
  * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     2.2.1
+ * Version:     2.3.0
  * Author:      XMNews Publisher
  * Text Domain: portal-publisher
  */
@@ -295,6 +295,11 @@ function xmn_handle_publish( WP_REST_Request $request ) {
     $post_format    = sanitize_text_field( $d['post_format'] ?? 'editorial' );
     $tags           = array_map( 'sanitize_text_field', (array) ( $d['tags']         ?? [] ) );
     $cat_ids        = array_map( 'intval',               (array) ( $d['category_ids'] ?? [] ) );
+    // v2.3.0 — colunistas: status configurável (rascunho/publicado) e autor por nome.
+    // Default mantém o comportamento de sempre ('publish') — nada muda para o autopub.
+    $req_status     = sanitize_key( $d['post_status'] ?? 'publish' );
+    $post_status    = in_array( $req_status, [ 'publish', 'draft', 'pending' ], true ) ? $req_status : 'publish';
+    $author_name    = sanitize_text_field( $d['author_name'] ?? '' );
 
     if ( ! $title ) {
         return new WP_REST_Response( [ 'error' => 'Título obrigatório.' ], 400 );
@@ -388,12 +393,23 @@ function xmn_handle_publish( WP_REST_Request $request ) {
     $admins    = get_users( [ 'role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC' ] );
     $author_id = ! empty( $admins ) ? $admins[0]->ID : 1;
 
+    // v2.3.0 — se vier author_name e existir um usuário WP com esse nome/login,
+    // assina a matéria com ele (colunistas). Senão, mantém o admin.
+    if ( $author_name ) {
+        $u = get_user_by( 'login', $author_name ) ?: get_user_by( 'slug', sanitize_title( $author_name ) );
+        if ( ! $u ) {
+            $found = get_users( [ 'search' => $author_name, 'search_columns' => [ 'display_name' ], 'number' => 1 ] );
+            if ( ! empty( $found ) ) $u = $found[0];
+        }
+        if ( $u ) $author_id = $u->ID;
+    }
+
     $post_data = [
         'post_title'   => $title,
         'post_name'    => $slug,
         'post_excerpt' => $summary,
         'post_content' => $content_parts,
-        'post_status'  => 'publish',
+        'post_status'  => $post_status,
         'post_type'    => 'post',
         'post_author'  => $author_id,
         'tags_input'   => $tag_ids,

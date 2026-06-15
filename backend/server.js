@@ -1188,6 +1188,9 @@ app.use('/api/admin/whatsapp', require('./routes/whatsapp'));
 // 📺 Vídeos do YouTube — canais por portal + rotação de slots (admin)
 app.use('/api/admin/youtube', require('./routes/youtube'));
 
+// ✍️ Colunistas — ferramenta isolada de escrita/publicação por colunista
+app.use('/api/colunista', require('./routes/colunista'));
+
 // ─── Templates de card (admin) ────────────────────────────────────────────────
 // Dimensões obrigatórias do template — as coordenadas de chapéu/texto são fixas.
 const CARD_TEMPLATE_W = 1600;
