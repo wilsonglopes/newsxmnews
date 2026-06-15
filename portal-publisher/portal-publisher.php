@@ -2,12 +2,18 @@
 /**
  * Plugin Name: Portal Publisher
  * Description: Integração com o Sistema de Agregação — recebe artigos via endpoint REST e publica com chapéu editorial e crédito de fonte, sem depender do tema.
- * Version:     2.4.0
+ * Version:     2.5.0
  * Author:      XMNews Publisher
  * Text Domain: portal-publisher
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
+
+// Versão atual e URL FIXA de download (auto-update por botão no painel admin).
+// A URL é fixa de propósito: o self-update só baixa do nosso servidor — nunca
+// de origem arbitrária, mesmo que a chave vaze.
+define( 'XMN_PLUGIN_VERSION',  '2.5.0' );
+define( 'XMN_PLUGIN_ZIP_URL',  'https://news.xmnews.com.br/api/plugin/download' );
 
 // ── Ativação: gera chave automaticamente se ainda não existir ─────────────────
 register_activation_hook( __FILE__, 'xmn_activate' );
@@ -187,7 +193,76 @@ add_action( 'rest_api_init', function () {
         'callback'            => 'xmn_handle_upload_image',
         'permission_callback' => '__return_true',
     ] );
+    // v2.5.0 — status (versão instalada) e self-update por botão no painel admin
+    register_rest_route( 'xmn/v1', '/status', [
+        'methods'             => 'GET',
+        'callback'            => 'xmn_handle_status',
+        'permission_callback' => '__return_true',
+    ] );
+    register_rest_route( 'xmn/v1', '/self-update', [
+        'methods'             => 'POST',
+        'callback'            => 'xmn_handle_self_update',
+        'permission_callback' => '__return_true',
+    ] );
 } );
+
+// ── GET /wp-json/xmn/v1/status — versão instalada (autenticado pela chave) ────
+function xmn_handle_status( WP_REST_Request $request ) {
+    $api_key  = get_option( 'xixo_api_key', '' );
+    $sent_key = $request->get_header( 'X-XMNews-Key' );
+    if ( ! $api_key || ! hash_equals( $api_key, (string) $sent_key ) ) {
+        return new WP_REST_Response( [ 'error' => 'Chave API inválida.' ], 401 );
+    }
+    return new WP_REST_Response( [ 'version' => XMN_PLUGIN_VERSION ], 200 );
+}
+
+// ── POST /wp-json/xmn/v1/self-update — baixa o ZIP do nosso servidor e reinstala
+// Usa o atualizador NATIVO do WordPress (Plugin_Upgrader). Baixa SOMENTE de
+// XMN_PLUGIN_ZIP_URL (fixa). Autenticado pela chave.
+function xmn_handle_self_update( WP_REST_Request $request ) {
+    $api_key  = get_option( 'xixo_api_key', '' );
+    $sent_key = $request->get_header( 'X-XMNews-Key' );
+    if ( ! $api_key || ! hash_equals( $api_key, (string) $sent_key ) ) {
+        return new WP_REST_Response( [ 'error' => 'Chave API inválida.' ], 401 );
+    }
+
+    if ( ! function_exists( 'plugins_api' ) )            require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+    require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    require_once ABSPATH . 'wp-admin/includes/misc.php';
+
+    // Garante escrita direta no FS (a maioria dos hosts permite). Se o host exigir
+    // FTP, o upgrader retorna erro e o admin cai no upload manual nesse portal.
+    if ( ! defined( 'FS_METHOD' ) ) define( 'FS_METHOD', 'direct' );
+
+    $plugin_file = plugin_basename( __FILE__ ); // ex: portal-publisher.php (raiz)
+    $was_active  = is_plugin_active( $plugin_file );
+
+    $skin     = new Automatic_Upgrader_Skin();
+    $upgrader = new Plugin_Upgrader( $skin );
+
+    // overwrite_package: instala mesmo que a pasta já exista (substitui)
+    $result = $upgrader->install( XMN_PLUGIN_ZIP_URL, [ 'overwrite_package' => true ] );
+
+    if ( is_wp_error( $result ) ) {
+        return new WP_REST_Response( [ 'error' => $result->get_error_message() ], 500 );
+    }
+    if ( $result === false ) {
+        $msgs = implode( ' | ', (array) $skin->get_upgrade_messages() );
+        return new WP_REST_Response( [ 'error' => 'Falha no upgrade. ' . $msgs ], 500 );
+    }
+
+    // Reativa se estava ativo (instalar pode desativar)
+    if ( $was_active && ! is_plugin_active( $plugin_file ) ) {
+        activate_plugin( $plugin_file );
+    }
+
+    return new WP_REST_Response( [
+        'success'      => true,
+        'from_version' => XMN_PLUGIN_VERSION,        // versão ANTES (este código ainda em memória)
+        'message'      => 'Plugin atualizado a partir de ' . XMN_PLUGIN_ZIP_URL,
+    ], 200 );
+}
 
 // ── POST /wp-json/xmn/v1/upload-image — sobe imagem à biblioteca (v2.4.0) ─────
 // Recebe { image_base64, image_mime, image_name } e devolve { image_url, media_id }.

@@ -8,6 +8,7 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
+    "adm-zip": "^0.5.17",
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",
     "cheerio": "^1.0.0",

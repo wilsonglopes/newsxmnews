@@ -1010,6 +1010,23 @@
         </div>
       </div>
 
+      <!-- 🔄 Auto-update do plugin Portal Publisher -->
+      <div class="panel" style="margin-bottom:20px">
+        <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:700;font-size:.95rem;color:var(--text)">🔄 Plugin Portal Publisher</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Atualize o plugin em todos os portais de uma vez. Versão atual no servidor: <strong id="plugin-versao-atual">…</strong></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="pluginStatus()">↻ Verificar portais</button>
+            <button class="btn btn-primary btn-sm" id="btn-plugin-update" onclick="pluginUpdateAll()">⬆ Atualizar todos</button>
+          </div>
+        </div>
+        <div style="padding:14px 24px">
+          <div id="plugin-lista" style="font-size:.85rem;color:var(--muted)">Clique em "Verificar portais" para ver a versão instalada em cada um.</div>
+        </div>
+      </div>
+
     </div><!-- /configuracoes -->
 
     <!-- ══ FILA DE AUTOPUBLICAÇÃO ════════════════════════════════════════════════ -->
@@ -2939,6 +2956,47 @@ function getFontesCatalogIds() {
     const fbEn  = fbEl ? !!fbEl.checked : false;
     return { sourceId: cb.value, categoryId: catId, facebookEnabled: fbEn };
   });
+}
+
+// 🔄 Auto-update do plugin
+async function pluginStatus() {
+  const lista = document.getElementById('plugin-lista');
+  lista.innerHTML = '<span class="spin"></span> Consultando portais…';
+  try {
+    const d = await fetch(`${BACKEND}/api/admin/plugin/status`, { headers: authHeader() }).then(r => r.json());
+    document.getElementById('plugin-versao-atual').textContent = d.versao_atual || '—';
+    if (!d.portais?.length) { lista.innerHTML = 'Nenhum portal com o plugin configurado.'; return; }
+    lista.innerHTML = '<div style="display:flex;flex-direction:column;gap:6px">' + d.portais.map(p => {
+      const cor = p.atualizado ? '#15803d' : (p.online ? '#c2410c' : '#94a3b8');
+      const txt = p.atualizado ? `v${p.versao} ✓ atualizado`
+        : (p.online ? `v${p.versao || '?'} — desatualizado` : `offline / ${p.erro || 'sem resposta'}`);
+      return `<div style="display:flex;justify-content:space-between;border:1px solid var(--border);border-radius:6px;padding:7px 12px">
+        <span style="font-weight:600;color:var(--text)">${p.name}</span>
+        <span style="color:${cor};font-weight:600">${txt}</span></div>`;
+    }).join('') + '</div>';
+  } catch (e) { lista.innerHTML = 'Erro: ' + e.message; }
+}
+
+async function pluginUpdateAll() {
+  if (!confirm('Atualizar o plugin em TODOS os portais agora?')) return;
+  const btn = document.getElementById('btn-plugin-update');
+  const lista = document.getElementById('plugin-lista');
+  btn.disabled = true; btn.textContent = 'Atualizando…';
+  lista.innerHTML = '<span class="spin"></span> Enviando atualização para os portais (pode levar 1 min)…';
+  try {
+    const d = await fetch(`${BACKEND}/api/admin/plugin/update-all`, { method: 'POST', headers: authHeader() }).then(r => r.json());
+    lista.innerHTML = `<div style="margin-bottom:8px;font-weight:700;color:var(--text)">Resultado: ${d.sucesso}/${d.total} atualizados para v${d.versao_alvo}</div>`
+      + '<div style="display:flex;flex-direction:column;gap:6px">' + d.resultados.map(r =>
+        `<div style="display:flex;justify-content:space-between;border:1px solid var(--border);border-radius:6px;padding:7px 12px">
+          <span style="font-weight:600;color:var(--text)">${r.name}</span>
+          <span style="color:${r.ok ? '#15803d' : '#dc2626'};font-weight:600">${r.ok ? '✓ atualizado' : '✗ ' + (r.erro || 'falhou')}</span></div>`
+      ).join('') + '</div>';
+    toast(`${d.sucesso}/${d.total} portais atualizados`, d.sucesso === d.total ? 'sucesso' : 'aviso');
+  } catch (e) {
+    lista.innerHTML = 'Erro: ' + e.message; toast('Erro: ' + e.message, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = '⬆ Atualizar todos';
+  }
 }
 
 async function carregarConfiguracoes() {

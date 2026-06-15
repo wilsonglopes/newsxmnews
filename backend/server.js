@@ -1191,6 +1191,11 @@ app.use('/api/admin/youtube', require('./routes/youtube'));
 // ✍️ Colunistas — ferramenta isolada de escrita/publicação por colunista
 app.use('/api/colunista', require('./routes/colunista'));
 
+// 🔄 Auto-update do plugin — download público (WP baixa) + admin (status/update-all)
+const pluginRoutes = require('./routes/plugin');
+app.use('/api/plugin', pluginRoutes.publicRouter);
+app.use('/api/admin/plugin', pluginRoutes.adminRouter);
+
 // ─── Templates de card (admin) ────────────────────────────────────────────────
 // Dimensões obrigatórias do template — as coordenadas de chapéu/texto são fixas.
 const CARD_TEMPLATE_W = 1600;
