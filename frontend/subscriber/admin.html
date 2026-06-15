@@ -1393,6 +1393,41 @@
             </div>
           </div>
         </div>
+
+        <!-- ✍️ Colunista -->
+        <div style="border:1px solid #fca5a5;border-radius:var(--radius);overflow:hidden;margin-top:6px">
+          <div style="padding:10px 14px;background:#fef2f2">
+            <label class="form-check" style="margin:0;cursor:pointer;font-weight:600;color:#991b1b">
+              <input type="checkbox" id="mc-is-colunista" onchange="mcToggleColunista()" /> ✍️ Esta conta é um colunista
+            </label>
+            <div style="font-size:.78rem;color:#b91c1c;margin-top:3px">Ao logar, vai direto para o editor de matérias, já amarrado ao portal e categoria abaixo.</div>
+          </div>
+          <div id="mc-colunista-fields" style="padding:12px 14px;background:#fff;border-top:1px solid #fca5a5;display:none">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Portal do colunista</label>
+                <select id="mc-col-site" onchange="mcCarregarCatColunista()"><option value="">Selecione…</option></select>
+              </div>
+              <div class="form-group">
+                <label>Categoria fixa</label>
+                <select id="mc-col-categoria"><option value="">Selecione o portal primeiro…</option></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nome do autor <small style="font-weight:400;text-transform:none;font-size:.75rem">(assina as matérias; ideal = usuário WP com esse nome)</small></label>
+                <input type="text" id="mc-col-autor" placeholder="Ex: João da Silva" maxlength="200" />
+              </div>
+              <div class="form-group">
+                <label>Modo de publicação</label>
+                <select id="mc-col-modo">
+                  <option value="false">Rascunho (admin revisa no WP)</option>
+                  <option value="true">Publicar direto</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Aba Plano -->
@@ -4766,12 +4801,48 @@ async function abrirModalCliente(c) {
   document.getElementById('mc-telegram').value    = c?.telegram_chat_id || '';
   document.getElementById('mc-hint').style.display = c ? 'inline' : 'none';
 
+  // ✍️ Colunista
+  mcPopularPortaisColunista();
+  document.getElementById('mc-is-colunista').checked = c?.is_colunista || false;
+  document.getElementById('mc-col-autor').value = c?.coluna_autor || '';
+  document.getElementById('mc-col-modo').value = String(c?.coluna_auto_publish || false);
+  document.getElementById('mc-col-site').value = c?.coluna_site_id || '';
+  mcToggleColunista();
+  if (c?.coluna_site_id) mcCarregarCatColunista(c?.coluna_category_id);
+
   // Planos
   document.getElementById('mc-sites-list').innerHTML = c ? '<div class="loading"><span class="spin"></span>Carregando…</div>' : '<div class="empty" style="padding:20px">Salve o cliente primeiro para gerenciar sites.</div>';
   document.getElementById('mc-fontes-grid').innerHTML = '';
   document.getElementById('mc-fontes-cats').innerHTML = '';
 
   document.getElementById('modal-cliente').classList.remove('hidden');
+}
+
+// ✍️ Colunista — helpers do modal de cliente
+function mcToggleColunista() {
+  const on = document.getElementById('mc-is-colunista').checked;
+  document.getElementById('mc-colunista-fields').style.display = on ? '' : 'none';
+}
+function mcPopularPortaisColunista() {
+  const sel = document.getElementById('mc-col-site');
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Selecione…</option>' +
+    (allSitesCache || []).map(s => `<option value="${s.catalog_id || s.id}">${s.name}</option>`).join('');
+  sel.value = atual;
+}
+async function mcCarregarCatColunista(catPreselect) {
+  const catalogId = document.getElementById('mc-col-site').value;
+  const sel = document.getElementById('mc-col-categoria');
+  if (!catalogId) { sel.innerHTML = '<option value="">Selecione o portal primeiro…</option>'; return; }
+  sel.innerHTML = '<option value="">Carregando…</option>'; sel.disabled = true;
+  try {
+    const cats = await fetch(`${BACKEND}/api/admin/sites-catalog/${catalogId}/wp-categories`, { headers: authHeader() }).then(r => r.json());
+    if (!Array.isArray(cats) || !cats.length) { sel.innerHTML = '<option value="">— Sem categorias —</option>'; sel.disabled = false; return; }
+    sel.innerHTML = '<option value="">— Selecione —</option>' +
+      cats.map(c => `<option value="${c.id}">${c.name}${c.count != null ? ` (${c.count})` : ''}</option>`).join('');
+    if (catPreselect) sel.value = String(catPreselect);
+    sel.disabled = false;
+  } catch { sel.innerHTML = '<option value="">Erro ao carregar</option>'; sel.disabled = false; }
 }
 
 async function salvarCliente() {
@@ -4792,6 +4863,19 @@ async function salvarCliente() {
   const tg = document.getElementById('mc-telegram').value.trim();
   body.telegram_chat_id = tg || null;
 
+  // ✍️ Colunista
+  const ehColunista = document.getElementById('mc-is-colunista').checked;
+  body.is_colunista = ehColunista;
+  if (ehColunista) {
+    body.coluna_site_id     = document.getElementById('mc-col-site').value || null;
+    body.coluna_category_id = document.getElementById('mc-col-categoria').value ? Number(document.getElementById('mc-col-categoria').value) : null;
+    body.coluna_autor       = document.getElementById('mc-col-autor').value.trim() || null;
+    body.coluna_auto_publish = document.getElementById('mc-col-modo').value === 'true';
+  } else {
+    body.coluna_site_id = null; body.coluna_category_id = null;
+    body.coluna_autor = null;   body.coluna_auto_publish = false;
+  }
+
   const btn = document.getElementById('btn-salvar-cliente');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
 
@@ -4803,6 +4887,20 @@ async function salvarCliente() {
 
     // Atualiza id se foi criação
     if (!id && d.id) document.getElementById('mc-id').value = d.id;
+
+    // Na criação o POST salva só o básico — se for colunista, persiste os campos via PUT
+    if (!id && d.id && body.is_colunista) {
+      await fetch(`${BACKEND}/api/admin/subscribers/${d.id}`, {
+        method: 'PUT', headers: authHeader(),
+        body: JSON.stringify({
+          is_colunista: true,
+          coluna_site_id: body.coluna_site_id,
+          coluna_category_id: body.coluna_category_id,
+          coluna_autor: body.coluna_autor,
+          coluna_auto_publish: body.coluna_auto_publish,
+        })
+      });
+    }
 
     await carregarClientes();
     if (!id) mudarTabCliente('sites');

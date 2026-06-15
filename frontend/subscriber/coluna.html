@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scatto — Coluna</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Editor rico Quill -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red: #b91c1c; --red-lt: #dc2626; --ink: #0f172a; --muted: #64748b;
+      --bg: #f1f5f9; --white: #fff; --border: #e2e8f0; --green: #15803d;
+      --radius: 10px; --font: 'Inter', system-ui, sans-serif;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+    .topbar {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 0 20px; height: 60px; display: flex; align-items: center; gap: 14px;
+      position: sticky; top: 0; z-index: 30;
+    }
+    .topbar .logo { font-weight: 700; font-size: 1.15rem; color: var(--ink); }
+    .topbar .logo span { color: var(--red); }
+    .topbar .info { flex: 1; font-size: .85rem; color: var(--muted); }
+    .topbar .info strong { color: var(--ink); }
+    .badge-cat { background: #fef2f2; color: var(--red); font-weight: 600; font-size: .78rem; padding: 3px 10px; border-radius: 999px; }
+    .btn-sair { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px; font-size: .82rem; cursor: pointer; color: var(--muted); font-family: var(--font); }
+    .btn-sair:hover { border-color: var(--red); color: var(--red); }
+
+    .wrap { max-width: 820px; margin: 24px auto; padding: 0 16px 60px; }
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: clamp(18px, 4vw, 32px); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+
+    .modo-aviso { font-size: .82rem; padding: 10px 14px; border-radius: 8px; margin-bottom: 20px; }
+    .modo-publicar { background: #f0fdf4; color: #166534; border: 1px solid #86efac; }
+    .modo-rascunho { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
+
+    .campo { margin-bottom: 18px; }
+    .campo label { display: block; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 6px; }
+    .campo input[type=text] { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px; font-size: .95rem; font-family: var(--font); }
+    .campo input:focus, .ql-container:focus-within { outline: 2px solid var(--red-lt); outline-offset: 1px; }
+    .campo input#col-titulo { font-size: 1.25rem; font-weight: 700; }
+
+    /* Capa */
+    .capa-drop { border: 2px dashed var(--border); border-radius: 10px; padding: 22px; text-align: center; cursor: pointer; color: var(--muted); font-size: .88rem; transition: border-color .15s, background .15s; }
+    .capa-drop:hover { border-color: var(--red-lt); background: #fef2f2; }
+    .capa-preview { position: relative; }
+    .capa-preview img { width: 100%; max-height: 340px; object-fit: cover; border-radius: 10px; display: block; }
+    .capa-preview .trocar { position: absolute; top: 8px; right: 8px; background: rgba(15,23,42,.78); color: #fff; border: none; border-radius: 8px; padding: 6px 12px; font-size: .78rem; cursor: pointer; font-family: var(--font); }
+
+    /* Editor */
+    .ql-toolbar.ql-snow { border-radius: 8px 8px 0 0; border-color: var(--border); }
+    .ql-container.ql-snow { border-radius: 0 0 8px 8px; border-color: var(--border); font-family: var(--font); font-size: 1rem; }
+    #col-editor { min-height: 320px; }
+    #col-editor img { max-width: 100%; height: auto; border-radius: 6px; }
+
+    .acoes { display: flex; align-items: center; gap: 14px; margin-top: 24px; flex-wrap: wrap; }
+    .btn-publicar { background: linear-gradient(135deg, var(--red), var(--red-lt)); color: #fff; border: none; border-radius: 999px; padding: 12px 28px; font-size: .95rem; font-weight: 700; cursor: pointer; font-family: var(--font); }
+    .btn-publicar:disabled { opacity: .5; cursor: not-allowed; }
+    .status-msg { font-size: .88rem; font-weight: 600; }
+
+    .toast-wrap { position: fixed; top: 16px; right: 16px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 11px 16px; border-radius: 8px; font-size: .86rem; font-weight: 600; color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.16); }
+    .toast.sucesso { background: var(--green); } .toast.erro { background: var(--red-lt); } .toast.aviso { background: #c2410c; } .toast.info { background: #334155; }
+
+    .carregando { text-align: center; color: var(--muted); padding: 40px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">scatto<span>.</span></div>
+    <div class="info">Olá, <strong id="col-autor">…</strong> · <span class="badge-cat" id="col-categoria">…</span></div>
+    <button class="btn-sair" onclick="sair()">Sair</button>
+  </div>
+
+  <div class="wrap">
+    <div class="card" id="col-card">
+      <div class="carregando" id="col-loading">Carregando seu espaço de escrita…</div>
+
+      <div id="col-form" style="display:none">
+        <div class="modo-aviso" id="col-modo"></div>
+
+        <div class="campo">
+          <label>Chapéu</label>
+          <input type="text" id="col-chapeu" maxlength="80" placeholder="Ex: POLÍTICA, OPINIÃO, ECONOMIA" />
+        </div>
+        <div class="campo">
+          <label>Título *</label>
+          <input type="text" id="col-titulo" maxlength="200" placeholder="O título da sua matéria" />
+        </div>
+        <div class="campo">
+          <label>Subtítulo</label>
+          <input type="text" id="col-subtitulo" maxlength="300" placeholder="Uma linha que resume ou complementa o título" />
+        </div>
+
+        <div class="campo">
+          <label>Imagem destacada (capa)</label>
+          <div id="col-capa-area">
+            <div class="capa-drop" id="col-capa-drop">📷 Clique ou arraste a imagem de capa aqui</div>
+          </div>
+          <input type="file" id="col-capa-input" accept="image/*" style="display:none" />
+        </div>
+
+        <div class="campo">
+          <label>Corpo do artigo</label>
+          <div id="col-editor"></div>
+          <input type="file" id="col-img-input" accept="image/*" style="display:none" />
+        </div>
+
+        <div class="acoes">
+          <button class="btn-publicar" id="col-btn-publicar" onclick="publicar()">✓ Publicar</button>
+          <span class="status-msg" id="col-status"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <script>
+    'use strict';
+    const BACKEND = window.location.origin;
+    const token = localStorage.getItem('rb24_token');
+    if (!token) location.href = 'login.html';
+    function authHeader() { return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }; }
+
+    let vinculo = null;       // dados do /me
+    let capa = null;          // { image_url, media_id }
+    let quill = null;
+
+    function toast(msg, tipo = 'info') {
+      const el = document.createElement('div');
+      el.className = `toast ${tipo}`; el.textContent = msg;
+      document.getElementById('toast-wrap').appendChild(el);
+      setTimeout(() => el.remove(), 4200);
+    }
+    function sair() {
+      localStorage.removeItem('rb24_token'); localStorage.removeItem('rb24_subscriber');
+      location.href = 'login.html';
+    }
+
+    // Lê um File como base64 (sem o prefixo data:)
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result.split(',')[1]);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+    }
+
+    async function subirImagem(file) {
+      const base64 = await fileToBase64(file);
+      const res = await fetch(`${BACKEND}/api/colunista/upload-imagem`, {
+        method: 'POST', headers: authHeader(),
+        body: JSON.stringify({ image_base64: base64, image_mime: file.type, image_name: file.name })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload.');
+      return data; // { image_url, media_id }
+    }
+
+    // ── Capa ──────────────────────────────────────────────────────────────────
+    function setupCapa() {
+      const drop  = document.getElementById('col-capa-drop');
+      const input = document.getElementById('col-capa-input');
+      const area  = document.getElementById('col-capa-area');
+      const escolher = () => input.click();
+      drop.addEventListener('click', escolher);
+      drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.borderColor = '#dc2626'; });
+      drop.addEventListener('dragleave', () => { drop.style.borderColor = ''; });
+      drop.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) enviarCapa(e.dataTransfer.files[0]); });
+      input.addEventListener('change', () => { if (input.files[0]) enviarCapa(input.files[0]); });
+
+      async function enviarCapa(file) {
+        if (!file.type.startsWith('image/')) { toast('Selecione uma imagem.', 'aviso'); return; }
+        area.innerHTML = '<div class="capa-drop">Enviando capa…</div>';
+        try {
+          capa = await subirImagem(file);
+          area.innerHTML = `<div class="capa-preview"><img src="${capa.image_url}" alt="capa" /><button class="trocar" type="button">Trocar</button></div>`;
+          area.querySelector('.trocar').addEventListener('click', () => { capa = null; area.innerHTML = ''; area.appendChild(drop); setupCapaDrop(drop, input, area, enviarCapa); });
+        } catch (e) {
+          toast('Erro na capa: ' + e.message, 'erro');
+          area.innerHTML = ''; area.appendChild(drop);
+        }
+      }
+    }
+    // helper p/ re-vincular o drop após "Trocar"
+    function setupCapaDrop(drop, input, area, enviarCapa) {
+      const novo = drop.cloneNode(true);
+      area.innerHTML = ''; area.appendChild(novo);
+      novo.addEventListener('click', () => input.click());
+      input.value = '';
+    }
+
+    // ── Editor Quill com upload de imagem inline ───────────────────────────────
+    function setupEditor() {
+      quill = new Quill('#col-editor', {
+        theme: 'snow',
+        placeholder: 'Escreva sua matéria aqui. Use a barra acima para formatar e inserir imagens no meio do texto.',
+        modules: {
+          toolbar: {
+            container: [
+              [{ header: [2, 3, false] }],
+              ['bold', 'italic', 'underline'],
+              [{ list: 'ordered' }, { list: 'bullet' }],
+              ['blockquote', 'link', 'image'],
+              ['clean'],
+            ],
+            handlers: {
+              image: function () {
+                const input = document.getElementById('col-img-input');
+                input.value = '';
+                input.onchange = async () => {
+                  const file = input.files[0];
+                  if (!file) return;
+                  if (!vinculo?.pode_subir_imagem) { toast('Este portal não permite upload de imagens.', 'aviso'); return; }
+                  const range = quill.getSelection(true);
+                  quill.insertText(range.index, ' [enviando imagem…] ');
+                  try {
+                    const img = await subirImagem(file);
+                    quill.deleteText(range.index, ' [enviando imagem…] '.length);
+                    quill.insertEmbed(range.index, 'image', img.image_url);
+                    quill.setSelection(range.index + 1);
+                  } catch (e) {
+                    quill.deleteText(range.index, ' [enviando imagem…] '.length);
+                    toast('Erro ao enviar imagem: ' + e.message, 'erro');
+                  }
+                };
+                input.click();
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // ── Publicar ───────────────────────────────────────────────────────────────
+    async function publicar() {
+      const titulo = document.getElementById('col-titulo').value.trim();
+      const corpo  = quill.root.innerHTML;
+      if (!titulo) { toast('Informe o título.', 'aviso'); return; }
+      if (quill.getText().trim().length < 10) { toast('Escreva o corpo da matéria.', 'aviso'); return; }
+
+      const btn = document.getElementById('col-btn-publicar');
+      const status = document.getElementById('col-status');
+      btn.disabled = true; btn.textContent = vinculo.auto_publish ? 'Publicando…' : 'Enviando rascunho…';
+      status.textContent = '';
+      try {
+        const res = await fetch(`${BACKEND}/api/colunista/publicar`, {
+          method: 'POST', headers: authHeader(),
+          body: JSON.stringify({
+            chapeu:         document.getElementById('col-chapeu').value.trim(),
+            title:          titulo,
+            subtitulo:      document.getElementById('col-subtitulo').value.trim(),
+            body:           corpo,
+            image_url:      capa?.image_url || '',
+            image_media_id: capa?.media_id || 0,
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao publicar.');
+        status.style.color = '#15803d';
+        status.textContent = data.message;
+        toast(data.status === 'draft' ? 'Rascunho enviado!' : 'Publicado!', 'sucesso');
+        // Limpa para a próxima matéria
+        document.getElementById('col-chapeu').value = '';
+        document.getElementById('col-titulo').value = '';
+        document.getElementById('col-subtitulo').value = '';
+        quill.setText('');
+        capa = null;
+        const area = document.getElementById('col-capa-area');
+        area.innerHTML = '<div class="capa-drop" id="col-capa-drop">📷 Clique ou arraste a imagem de capa aqui</div>';
+        setupCapa();
+      } catch (e) {
+        status.style.color = '#dc2626';
+        status.textContent = e.message;
+        toast('Erro: ' + e.message, 'erro');
+      } finally {
+        btn.disabled = false; btn.textContent = '✓ Publicar';
+      }
+    }
+
+    // ── Init ────────────────────────────────────────────────────────────────────
+    (async () => {
+      try {
+        const res = await fetch(`${BACKEND}/api/colunista/me`, { headers: authHeader() });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Não foi possível carregar seu espaço.');
+        vinculo = data;
+
+        document.getElementById('col-autor').textContent = data.autor || 'Colunista';
+        document.getElementById('col-categoria').textContent = data.categoria_nome || (data.categoria_id ? `Categoria #${data.categoria_id}` : 'Sem categoria') ;
+        const modo = document.getElementById('col-modo');
+        if (data.auto_publish) {
+          modo.className = 'modo-aviso modo-publicar';
+          modo.innerHTML = '✓ Suas matérias são <strong>publicadas direto</strong> no portal ' + (data.site_nome || '') + '.';
+        } else {
+          modo.className = 'modo-aviso modo-rascunho';
+          modo.innerHTML = '📝 Suas matérias são enviadas como <strong>rascunho</strong> — o administrador revisa e publica.';
+        }
+        document.getElementById('col-loading').style.display = 'none';
+        document.getElementById('col-form').style.display = '';
+        setupCapa();
+        setupEditor();
+      } catch (e) {
+        document.getElementById('col-loading').innerHTML = '⚠️ ' + e.message + '<br><br><button class="btn-sair" onclick="sair()">Sair</button>';
+      }
+    })();
+  </script>
+</body>
+</html>

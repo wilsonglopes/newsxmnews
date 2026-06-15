@@ -566,6 +566,8 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte, bu
         SELECT s.id, s.name, s.email, s.active, s.is_admin,
                s.created_at, s.plan_expires_at, s.plan_value, s.gemini_key,
                s.telegram_chat_id,
+               s.is_colunista, s.coluna_site_id, s.coluna_category_id,
+               s.coluna_autor, s.coluna_auto_publish,
                p.name AS plan_name, p.id AS plan_id
         FROM subscribers s
         LEFT JOIN plans p ON p.id = s.plan_id
@@ -615,6 +617,12 @@ module.exports = function createAdminRouter({ sources, cache, atualizarFonte, bu
       if (req.body.gemini_key       !== undefined) { sets.push(`gemini_key = $${p++}`);        vals.push(req.body.gemini_key || null); }
       if (req.body.ai_prompt        !== undefined) { sets.push(`ai_prompt = $${p++}`);         vals.push(req.body.ai_prompt || null); }
       if (req.body.telegram_chat_id !== undefined) { sets.push(`telegram_chat_id = $${p++}`); vals.push(req.body.telegram_chat_id ? String(req.body.telegram_chat_id) : null); }
+      // ✍️ Colunista (campos aditivos — só atualiza se vierem no payload)
+      if (req.body.is_colunista        !== undefined) { sets.push(`is_colunista = $${p++}`);        vals.push(!!req.body.is_colunista); }
+      if (req.body.coluna_site_id      !== undefined) { sets.push(`coluna_site_id = $${p++}`);      vals.push(req.body.coluna_site_id || null); }
+      if (req.body.coluna_category_id  !== undefined) { sets.push(`coluna_category_id = $${p++}`);  vals.push(req.body.coluna_category_id || null); }
+      if (req.body.coluna_autor        !== undefined) { sets.push(`coluna_autor = $${p++}`);        vals.push(req.body.coluna_autor || null); }
+      if (req.body.coluna_auto_publish !== undefined) { sets.push(`coluna_auto_publish = $${p++}`); vals.push(!!req.body.coluna_auto_publish); }
       if (password) {
         const hash = await bcrypt.hash(password, 10);
         sets.push(`password_hash = $${p++}`);
