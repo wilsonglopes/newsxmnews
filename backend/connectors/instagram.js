@@ -30,6 +30,41 @@ function montarCaption({ chapeu, title, summary, post_url, hashtags }) {
   return linhas.join('\n').substring(0, 2200);
 }
 
+// ─── Verifica se um post foi realmente publicado (apesar de erro de rate limit) ─
+// Quando media_publish retorna code 4 (Application request limit reached), a Meta
+// às vezes JÁ publicou — só a resposta veio com erro. Aqui confirmamos consultando
+// as mídias recentes da conta e comparando o início da legenda.
+// Retorna { post_id, post_url } se encontrou; null caso contrário.
+async function verificarPublicacaoRecente(igId, token, captionEsperada) {
+  if (!captionEsperada) return null;
+  try {
+    const r = await axios.get(`${GRAPH}/${igId}/media`, {
+      params: { fields: 'id,caption,timestamp,permalink', limit: 5, access_token: token },
+      timeout: 12000,
+    });
+    const agora = Date.now();
+    // Compara os primeiros 60 chars (sem espaços) da legenda — robusto a recortes
+    const norm = s => (s || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    const alvo = norm(captionEsperada);
+    for (const m of r.data?.data || []) {
+      const ts = new Date(m.timestamp).getTime();
+      if (isNaN(ts) || (agora - ts) > 6 * 60 * 1000) continue; // só posts dos últimos 6 min
+      if (norm(m.caption) === alvo) {
+        return { post_id: m.id, post_url: m.permalink || null };
+      }
+    }
+  } catch (e) {
+    console.warn('[instagram/verificar]', e.response?.data?.error?.message || e.message);
+  }
+  return null;
+}
+
+// É erro de rate limit / transitório da Graph API? (publicação pode ter ocorrido)
+function ehRateLimit(fbErr) {
+  if (!fbErr) return false;
+  return fbErr.code === 4 || fbErr.code === 17 || fbErr.code === 32 || fbErr.code === 613;
+}
+
 // ─── Detectar IG Business Account vinculado a uma Page ──────────────────────
 // Usa o Page Token. Retorna { id, username } ou null se não tem IG conectado.
 async function descobrirIgBusinessAccount({ page_id, page_token }) {
@@ -111,6 +146,16 @@ async function publicar(site, imagePublicUrl, article) {
     mediaId = r.data.id;
   } catch (err) {
     const fbErr = err.response?.data?.error;
+    // Rate limit (code 4 etc.): a Meta pode ter publicado mesmo retornando erro.
+    // Verifica antes de declarar falha — evita falso negativo e republicação duplicada.
+    if (ehRateLimit(fbErr)) {
+      await new Promise(r => setTimeout(r, 6000));
+      const achou = await verificarPublicacaoRecente(igId, token, caption);
+      if (achou) {
+        console.warn(`[instagram] code ${fbErr.code} no publish, mas post CONFIRMADO no IG: ${achou.post_id}`);
+        return { ok: true, post_id: achou.post_id, post_url: achou.post_url, rate_limited: true };
+      }
+    }
     throw new Error(fbErr ? `IG/publish: ${fbErr.message} (code ${fbErr.code})` : `IG/publish: ${err.message}`);
   }
 
