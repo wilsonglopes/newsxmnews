@@ -40,6 +40,7 @@ function resolverCanaisSociais(body = {}, site = {}) {
 // ── POST /api/publish ─────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
   const { article_id, site_id, rewritten, force, publish_to_facebook, publish_to_story, publish_to_whatsapp,
+          publish_to_telegram,
           publish_fb_feed, publish_ig_feed, publish_fb_story, publish_ig_story,
           image_override_url, image_base64, image_mime, image_name } = req.body || {};
 
@@ -328,8 +329,9 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // ── Telegram (grupo do portal) — envia se habilitado no portal ──────────
-    if (tgGrupo.telegramGrupoDisponivel(site)) {
+    // ── Telegram (grupo do portal) — opt-in por publicação (checkbox) ────────
+    const wantsTelegram = publish_to_telegram === true || publish_to_telegram === 'true';
+    if (wantsTelegram && tgGrupo.telegramGrupoDisponivel(site)) {
       let tgFpath = null;
       try {
         let tgCardUrl = null;
@@ -384,7 +386,7 @@ router.post('/manual', async (req, res) => {
           image_url, image_media_id,
           image_base64, image_mime, image_name,
           fonte_url, fonte_nome,
-          publish_to_facebook, publish_to_story, publish_to_whatsapp,
+          publish_to_facebook, publish_to_story, publish_to_whatsapp, publish_to_telegram,
           publish_fb_feed, publish_ig_feed, publish_fb_story, publish_ig_story } = req.body || {};
 
   if (!site_id || !titulo || !corpo) {
@@ -634,8 +636,9 @@ router.post('/manual', async (req, res) => {
       }
     }
 
-    // ── Telegram (grupo do portal) — envia se habilitado no portal ──────────
-    if (tgGrupo.telegramGrupoDisponivel(site)) {
+    // ── Telegram (grupo do portal) — opt-in por publicação (checkbox) ────────
+    const wantsTelegramManual = publish_to_telegram === true || publish_to_telegram === 'true';
+    if (wantsTelegramManual && tgGrupo.telegramGrupoDisponivel(site)) {
       let tgFpath = null;
       try {
         let tgCardUrl = null;

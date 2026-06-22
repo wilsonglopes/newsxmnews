@@ -1233,6 +1233,10 @@
                   <input type="checkbox" id="acp-chk-whatsapp" style="width:15px;height:15px;accent-color:#166534">
                   💬 WhatsApp (grupos do portal)
                 </label>
+                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.83rem;font-weight:600;color:#1e40af;margin-top:.3rem">
+                  <input type="checkbox" id="acp-chk-telegram" style="width:15px;height:15px;accent-color:#1e40af">
+                  📨 Telegram (grupo do portal)
+                </label>
                 <div style="font-size:.72rem;color:#6366f1;margin-top:.3rem">Usa o mesmo card. Story não leva link clicável (limitação da Meta).</div>
               </div>
 
@@ -1352,6 +1356,10 @@
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;color:#166534">
               <input type="checkbox" id="map-chk-whatsapp" style="width:16px;height:16px;cursor:pointer" />
               💬 WhatsApp (grupos do portal)
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;padding:6px 10px;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;color:#1e40af">
+              <input type="checkbox" id="map-chk-telegram" style="width:16px;height:16px;cursor:pointer" />
+              📨 Telegram (grupo do portal)
             </label>
           </div>
         </div>
@@ -4288,6 +4296,7 @@ async function publicarPortalAdmin(idx) {
   const fbStory = document.getElementById('map-fb-story')?.checked === true;
   const igStory = document.getElementById('map-ig-story')?.checked === true;
   const publishToWa = document.getElementById('map-chk-whatsapp')?.checked === true;
+  const publishToTg = document.getElementById('map-chk-telegram')?.checked === true;
   const ov = artigoSelecionado._imgOverride || null;
   const req = (force = false) => fetch(`${BACKEND}/api/publish`, {
     method: 'POST', headers: authHeader(),
@@ -4299,6 +4308,7 @@ async function publicarPortalAdmin(idx) {
       publish_fb_feed: fbFeed, publish_ig_feed: igFeed,
       publish_fb_story: fbStory, publish_ig_story: igStory,
       publish_to_whatsapp: publishToWa,
+      publish_to_telegram: publishToTg,
       ...(ov?.url    ? { image_override_url: ov.url } : {}),
       ...(ov?.base64 ? { image_base64: ov.base64, image_mime: ov.mime, image_name: ov.name } : {}),
     })
@@ -4741,6 +4751,7 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
   const fbStory = document.getElementById('acp-fb-story')?.checked || false;
   const igStory = document.getElementById('acp-ig-story')?.checked || false;
   const publishToWa = document.getElementById('acp-chk-whatsapp')?.checked || false;
+  const publishToTg = document.getElementById('acp-chk-telegram')?.checked || false;
 
   const payload = {
     site_id:             siteId,
@@ -4757,6 +4768,7 @@ document.getElementById('acp-btn-publicar').addEventListener('click', async () =
     publish_fb_feed: fbFeed, publish_ig_feed: igFeed,
     publish_fb_story: fbStory, publish_ig_story: igStory,
     publish_to_whatsapp: publishToWa,
+    publish_to_telegram: publishToTg,
     // Fallback: upload falhou (ex: site sem wp_app_password) mas imagem está em memória.
     // Backend usará temp file no servidor — nenhuma credencial WP necessária.
     ...(!imageUrl && _acpImageData
