@@ -2062,6 +2062,28 @@
           </label>
         </div>
       </div>
+
+      <!-- 📨 Telegram (grupo/canal do portal) -->
+      <div style="border:1px solid #93c5fd;border-radius:8px;overflow:hidden;margin-top:14px">
+        <div style="padding:12px 14px;background:#eff6ff;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-weight:600;color:#1e40af">📨 Telegram (grupo/canal)</div>
+            <div style="font-size:.78rem;color:#1d4ed8;margin-top:2px">Distribui a matéria num grupo ou canal do Telegram, igual ao WhatsApp.</div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;color:#1e40af">
+            <input type="checkbox" id="mcat-tg-enabled" style="width:18px;height:18px;cursor:pointer" /> Ativar
+          </label>
+        </div>
+        <div style="padding:12px 14px;background:#fff;border-top:1px solid #93c5fd">
+          <label style="display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:4px">Chat ID do grupo/canal</label>
+          <input type="text" id="mcat-tg-chatid" placeholder="Ex: -5528850429" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:.85rem" />
+          <div style="font-size:.76rem;color:var(--muted);margin-top:6px;line-height:1.5">
+            1. Adicione o bot <b>@PortalNewsBot</b> ao grupo (ou admin do canal).<br>
+            2. Mande <b>/start</b> no grupo — o bot responde com o <b>chat ID</b>.<br>
+            3. Cole o ID aqui (incluindo o sinal de menos). Vários grupos: separe por vírgula.
+          </div>
+        </div>
+      </div>
       </div><!-- /aba redes -->
 
       <!-- ═══════ ABA: CARD ═══════ -->
@@ -5538,6 +5560,8 @@ async function abrirModalCatalog(siteId) {
   document.getElementById('mcat-fb-status').textContent = '';
   document.getElementById('mcat-autopub-enabled').checked = true;
   document.getElementById('mcat-whatsapp-autopub').checked = false;
+  document.getElementById('mcat-tg-enabled').checked = false;
+  document.getElementById('mcat-tg-chatid').value = '';
   document.getElementById('mcat-sc-template').value       = 'default';
   document.getElementById('mcat-sc-chapeu-words').value   = '2';
   document.getElementById('mcat-sc-cor-chapeu').value     = '#ffffff';
@@ -5576,6 +5600,8 @@ async function abrirModalCatalog(siteId) {
       document.getElementById('mcat-fb-page-token').value = s.facebook_page_token === '••••••••' ? '••••••••' : '';
       document.getElementById('mcat-autopub-enabled').checked = s.autopub_enabled !== false;
       document.getElementById('mcat-whatsapp-autopub').checked = s.whatsapp_autopub_enabled === true;
+      document.getElementById('mcat-tg-enabled').checked = s.telegram_grupo_enabled === true;
+      document.getElementById('mcat-tg-chatid').value = s.telegram_grupo_chat_id || '';
       renderWhatsappArea(siteId, s.whatsapp_status || 'desconectado');
       // Instagram: mostra o bloco se site tem IG salvo
       if (s.instagram_business_account_id) {
@@ -5652,6 +5678,8 @@ async function salvarCatalog() {
     instagram_enabled:   document.getElementById('mcat-ig-enabled')?.checked || false,
     autopub_enabled:     document.getElementById('mcat-autopub-enabled').checked,
     whatsapp_autopub_enabled: document.getElementById('mcat-whatsapp-autopub').checked,
+    telegram_grupo_enabled:  document.getElementById('mcat-tg-enabled').checked,
+    telegram_grupo_chat_id:  document.getElementById('mcat-tg-chatid').value.trim() || null,
     social_config: {
       card_template:        document.getElementById('mcat-sc-template').value || 'default',
       card_chapeu_words:    parseInt(document.getElementById('mcat-sc-chapeu-words').value) || 2,

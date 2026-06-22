@@ -7,6 +7,7 @@ const { publishToWordPress } = require('../connectors/wordpress');
 const { publishToBlogger }   = require('../connectors/blogger');
 const { publishViaWebhook }  = require('../connectors/webhook');
 const wa                     = require('../connectors/whatsapp');
+const tgGrupo                = require('../connectors/telegram-grupo');
 
 const router = express.Router();
 
@@ -97,7 +98,8 @@ router.post('/', async (req, res) => {
              sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
              sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username,
              sc.social_config,
-             sc.id AS catalog_id, COALESCE(sc.whatsapp_enabled, false) AS whatsapp_enabled, sc.evolution_instance
+             sc.id AS catalog_id, COALESCE(sc.whatsapp_enabled, false) AS whatsapp_enabled, sc.evolution_instance,
+             sc.telegram_grupo_chat_id, COALESCE(sc.telegram_grupo_enabled, false) AS telegram_grupo_enabled
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
@@ -326,6 +328,39 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // ── Telegram (grupo do portal) — envia se habilitado no portal ──────────
+    if (tgGrupo.telegramGrupoDisponivel(site)) {
+      let tgFpath = null;
+      try {
+        let tgCardUrl = null;
+        if (article.image_url) {
+          try {
+            const { gerarCardComUrl } = require('../utils/card-generator');
+            const r = await gerarCardComUrl({
+              chapeu:     rewritten.chapeu || article.chapeu || '',
+              titulo:     rewritten.title  || article.title  || '',
+              imageUrl:   article.image_url,
+              cardConfig: site.social_config || {},
+            });
+            tgCardUrl = r.publicUrl; tgFpath = r.fpath;
+          } catch (cardErr) {
+            console.warn(`[publish/telegram] card indisponível, enviando só texto+link: ${cardErr.message}`);
+          }
+        }
+        await tgGrupo.publicarNoGrupo(site, {
+          chapeu:  rewritten.chapeu || article.chapeu,
+          titulo:  rewritten.title  || article.title,
+          resumo:  rewritten.summary,
+          postUrl: result.post_url,
+          cardUrl: tgCardUrl,
+        });
+      } catch (e) {
+        console.error('[publish/telegram]', e.message);
+      } finally {
+        if (tgFpath) { try { require('fs').unlinkSync(tgFpath); } catch {} }
+      }
+    }
+
     res.json({
       success: true,
       post_url: result.post_url,
@@ -375,7 +410,8 @@ router.post('/manual', async (req, res) => {
              sc.facebook_enabled, sc.facebook_page_id, sc.facebook_page_token,
              sc.instagram_enabled, sc.instagram_business_account_id, sc.instagram_username,
              sc.social_config,
-             sc.id AS catalog_id, COALESCE(sc.whatsapp_enabled, false) AS whatsapp_enabled, sc.evolution_instance
+             sc.id AS catalog_id, COALESCE(sc.whatsapp_enabled, false) AS whatsapp_enabled, sc.evolution_instance,
+             sc.telegram_grupo_chat_id, COALESCE(sc.telegram_grupo_enabled, false) AS telegram_grupo_enabled
       FROM subscriber_sites ss
       LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
       WHERE ss.id = $1 AND ss.active = true`;
@@ -595,6 +631,36 @@ router.post('/manual', async (req, res) => {
         whatsappResultManual = { ok: false, error: e.message };
       } finally {
         if (waFpath) { try { require('fs').unlinkSync(waFpath); } catch {} }
+      }
+    }
+
+    // ── Telegram (grupo do portal) — envia se habilitado no portal ──────────
+    if (tgGrupo.telegramGrupoDisponivel(site)) {
+      let tgFpath = null;
+      try {
+        let tgCardUrl = null;
+        if (article.image_url) {
+          try {
+            const { gerarCardComUrl } = require('../utils/card-generator');
+            const r = await gerarCardComUrl({
+              chapeu:     rewritten.chapeu || '',
+              titulo:     rewritten.title  || '',
+              imageUrl:   article.image_url,
+              cardConfig: site.social_config || {},
+            });
+            tgCardUrl = r.publicUrl; tgFpath = r.fpath;
+          } catch (cardErr) {
+            console.warn(`[manual/telegram] card indisponível, enviando só texto+link: ${cardErr.message}`);
+          }
+        }
+        await tgGrupo.publicarNoGrupo(site, {
+          chapeu:  rewritten.chapeu, titulo: rewritten.title, resumo: rewritten.summary,
+          postUrl: result.post_url, cardUrl: tgCardUrl,
+        });
+      } catch (e) {
+        console.error('[manual/telegram]', e.message);
+      } finally {
+        if (tgFpath) { try { require('fs').unlinkSync(tgFpath); } catch {} }
       }
     }
 

@@ -13,6 +13,7 @@ const { decryptToken }       = require('./connectors/encrypt');
 const previewStore           = require('./utils/preview-store');
 const evo                    = require('./connectors/evolution');
 const wa                     = require('./connectors/whatsapp');
+const tgGrupo                = require('./connectors/telegram-grupo');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
@@ -245,7 +246,8 @@ async function buscarSites(subscriberId) {
             sc.social_config,
             sc.id AS catalog_id,
             COALESCE(sc.whatsapp_enabled, false)              AS whatsapp_enabled,
-            sc.whatsapp_status, sc.evolution_instance
+            sc.whatsapp_status, sc.evolution_instance,
+            sc.telegram_grupo_chat_id, COALESCE(sc.telegram_grupo_enabled, false) AS telegram_grupo_enabled
      FROM subscriber_sites ss
      LEFT JOIN sites_catalog sc ON sc.id = ss.site_id
      WHERE ss.subscriber_id = $1 AND ss.active = true`,
@@ -677,6 +679,15 @@ async function publicar(bot, chatId, s, reporter) {
   // WhatsApp (grupos selecionados) — helper compartilhado
   if (querWA) {
     const r = await wa.publicarNosGrupos(site, {
+      chapeu: article.chapeu, titulo: article.title, resumo: article.summary,
+      postUrl: resultado.post_url, cardUrl: (imageUrl && cardPublicUrl) ? cardPublicUrl : null,
+    });
+    if (r.info) fbInfo += `\n${r.info}`;
+  }
+
+  // 📨 Telegram (grupo do portal) — mesmo card/legenda das outras redes
+  if (tgGrupo.telegramGrupoDisponivel(site)) {
+    const r = await tgGrupo.publicarNoGrupo(site, {
       chapeu: article.chapeu, titulo: article.title, resumo: article.summary,
       postUrl: resultado.post_url, cardUrl: (imageUrl && cardPublicUrl) ? cardPublicUrl : null,
     });

@@ -76,7 +76,8 @@ router.put('/:id', async (req, res) => {
   const { name, platform, site_url, xixo_api_key, wp_username, wp_app_password,
           blogger_blog_id, webhook_url, webhook_secret, post_format, active, ai_prompt,
           facebook_enabled, facebook_page_id, facebook_page_token,
-          instagram_enabled, autopub_enabled, whatsapp_autopub_enabled, social_config } = req.body || {};
+          instagram_enabled, autopub_enabled, whatsapp_autopub_enabled, social_config,
+          telegram_grupo_chat_id, telegram_grupo_enabled } = req.body || {};
   try {
     const sets = []; const vals = []; let p = 1;
     if (name        !== undefined) { sets.push(`name = $${p++}`);        vals.push(name); }
@@ -104,6 +105,8 @@ router.put('/:id', async (req, res) => {
     if (autopub_enabled   !== undefined) { sets.push(`autopub_enabled = $${p++}`);   vals.push(autopub_enabled === true || autopub_enabled === 'true'); }
     if (whatsapp_autopub_enabled !== undefined) { sets.push(`whatsapp_autopub_enabled = $${p++}`); vals.push(whatsapp_autopub_enabled === true || whatsapp_autopub_enabled === 'true'); }
     if (social_config     !== undefined) { sets.push(`social_config = $${p++}`);     vals.push(social_config); }
+    if (telegram_grupo_chat_id !== undefined) { sets.push(`telegram_grupo_chat_id = $${p++}`); vals.push(telegram_grupo_chat_id || null); }
+    if (telegram_grupo_enabled !== undefined) { sets.push(`telegram_grupo_enabled = $${p++}`); vals.push(telegram_grupo_enabled === true || telegram_grupo_enabled === 'true'); }
     if (!sets.length) return res.status(400).json({ error: 'Nada para atualizar.' });
     vals.push(req.params.id);
     const { rows } = await pool.query(

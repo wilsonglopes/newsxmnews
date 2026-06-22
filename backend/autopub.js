@@ -11,6 +11,7 @@ const { publishViaWebhook }  = require('./connectors/webhook');
 const { fetchFullContent }   = require('./scrapers/full-content');
 const { decryptToken }       = require('./connectors/encrypt');
 const wa                     = require('./connectors/whatsapp');
+const tgGrupo                = require('./connectors/telegram-grupo');
 
 const HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
@@ -290,6 +291,7 @@ async function processarProximoItem() {
              sc.instagram_business_account_id, sc.instagram_username,
              sc.social_config,
              sc.whatsapp_enabled, sc.evolution_instance,
+             sc.telegram_grupo_chat_id, sc.telegram_grupo_enabled,
              COALESCE(sc.whatsapp_autopub_enabled, false) AS whatsapp_autopub_enabled,
              ss.ai_prompt AS sub_ai_prompt,
              ss.wp_username AS ss_wp_username, ss.wp_app_password AS ss_wp_app_password,
@@ -604,6 +606,37 @@ async function processarItem(item) {
       console.error(`[WORKER/WA] ✗ "${reescrito.title.slice(0, 40)}": ${waErr.message}`);
     } finally {
       if (waFpath) { try { require('fs').unlinkSync(waFpath); } catch {} }
+    }
+  }
+
+  // 4.3 Telegram (grupo do portal) — mesma lógica do WhatsApp (card ou texto+link)
+  if (tgGrupo.telegramGrupoDisponivel(site)) {
+    let tgFpath = null;
+    try {
+      let tgCardUrl = null;
+      if (artigo.image_url) {
+        try {
+          const { gerarCardComUrl } = require('./utils/card-generator');
+          const r = await gerarCardComUrl({
+            chapeu:     reescrito.chapeu || artigo.chapeu || '',
+            titulo:     reescrito.title  || artigo.title  || '',
+            imageUrl:   artigo.image_url,
+            cardConfig: site.social_config || {},
+          });
+          tgCardUrl = r.publicUrl; tgFpath = r.fpath;
+        } catch (cardErr) {
+          console.warn(`[WORKER/TG] card indisponível, enviando só texto+link: ${cardErr.message}`);
+        }
+      }
+      const r = await tgGrupo.publicarNoGrupo(site, {
+        chapeu:  reescrito.chapeu, titulo: reescrito.title, resumo: reescrito.summary,
+        postUrl: resultado.post_url, cardUrl: tgCardUrl,
+      });
+      console.log(`[WORKER/TG] "${reescrito.title.slice(0, 40)}": ${r.info}`);
+    } catch (tgErr) {
+      console.error(`[WORKER/TG] ✗ "${reescrito.title.slice(0, 40)}": ${tgErr.message}`);
+    } finally {
+      if (tgFpath) { try { require('fs').unlinkSync(tgFpath); } catch {} }
     }
   }
 
