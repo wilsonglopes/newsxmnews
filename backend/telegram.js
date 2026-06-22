@@ -403,6 +403,14 @@ async function aplicarEdicao(bot, chatId, s, novoTexto) {
 
 async function processarMensagem(bot, msg) {
   const chatId = msg.chat.id;
+
+  // Grupos/canais: o bot NÃO conversa — só publica via API. Loga o chat_id para
+  // o admin configurar a distribuição no grupo. (Evita o bot responder mensagens normais.)
+  if (['group', 'supergroup', 'channel'].includes(msg.chat.type)) {
+    console.log(`[TELEGRAM-GRUPO] "${msg.chat.title}" | chat_id=${chatId} | type=${msg.chat.type}`);
+    return;
+  }
+
   try {
     const reporter = await buscarReporter(chatId);
     if (!reporter) {
