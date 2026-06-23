@@ -900,6 +900,11 @@ function iniciarBot() {
     );
   });
 
+  // Posts em CANAL (bot admin): só loga o chat_id para o admin configurar a distribuição.
+  bot.on('channel_post', (msg) => {
+    console.log(`[TELEGRAM-CANAL] "${msg.chat.title}" | chat_id=${msg.chat.id} | type=${msg.chat.type}`);
+  });
+
   bot.on('polling_error', (err) => console.error('[TELEGRAM] Polling error:', err.message));
 
   console.log('[TELEGRAM] Bot iniciado (polling).');
