@@ -139,7 +139,7 @@ async function fetchWithHeadless(url) {
       };
     });
     // Valida antes de retornar — datetime não-ISO (ex: "22 de maio de 2026") causaria RangeError no pg
-    const tryParseDate = s => { if (!s) return null; const d = new Date(s); return isNaN(d.getTime()) ? null : d.toISOString(); };
+    const tryParseDate = s => { if (!s) return null; const d = new Date(s); if (isNaN(d.getTime())) return null; if (d.getTime() > Date.now() + 24 * 3600 * 1000) return null; return d.toISOString(); };
     const published_at = tryParseDate(rawDate);
 
     // Extrai corpo do artigo — tenta os seletores em ordem

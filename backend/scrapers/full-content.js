@@ -304,7 +304,12 @@ async function fetchFullContent(url, source) {
     const tryParseDate = s => {
       if (!s) return null;
       const d = new Date(s);
-      return isNaN(d.getTime()) ? null : d.toISOString();
+      if (isNaN(d.getTime())) return null;
+      // Rejeita datas futuras (margem 24h p/ fuso) — meta da página às vezes vem
+      // com data errada e sobrescreveria a data correta do RSS, jogando o artigo
+      // pro topo da listagem (ordenada por published_at). Caso real: Brasil Paralelo.
+      if (d.getTime() > Date.now() + 24 * 3600 * 1000) return null;
+      return d.toISOString();
     };
     const metaDate = $('meta[property="article:published_time"]').attr('content')
                   || $('meta[name="DC.date.issued"]').attr('content');
