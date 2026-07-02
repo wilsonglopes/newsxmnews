@@ -43,6 +43,14 @@ pool.query(`
   END $$;
 `).catch(e => console.error('[articles] migration publications columns:', e.message));
 
+// Migração idempotente — coluna 'unavailable' (artigo removido/404 na fonte)
+pool.query(`
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='articles' AND column_name='unavailable')
+      THEN ALTER TABLE articles ADD COLUMN unavailable BOOLEAN DEFAULT false; END IF;
+  END $$;
+`).catch(e => console.error('[articles] migration unavailable:', e.message));
+
 // Todas as rotas requerem JWT
 router.use(auth);
 
@@ -55,6 +63,9 @@ router.get('/', async (req, res) => {
     const conditions = ['1=1'];
     const params     = [];
     let   p          = 1;
+
+    // Esconde artigos marcados como removidos na fonte (404) — não polui a lista
+    conditions.push('COALESCE(a.unavailable, false) = false');
 
     // Filtra por fontes do assinante (ignora admin — admin vê tudo)
     if (!req.subscriber.is_admin) {
@@ -204,6 +215,26 @@ router.get('/:id/full-content', async (req, res) => {
       extract_body_image:      article.extract_body_image      || false,
     };
     const { body, image_url, published_at } = await fetchFullContent(article.external_url, source);
+
+    // Detecção de artigo removido na fonte: se não raspou corpo E o do banco é curto,
+    // confere o status HTTP. 404/410 = a fonte tirou do ar → marca como indisponível.
+    const raspadoVazio = (body || '').replace(/<[^>]*>/g, '').trim().length < 100;
+    if (raspadoVazio && bodyText.length < 300 && article.external_url) {
+      try {
+        const axios = require('axios');
+        const https = require('https');
+        const resp = await axios.get(article.external_url, {
+          timeout: 12000, maxRedirects: 5, validateStatus: () => true,
+          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36' },
+        });
+        if (resp.status === 404 || resp.status === 410) {
+          pool.query('UPDATE articles SET unavailable = true WHERE id = $1', [article.id]).catch(() => {});
+          console.log(`[full-content] artigo removido na fonte (${resp.status}): ${article.external_url}`);
+          return res.json({ id: article.id, body: article.body || '', image_url: article.image_url, removed: true });
+        }
+      } catch { /* rede instável — não marca, tenta de novo numa próxima */ }
+    }
 
     // Persiste body e/ou image_url no banco conforme o que foi encontrado.
     // Se o body existente já é substancial (600+ chars) e o novo é menor, preserva o existente.

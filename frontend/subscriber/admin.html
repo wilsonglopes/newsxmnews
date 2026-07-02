@@ -3924,14 +3924,23 @@ async function abrirArtigoModal(artigo) {
           } catch { /* silencioso — não interrompe experiência */ }
         }, 8000);
       }
-      // Aviso quando conteúdo é curto (portal RSS-only ou JS-heavy)
-      const textoCorpo = corpo.innerText || '';
-      if (textoCorpo.trim().length < 300) {
+      // Artigo removido na fonte (404/410): aviso vermelho — não vale publicar
+      if (data.removed) {
         corpo.insertAdjacentHTML('afterbegin',
-          '<div style="background:#fef9c3;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:#92400e;line-height:1.5">' +
-          '⚠️ <strong>Conteúdo resumido</strong> — este portal só disponibiliza um resumo via RSS. ' +
-          'Clique em <strong>+ Gerar com IA</strong> para reescrever o artigo completo.' +
+          '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:#991b1b;line-height:1.5">' +
+          '🚫 <strong>Matéria removida da fonte</strong> — o portal original tirou este artigo do ar (erro 404). ' +
+          'Não é possível recuperar o conteúdo completo. Recomendado pular esta matéria.' +
           '</div>');
+      } else {
+        // Aviso quando conteúdo é curto (portal RSS-only ou JS-heavy)
+        const textoCorpo = corpo.innerText || '';
+        if (textoCorpo.trim().length < 300) {
+          corpo.insertAdjacentHTML('afterbegin',
+            '<div style="background:#fef9c3;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:#92400e;line-height:1.5">' +
+            '⚠️ <strong>Conteúdo resumido</strong> — este portal só disponibiliza um resumo via RSS. ' +
+            'Clique em <strong>+ Gerar com IA</strong> para reescrever o artigo completo.' +
+            '</div>');
+        }
       }
     } catch {
       artigo.bodyFetched    = true;
